@@ -8,14 +8,14 @@ $releaseHeaders = Join-Path (Split-Path $PSScriptRoot -Parent) "java_src\lunar_h
 
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 
-$rgSrc = Join-Path $root "java_src\FrenchifyRenderGlobalLunar.java"
-$hiSrc = Join-Path $root "java_src\FrenchifyHitboxInstallerLunar.java"
-$pumpSrc = Join-Path $root "java_src\FrenchifyClientPumpLunar.java"
-Copy-Item $rgSrc (Join-Path $out "FrenchifyRenderGlobal.java") -Force
-Copy-Item $hiSrc (Join-Path $out "FrenchifyHitboxInstaller.java") -Force
-Copy-Item $pumpSrc (Join-Path $out "FrenchifyClientPump.java") -Force
+$rgSrc = Join-Path $root "java_src\VigilRenderGlobalLunar.java"
+$hiSrc = Join-Path $root "java_src\VigilHitboxInstallerLunar.java"
+$pumpSrc = Join-Path $root "java_src\VigilClientPumpLunar.java"
+Copy-Item $rgSrc (Join-Path $out "VigilRenderGlobal.java") -Force
+Copy-Item $hiSrc (Join-Path $out "VigilHitboxInstaller.java") -Force
+Copy-Item $pumpSrc (Join-Path $out "VigilClientPump.java") -Force
 
-javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $out (Join-Path $out "FrenchifyRenderGlobal.java") (Join-Path $out "FrenchifyHitboxInstaller.java") (Join-Path $out "FrenchifyClientPump.java")
+javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $out (Join-Path $out "VigilRenderGlobal.java") (Join-Path $out "VigilHitboxInstaller.java") (Join-Path $out "VigilClientPump.java")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 function Write-ClassHeader($className, $headerPath, $arrayName, $title) {
@@ -38,9 +38,9 @@ function Write-ClassHeader($className, $headerPath, $arrayName, $title) {
     Write-Host "OK: $className -> $($bytes.Length) bytes -> $headerPath"
 }
 
-Write-ClassHeader "FrenchifyRenderGlobal" (Join-Path $lunarHeaders "FrenchifyRenderGlobalLunar.h") "FrenchifyRenderGlobalLunar_class" "Auto-generated Lunar bytecode for FrenchifyRenderGlobal"
-Write-ClassHeader "FrenchifyHitboxInstaller" (Join-Path $lunarHeaders "FrenchifyHitboxInstallerLunar.h") "FrenchifyHitboxInstallerLunar_class" "Auto-generated Lunar bytecode for FrenchifyHitboxInstaller"
-Write-ClassHeader "FrenchifyClientPump" (Join-Path $lunarHeaders "FrenchifyClientPumpLunar.h") "FrenchifyClientPumpLunar_class" "Auto-generated Lunar bytecode for FrenchifyClientPump"
-Copy-Item (Join-Path $lunarHeaders "FrenchifyRenderGlobalLunar.h") (Join-Path $releaseHeaders "FrenchifyRenderGlobalLunar.h") -Force
-Copy-Item (Join-Path $lunarHeaders "FrenchifyHitboxInstallerLunar.h") (Join-Path $releaseHeaders "FrenchifyHitboxInstallerLunar.h") -Force
-Copy-Item (Join-Path $lunarHeaders "FrenchifyClientPumpLunar.h") (Join-Path $releaseHeaders "FrenchifyClientPumpLunar.h") -Force
+Write-ClassHeader "VigilRenderGlobal" (Join-Path $lunarHeaders "VigilRenderGlobalLunar.h") "VigilRenderGlobalLunar_class" "Auto-generated Lunar bytecode for VigilRenderGlobal"
+Write-ClassHeader "VigilHitboxInstaller" (Join-Path $lunarHeaders "VigilHitboxInstallerLunar.h") "VigilHitboxInstallerLunar_class" "Auto-generated Lunar bytecode for VigilHitboxInstaller"
+Write-ClassHeader "VigilClientPump" (Join-Path $lunarHeaders "VigilClientPumpLunar.h") "VigilClientPumpLunar_class" "Auto-generated Lunar bytecode for VigilClientPump"
+Copy-Item (Join-Path $lunarHeaders "VigilRenderGlobalLunar.h") (Join-Path $releaseHeaders "VigilRenderGlobalLunar.h") -Force
+Copy-Item (Join-Path $lunarHeaders "VigilHitboxInstallerLunar.h") (Join-Path $releaseHeaders "VigilHitboxInstallerLunar.h") -Force
+Copy-Item (Join-Path $lunarHeaders "VigilClientPumpLunar.h") (Join-Path $releaseHeaders "VigilClientPumpLunar.h") -Force

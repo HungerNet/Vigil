@@ -379,43 +379,43 @@ def apply_lunar_loader_order(text: str, rel_path: str) -> str:
 def apply_lunar_java_headers(text: str, rel_path: str) -> str:
     if rel_path.replace("\\", "/") == "globals.h":
         return text.replace(
-            '#include "../java_src/FrenchifyGui.h"',
-            '#include "../java_src/lunar_headers/FrenchifyGuiLunar.h"',
+            '#include "../java_src/VigilGui.h"',
+            '#include "../java_src/lunar_headers/VigilGuiLunar.h"',
         )
     if rel_path.replace("\\", "/") == "colored_hitboxes.cpp":
         text = text.replace(
-            '#include "../java_src/FrenchifyRenderGlobal.h"',
-            '#include "../java_src/lunar_headers/FrenchifyRenderGlobalLunar.h"',
+            '#include "../java_src/VigilRenderGlobal.h"',
+            '#include "../java_src/lunar_headers/VigilRenderGlobalLunar.h"',
         )
         text = text.replace(
-            '#include "../java_src/FrenchifyHitboxInstaller.h"',
-            '#include "../java_src/lunar_headers/FrenchifyHitboxInstallerLunar.h"',
+            '#include "../java_src/VigilHitboxInstaller.h"',
+            '#include "../java_src/lunar_headers/VigilHitboxInstallerLunar.h"',
         )
-        text = text.replace("FrenchifyRenderGlobal_class", "FrenchifyRenderGlobalLunar_class")
-        text = text.replace("FrenchifyHitboxInstaller_class", "FrenchifyHitboxInstallerLunar_class")
+        text = text.replace("VigilRenderGlobal_class", "VigilRenderGlobalLunar_class")
+        text = text.replace("VigilHitboxInstaller_class", "VigilHitboxInstallerLunar_class")
     if rel_path.replace("\\", "/") == "dllmain.cpp":
         text = text.replace(
-            '#include "../java_src/FrenchifyTabOverlayNative.h"',
-            '#include "../java_src/lunar_headers/FrenchifyTabOverlayNativeLunar.h"',
+            '#include "../java_src/VigilTabOverlayNative.h"',
+            '#include "../java_src/lunar_headers/VigilTabOverlayNativeLunar.h"',
         )
-        text = text.replace("FrenchifyGui_class", "FrenchifyGuiLunar_class")
-        text = text.replace("FrenchifyTabOverlayNative_class", "FrenchifyTabOverlayNativeLunar_class")
+        text = text.replace("VigilGui_class", "VigilGuiLunar_class")
+        text = text.replace("VigilTabOverlayNative_class", "VigilTabOverlayNativeLunar_class")
     if rel_path.replace("\\", "/") == "session_stats.cpp":
         text = text.replace(
-            '#include "../java_src/FrenchifyIngameGui.h"',
-            '#include "../java_src/lunar_headers/FrenchifyIngameGuiLunar.h"',
+            '#include "../java_src/VigilIngameGui.h"',
+            '#include "../java_src/lunar_headers/VigilIngameGuiLunar.h"',
         )
         text = text.replace(
-            '#include "../java_src/FrenchifySessionHud.h"',
-            '#include "../java_src/lunar_headers/FrenchifySessionHudLunar.h"',
+            '#include "../java_src/VigilSessionHud.h"',
+            '#include "../java_src/lunar_headers/VigilSessionHudLunar.h"',
         )
         text = text.replace(
-            '#include "../java_src/FrenchifySessionHudInstaller.h"',
-            '#include "../java_src/lunar_headers/FrenchifySessionHudInstallerLunar.h"',
+            '#include "../java_src/VigilSessionHudInstaller.h"',
+            '#include "../java_src/lunar_headers/VigilSessionHudInstallerLunar.h"',
         )
-        text = text.replace("FrenchifyIngameGui_class", "FrenchifyIngameGuiLunar_class")
-        text = text.replace("FrenchifySessionHud_class", "FrenchifySessionHudLunar_class")
-        text = text.replace("FrenchifySessionHudInstaller_class", "FrenchifySessionHudInstallerLunar_class")
+        text = text.replace("VigilIngameGui_class", "VigilIngameGuiLunar_class")
+        text = text.replace("VigilSessionHud_class", "VigilSessionHudLunar_class")
+        text = text.replace("VigilSessionHudInstaller_class", "VigilSessionHudInstallerLunar_class")
     return text
 
 

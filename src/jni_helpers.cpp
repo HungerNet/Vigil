@@ -1,5 +1,5 @@
 #include "jni_helpers.h"
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 #include "class_finder_log.h"
 #endif
 #include "class_finder.h"
@@ -89,7 +89,7 @@ jfieldID JniResolveFieldIDFlex(JNIEnv* env, jclass cls,
 }
 
 void JniLogMiss(const char* kind, const char* owner, const char* name, const char* signature) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     ClassFinderLogMemberMiss(kind, owner, name, signature);
 #else
     (void)kind;
@@ -889,7 +889,7 @@ namespace {
 static std::atomic<ULONGLONG> g_injectToastStartAt{0};
 static std::mutex g_toastTextMu;
 static std::string g_toastHeadline = "\xC2\xA7""l\xC2\xA7""aClient injected";
-static std::string g_toastDetail = "\xC2\xA7""7Frenchify is ready";
+static std::string g_toastDetail = "\xC2\xA7""7Vigil is ready";
 
 constexpr ULONGLONG kInjectToastDurationMs = 5500;
 constexpr ULONGLONG kInjectToastFadeInMs = 300;
@@ -1159,7 +1159,7 @@ bool RenderInjectToast(JNIEnv* env) {
     return false;
 }
 
-void ShowFrenchifyToast(const std::string& headline, const std::string& detail) {
+void ShowVigilToast(const std::string& headline, const std::string& detail) {
     {
         std::lock_guard<std::mutex> lk(g_toastTextMu);
         g_toastHeadline = headline.empty()
@@ -1170,7 +1170,7 @@ void ShowFrenchifyToast(const std::string& headline, const std::string& detail) 
     g_injectToastStartAt.store(GetTickCount64(), std::memory_order_relaxed);
 }
 
-bool FrenchifyToastIsShowing() {
+bool VigilToastIsShowing() {
     const ULONGLONG startAt = g_injectToastStartAt.load(std::memory_order_relaxed);
     if (startAt == 0) return false;
     return (GetTickCount64() - startAt) < kInjectToastDurationMs;

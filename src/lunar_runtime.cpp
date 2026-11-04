@@ -1,19 +1,19 @@
 #include "lunar_runtime.h"
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 
 #include "globals.h"
 #include "class_finder.h"
 #include "tab_overlay.h"
 #include "colored_hitboxes.h"
-#include "../java_src/lunar_headers/FrenchifyClientPumpLunar.h"
+#include "../java_src/lunar_headers/VigilClientPumpLunar.h"
 
 #include <windows.h>
 #include <atomic>
 #include <cstdio>
 
 extern void PumpMinecraftClientLogic(JNIEnv* env, jobject mcObj, jclass mcClass);
-extern void FrenchifyBootLog(const char* msg);
+extern void VigilBootLog(const char* msg);
 
 static ULONGLONG g_lastNativeTabRenderAt = 0;
 static jclass g_clientPumpClassGlobal = nullptr;
@@ -226,14 +226,14 @@ static bool PollTabKeyHeldForRender(JNIEnv* env, jobject mcObj, jclass mcClass) 
     return PollMinecraftTabKeyHeld(env, mcObj, mcClass);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyClientPump_nativeClientPump(JNIEnv* env, jclass);
+extern "C" JNIEXPORT void JNICALL Java_VigilClientPump_nativeClientPump(JNIEnv* env, jclass);
 
 static jclass LoadInjectedPumpClass(JNIEnv* env, jobject classLoader) {
     if (!env) return nullptr;
     jclass cls = classLoader
-        ? env->DefineClass("FrenchifyClientPump", classLoader,
-                           (const jbyte*)FrenchifyClientPumpLunar_class,
-                           (jsize)FrenchifyClientPumpLunar_class_len)
+        ? env->DefineClass("VigilClientPump", classLoader,
+                           (const jbyte*)VigilClientPumpLunar_class,
+                           (jsize)VigilClientPumpLunar_class_len)
         : nullptr;
     if (env->ExceptionCheck() || !cls) {
         env->ExceptionClear();
@@ -244,7 +244,7 @@ static jclass LoadInjectedPumpClass(JNIEnv* env, jobject classLoader) {
                 : nullptr;
             if (loaderClass) env->DeleteLocalRef(loaderClass);
             if (midLoad) {
-                jstring jname = env->NewStringUTF("FrenchifyClientPump");
+                jstring jname = env->NewStringUTF("VigilClientPump");
                 cls = (jclass)env->CallObjectMethod(classLoader, midLoad, jname);
                 env->DeleteLocalRef(jname);
                 if (env->ExceptionCheck()) {
@@ -264,37 +264,37 @@ bool Lunar_InitClientPump(JNIEnv* env) {
     jobject classLoader = g_injectClassLoaderGlobal;
     if (!classLoader) classLoader = ResolveClientClassLoader(env);
     if (!classLoader) {
-        FrenchifyBootLog("ClientPump: no class loader");
+        VigilBootLog("ClientPump: no class loader");
         return false;
     }
 
     jclass pumpClass = LoadInjectedPumpClass(env, classLoader);
     if (!pumpClass) {
-        FrenchifyBootLog("ClientPump: DefineClass/loadClass failed");
+        VigilBootLog("ClientPump: DefineClass/loadClass failed");
         return false;
     }
 
     JNINativeMethod methods[] = {
-        {(char*)"nativeClientPump", (char*)"()V", (void*)&Java_FrenchifyClientPump_nativeClientPump},
+        {(char*)"nativeClientPump", (char*)"()V", (void*)&Java_VigilClientPump_nativeClientPump},
     };
     if (env->RegisterNatives(pumpClass, methods, 1) != JNI_OK || env->ExceptionCheck()) {
         env->ExceptionClear();
         env->DeleteLocalRef(pumpClass);
-        FrenchifyBootLog("ClientPump: RegisterNatives failed");
+        VigilBootLog("ClientPump: RegisterNatives failed");
         return false;
     }
 
     g_clientPumpClassGlobal = (jclass)env->NewGlobalRef(pumpClass);
     env->DeleteLocalRef(pumpClass);
     if (!g_clientPumpClassGlobal) {
-        FrenchifyBootLog("ClientPump: NewGlobalRef failed");
+        VigilBootLog("ClientPump: NewGlobalRef failed");
         return false;
     }
-    FrenchifyBootLog("ClientPump: ready");
+    VigilBootLog("ClientPump: ready");
     return true;
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyClientPump_nativeClientPump(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_VigilClientPump_nativeClientPump(JNIEnv* env, jclass) {
     struct PumpInflightGuard {
         std::atomic<bool>& flag;
         ~PumpInflightGuard() { flag.store(false); }
@@ -394,7 +394,7 @@ void Lunar_PumpBegin(JNIEnv* env, jobject mcObj, jclass mcClass) {
             g_tabHeld ? 1 : 0, g_tabOverlayGuiEnabled ? 1 : 0,
             g_useNativeTabPipeline ? 1 : 0, IsRenderGlobalHookInstalled() ? 1 : 0,
             g_tabOverlayStateAllowed ? 1 : 0);
-        FrenchifyBootLog(diag);
+        VigilBootLog(diag);
     }
 }
 
@@ -405,7 +405,7 @@ void Lunar_PumpEnd(JNIEnv* env, jobject mcObj, jclass mcClass, unsigned long lon
     if (tabKeyHeld != g_tabHeld) {
         g_tabHeld = tabKeyHeld;
         const bool osHeld = (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
-        FrenchifyBootLog(tabKeyHeld
+        VigilBootLog(tabKeyHeld
             ? (osHeld ? "[TabOverlay] TAB DOWN (OS)" : "[TabOverlay] TAB DOWN (JNI)")
             : "[TabOverlay] TAB UP");
     }
@@ -436,7 +436,7 @@ void Lunar_HandleNativeTabRender(JNIEnv* env, jobject mcObj, jclass mcClass) {
                 g_tabOverlayGuiEnabled ? 1 : 0, g_tabOverlay.isInitialized() ? 1 : 0,
                 ShouldRenderCustomTab() ? 1 : 0, g_redState.c_str(), g_modeState.c_str(),
                 g_tabOverlayStateAllowed ? 1 : 0);
-            FrenchifyBootLog(buf);
+            VigilBootLog(buf);
         }
         return;
     }
@@ -446,7 +446,7 @@ void Lunar_HandleNativeTabRender(JNIEnv* env, jobject mcObj, jclass mcClass) {
     static ULONGLONG s_lastNativeRenderLogAt = 0;
     if (now - s_lastNativeRenderLogAt >= 2000) {
         s_lastNativeRenderLogAt = now;
-        FrenchifyBootLog("[TabOverlay] native render active");
+        VigilBootLog("[TabOverlay] native render active");
     }
     SuppressVanillaPlayerListTab(env, mcObj, mcClass);
     g_tabOverlay.renderCustomTab(env, mcObj);

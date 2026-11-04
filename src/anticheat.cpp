@@ -6,7 +6,7 @@
 #include <cstdarg>
 
 static void AcLogLine(const std::string& msg) {
-    AppendFrenchifyNamedLog("frenchify_anticheat.log", msg);
+    AppendVigilNamedLog("vigil_anticheat.log", msg);
 }
 
 static void AcLogf(const char* fmt, ...) {

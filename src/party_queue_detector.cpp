@@ -4,7 +4,7 @@
 #include "jni_helpers.h"
 #include "utils.h"
 
-#include "../java_src/FrenchifyPacketLog.h"
+#include "../java_src/VigilPacketLog.h"
 
 #include <algorithm>
 #include <atomic>
@@ -184,7 +184,7 @@ void AnalyzeSpawnsLocked() {
 jobject ResolveNetHandlerForPacketHook(JNIEnv* env, jobject mcObj, jclass mcClass) {
     if (!env || !mcObj || !mcClass) return nullptr;
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jmethodID midNetHandler = env->GetMethodID(mcClass, "getNetHandler",
         "()Lnet/minecraft/client/network/NetHandlerPlayClient;");
     if (!midNetHandler || env->ExceptionCheck()) {
@@ -224,8 +224,8 @@ static bool EnsurePacketLogClass(JNIEnv* env, jobject classLoader) {
     jobject loader = classLoader ? classLoader : g_injectClassLoaderGlobal;
     if (!loader) return false;
 
-    jclass packetLogClass = env->DefineClass("FrenchifyPacketLog", loader,
-        (const jbyte*)FrenchifyPacketLog_class, FrenchifyPacketLog_class_len);
+    jclass packetLogClass = env->DefineClass("VigilPacketLog", loader,
+        (const jbyte*)VigilPacketLog_class, VigilPacketLog_class_len);
     if (env->ExceptionCheck() || !packetLogClass) {
         env->ExceptionClear();
         jclass loaderClass = env->GetObjectClass(loader);
@@ -233,7 +233,7 @@ static bool EnsurePacketLogClass(JNIEnv* env, jobject classLoader) {
             jmethodID midLoadClass = env->GetMethodID(loaderClass, "loadClass",
                 "(Ljava/lang/String;)Ljava/lang/Class;");
             if (midLoadClass) {
-                jstring className = env->NewStringUTF("FrenchifyPacketLog");
+                jstring className = env->NewStringUTF("VigilPacketLog");
                 packetLogClass = (jclass)env->CallObjectMethod(loader, midLoadClass, className);
                 if (env->ExceptionCheck()) {
                     env->ExceptionClear();
@@ -253,7 +253,7 @@ static bool EnsurePacketLogClass(JNIEnv* env, jobject classLoader) {
 
 } // namespace
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyPacketLog_nativeOnSpawnPlayerEntity(JNIEnv*,
+extern "C" JNIEXPORT void JNICALL Java_VigilPacketLog_nativeOnSpawnPlayerEntity(JNIEnv*,
                                                                                     jclass,
                                                                                     jint entityId) {
     PartyQueueDetectorOnSpawnPlayer((int)entityId);
@@ -404,7 +404,7 @@ bool TryInstallPartyQueuePacketHook(JNIEnv* env, jobject mcObj, jclass mcClass, 
 
     JNINativeMethod methods[] = {
         {(char*)"nativeOnSpawnPlayerEntity", (char*)"(I)V",
-         (void*)&Java_FrenchifyPacketLog_nativeOnSpawnPlayerEntity}
+         (void*)&Java_VigilPacketLog_nativeOnSpawnPlayerEntity}
     };
     if (env->RegisterNatives(g_packetLogClassGlobal, methods, 1) != JNI_OK || env->ExceptionCheck()) {
         env->ExceptionClear();

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Generate FrenchifyGui4Lunar.java from FrenchifyGui4.java (MCP names for Lunar)."""
+"""Generate VigilGui4Lunar.java from VigilGui4.java (MCP names for Lunar)."""
 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "java_src" / "FrenchifyGui4.java"
-OUT = ROOT / "java_src" / "FrenchifyGui4Lunar.java"
+SRC = ROOT / "java_src" / "VigilGui4.java"
+OUT = ROOT / "java_src" / "VigilGui4Lunar.java"
 
 REPLACEMENTS = [
-    ("public class FrenchifyGui4 extends axu {",
+    ("public class VigilGui4 extends axu {",
      "import net.minecraft.client.Minecraft;\n"
      "import net.minecraft.client.gui.FontRenderer;\n"
      "import net.minecraft.client.gui.Gui;\n"
      "import net.minecraft.client.gui.GuiScreen;\n"
-     "public class FrenchifyGui4 extends GuiScreen {"),
+     "public class VigilGui4 extends GuiScreen {"),
     ("private static avn cachedFontRenderer = null;", "private static FontRenderer cachedFontRenderer = null;"),
     ("    private avn resolveFontRenderer() {\n"
      "        if (cachedFontRenderer != null) return cachedFontRenderer;\n"
@@ -100,7 +100,7 @@ REPLACEMENTS = [
 
 def main() -> None:
     text = SRC.read_text(encoding="utf-8")
-    if "public class FrenchifyGui4 extends GuiScreen {" in text:
+    if "public class VigilGui4 extends GuiScreen {" in text:
         OUT.write_text(text, encoding="utf-8")
         print(f"Wrote {OUT}")
         return

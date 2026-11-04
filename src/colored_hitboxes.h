@@ -2,7 +2,7 @@
 #include <jni.h>
 
 // Team-colored hitboxes drawn inside RenderGlobal.renderEntities (in-world, vanilla draw path).
-// Toggles: FrenchifyGui.coloredHitboxes (players, ingame only), FrenchifyGui.dragonHitboxes (anywhere)
+// Toggles: VigilGui.coloredHitboxes (players, ingame only), VigilGui.dragonHitboxes (anywhere)
 bool TryResolveHitboxJni(JNIEnv* env, jobject mcObj);
 bool HitboxJniReady();
 bool TryInstallRenderGlobalHook(JNIEnv* env, jobject mcObj, jobject classLoader);

@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
-public class FrenchifyGui4 extends GuiScreen {
+public class VigilGui4 extends GuiScreen {
     public static boolean autoWho = false;
     public static boolean partyDetector = false;
     public static boolean partyQueueDetector = false;

@@ -2,7 +2,7 @@
 
 #include <jni.h>
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 
 bool Lunar_InitClientPump(JNIEnv* env);
 void Lunar_ScheduleClientPump(JavaVM* jvm);

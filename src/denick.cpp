@@ -178,7 +178,7 @@ bool Base64Decode(const std::string& in, std::string& out, const char* logCtx = 
     return true;
 }
 
-// Same hash key as Frenchify Lite proxy: last path segment of textures.SKIN.url.
+// Same hash key as Vigil Lite proxy: last path segment of textures.SKIN.url.
 static bool IsHexSkinHash(const std::string& s) {
     if (s.size() < 32) return false;
     for (char c : s) {

@@ -91,16 +91,16 @@ static bool ModuleAlreadyLoaded(DWORD pid, const char* moduleName) {
 }
 
 static void ShowInjectorError(const char* message) {
-    MessageBoxA(nullptr, message, "Frenchify Inject", MB_ICONERROR | MB_TOPMOST);
+    MessageBoxA(nullptr, message, "Vigil Inject", MB_ICONERROR | MB_TOPMOST);
 }
 
 static void ShowInjectorInfo(const char* message) {
-    MessageBoxA(nullptr, message, "Frenchify Inject", MB_ICONINFORMATION | MB_TOPMOST);
+    MessageBoxA(nullptr, message, "Vigil Inject", MB_ICONINFORMATION | MB_TOPMOST);
 }
 
 int main()
 {
-#ifdef FRENCHIFY_LUNAR_INJECTOR
+#ifdef VIGIL_LUNAR_INJECTOR
     const char* dllName = "ChatReaderLunar.dll";
 #else
     const char* dllName = "ChatReader.dll";

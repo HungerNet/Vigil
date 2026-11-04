@@ -1,6 +1,6 @@
 #include "class_finder_log.h"
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 
 #include "class_finder_obf_map.h"
 
@@ -60,7 +60,7 @@ const char* InferExpectedKind(const char* mcpSlash) {
 
 bool UiEnabledByEnv() {
     char buf[8] = {};
-    const DWORD n = GetEnvironmentVariableA("FRENCHIFY_CLASS_LOG_UI", buf, sizeof(buf));
+    const DWORD n = GetEnvironmentVariableA("VIGIL_CLASS_LOG_UI", buf, sizeof(buf));
     if (n == 0) return false;
     return buf[0] == '1' && buf[1] == '\0';
 }
@@ -72,11 +72,11 @@ void InitLogFilePath() {
         g_logFilePath = dllPath;
         const auto pos = g_logFilePath.find_last_of("\\/");
         if (pos != std::string::npos) {
-            g_logFilePath.replace(pos + 1, std::string::npos, "FrenchifyClassFinder.log");
+            g_logFilePath.replace(pos + 1, std::string::npos, "VigilClassFinder.log");
             return;
         }
     }
-    g_logFilePath = "FrenchifyClassFinder.log";
+    g_logFilePath = "VigilClassFinder.log";
 }
 
 void AppendFileLogUnlocked(const char* text) {
@@ -129,10 +129,10 @@ LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SendMessageA(g_editHwnd, WM_SETFONT,
                 (WPARAM)GetStockObject(ANSI_FIXED_FONT), TRUE);
             AppendTextToEdit(
-                "Frenchify ClassFinder log\r\n"
+                "Vigil ClassFinder log\r\n"
                 "Columns: status | via | MCP | vanilla obf | expected kind\r\n"
-                "Log file: FrenchifyClassFinder.log (beside DLL)\r\n"
-                "Set FRENCHIFY_CLASS_LOG_UI=1 to show this window\r\n\r\n");
+                "Log file: VigilClassFinder.log (beside DLL)\r\n"
+                "Set VIGIL_CLASS_LOG_UI=1 to show this window\r\n\r\n");
             FlushPendingLinesToUi();
             return 0;
         }
@@ -147,7 +147,7 @@ LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_COMMAND: {
             if (LOWORD(wParam) == IDC_BTN_CLEAR && g_editHwnd) {
                 SetWindowTextA(g_editHwnd, "");
-                AppendTextToEdit("Frenchify ClassFinder log (cleared)\r\n\r\n");
+                AppendTextToEdit("Vigil ClassFinder log (cleared)\r\n\r\n");
             }
             return 0;
         }
@@ -178,13 +178,13 @@ DWORD WINAPI LogUiThreadProc(LPVOID) {
     wc.hInstance = g_logModule ? g_logModule : GetModuleHandleA(nullptr);
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wc.lpszClassName = "FrenchifyClassFinderLog";
+    wc.lpszClassName = "VigilClassFinderLog";
     RegisterClassExA(&wc);
 
     g_logHwnd = CreateWindowExA(
         0,
-        "FrenchifyClassFinderLog",
-        "Frenchify ClassFinder",
+        "VigilClassFinderLog",
+        "Vigil ClassFinder",
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         120, 120, 800, 520,
         nullptr, nullptr, wc.hInstance, nullptr);
@@ -216,12 +216,12 @@ DWORD WINAPI DeferredUiThreadProc(LPVOID) {
 }
 
 void EnsureLogBackend() {
-#if !FRENCHIFY_DEBUG_LOG
+#if !VIGIL_DEBUG_LOG
     return;
 #endif
     if (g_backendStarted.exchange(true)) return;
     InitLogFilePath();
-    AppendFileLogUnlocked("=== Frenchify ClassFinder log started ===");
+    AppendFileLogUnlocked("=== Vigil ClassFinder log started ===");
     if (UiEnabledByEnv()) {
         g_uiDeferThread = CreateThread(nullptr, 0, DeferredUiThreadProc, nullptr, 0, nullptr);
     } else {
@@ -230,7 +230,7 @@ void EnsureLogBackend() {
 }
 
 void PostLogLineInternal(const std::string& line) {
-#if !FRENCHIFY_DEBUG_LOG
+#if !VIGIL_DEBUG_LOG
     (void)line;
     return;
 #endif

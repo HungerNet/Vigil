@@ -1,0 +1,24 @@
+# CMake and native build outputs
+/build/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/Testing/
+*.obj
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.dll
+*.exe
+
+# Java compiler outputs
+*.class
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Generated release packages and local logs
+*.zip
+*.log

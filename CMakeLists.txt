@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(FrenchifyLunar)
+project(VigilLunar)
 
 if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -68,7 +68,7 @@ add_library(ChatReaderLunar SHARED
     src/lunar_runtime.cpp
 )
 
-target_compile_definitions(ChatReaderLunar PRIVATE CURL_STATICLIB FRENCHIFY_LUNAR)
+target_compile_definitions(ChatReaderLunar PRIVATE CURL_STATICLIB VIGIL_LUNAR)
 target_link_libraries(ChatReaderLunar PRIVATE ${JNI_LIBRARIES} CURL::libcurl opengl32)
 target_include_directories(ChatReaderLunar PRIVATE ${curl_SOURCE_DIR}/include)
 
@@ -81,4 +81,4 @@ add_custom_command(TARGET ChatReaderLunar POST_BUILD
 )
 
 add_executable(InjectorLunar src/injector.cpp)
-target_compile_definitions(InjectorLunar PRIVATE FRENCHIFY_LUNAR_INJECTOR)
+target_compile_definitions(InjectorLunar PRIVATE VIGIL_LUNAR_INJECTOR)

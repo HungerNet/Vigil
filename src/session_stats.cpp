@@ -1,15 +1,15 @@
 #include "session_stats.h"
 
-#ifdef FRENCHIFY_LUNAR
-#include "../java_src/lunar_headers/FrenchifyIngameGuiLunar.h"
-#include "../java_src/lunar_headers/FrenchifySessionHudLunar.h"
-#include "../java_src/lunar_headers/FrenchifySessionHudInstallerLunar.h"
+#ifdef VIGIL_LUNAR
+#include "../java_src/lunar_headers/VigilIngameGuiLunar.h"
+#include "../java_src/lunar_headers/VigilSessionHudLunar.h"
+#include "../java_src/lunar_headers/VigilSessionHudInstallerLunar.h"
 #include "class_finder.h"
 #include "class_finder_log.h"
 #else
-#include "../java_src/FrenchifyIngameGui.h"
-#include "../java_src/FrenchifySessionHud.h"
-#include "../java_src/FrenchifySessionHudInstaller.h"
+#include "../java_src/VigilIngameGui.h"
+#include "../java_src/VigilSessionHud.h"
+#include "../java_src/VigilSessionHudInstaller.h"
 #endif
 #include "globals.h"
 #include "jni_helpers.h"
@@ -34,10 +34,10 @@ static void PublishSessionHudState(JNIEnv* env);
 
 namespace {
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyIngameGui_nativeSessionStatsTick(JNIEnv* env, jclass);
-extern "C" JNIEXPORT void JNICALL Java_FrenchifySessionHud_nativePrepareDraw(JNIEnv* env, jclass);
-extern "C" JNIEXPORT void JNICALL Java_FrenchifySessionHud_nativeDrawText(JNIEnv* env, jclass, jstring, jfloat, jfloat, jboolean);
-extern "C" JNIEXPORT void JNICALL Java_FrenchifySessionHudInstaller_nativeInstallIngameGui(JNIEnv* env, jclass);
+extern "C" JNIEXPORT void JNICALL Java_VigilIngameGui_nativeSessionStatsTick(JNIEnv* env, jclass);
+extern "C" JNIEXPORT void JNICALL Java_VigilSessionHud_nativePrepareDraw(JNIEnv* env, jclass);
+extern "C" JNIEXPORT void JNICALL Java_VigilSessionHud_nativeDrawText(JNIEnv* env, jclass, jstring, jfloat, jfloat, jboolean);
+extern "C" JNIEXPORT void JNICALL Java_VigilSessionHudInstaller_nativeInstallIngameGui(JNIEnv* env, jclass);
 
 struct SessionStatsState {
     int finalKills = 0;
@@ -90,11 +90,11 @@ static jclass g_sessionHudInstallerClassGlobal = nullptr;
 static jclass g_sessionHudJavaClassGlobal = nullptr;
 
 static void SessionStatsLog(const char* msg) {
-    FrenchifyFileLog("session", msg);
+    VigilFileLog("session", msg);
 }
 
 static void SessionCfLog(const char* msg) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     if (msg) ClassFinderLogLine(msg);
 #endif
     (void)msg;
@@ -242,7 +242,7 @@ static bool ResolveHudJni(JNIEnv* env) {
     jclass mcClass = g_mcClassGlobal;
     bool ownsMcClass = false;
     if (!mcClass) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         mcClass = McFindClass(env, "net/minecraft/client/Minecraft");
 #else
         mcClass = LoadMcClassViaLoader(env);
@@ -257,7 +257,7 @@ static bool ResolveHudJni(JNIEnv* env) {
 
     jmethodID midGetMc = g_midGetMinecraftStatic;
     if (!midGetMc) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         midGetMc = env->GetStaticMethodID(mcClass, "getMinecraft", "()Lnet/minecraft/client/Minecraft;");
 #else
         midGetMc = env->GetStaticMethodID(mcClass, "A", "()Lave;");
@@ -280,7 +280,7 @@ static bool ResolveHudJni(JNIEnv* env) {
         return false;
     }
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jfieldID fidDisplayWidth = env->GetFieldID(mcClass, "displayWidth", "I");
     jfieldID fidDisplayHeight = env->GetFieldID(mcClass, "displayHeight", "I");
     jfieldID fidFontRenderer = env->GetFieldID(mcClass, "fontRendererObj", "Lnet/minecraft/client/gui/FontRenderer;");
@@ -304,7 +304,7 @@ static bool ResolveHudJni(JNIEnv* env) {
         fidCurrentScreen = nullptr;
     }
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jclass scaledClass = McFindClass(env, "net/minecraft/client/gui/ScaledResolution");
 #else
     jclass scaledClass = env->FindClass("avr");
@@ -317,7 +317,7 @@ static bool ResolveHudJni(JNIEnv* env) {
         SessionCfLog("session: HUD JNI FAIL ScaledResolution class");
         return false;
     }
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jmethodID midScaledCtor = env->GetMethodID(scaledClass, "<init>", "(Lnet/minecraft/client/Minecraft;)V");
     jmethodID midScaledWidth = env->GetMethodID(scaledClass, "getScaledWidth", "()I");
     jmethodID midScaledHeight = env->GetMethodID(scaledClass, "getScaledHeight", "()I");
@@ -358,7 +358,7 @@ static bool ResolveHudJni(JNIEnv* env) {
     jmethodID midDrawStringShadow = nullptr;
     jmethodID midDrawString = nullptr;
     jmethodID midDrawStringFlag = nullptr;
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     midFontWidth = env->GetMethodID(fontClass, "getStringWidth", "(Ljava/lang/String;)I");
     if (env->ExceptionCheck()) { env->ExceptionClear(); midFontWidth = nullptr; }
     midDrawStringShadow = env->GetMethodID(fontClass, "drawStringWithShadow", "(Ljava/lang/String;FFI)I");
@@ -1562,7 +1562,7 @@ static void PublishSessionHudState(JNIEnv* env) {
         ? ReadGuiStaticBool(env, g_customGuiClassGlobal, "hudEditMode", false)
         : false;
     const bool hudVisible =
-        FrenchifyIsHypixelServerActive() &&
+        VigilIsHypixelServerActive() &&
         ((g_settings.enabled && bedwarsOverlay) || hudEditMode);
     env->SetStaticBooleanField(cls, fidEnabled, hudVisible ? JNI_TRUE : JNI_FALSE);
     env->SetStaticIntField(cls, fidBgOpacity, (jint)g_settings.bgOpacity);
@@ -1731,9 +1731,9 @@ void SessionStatsOnChat(JNIEnv* env, jobject mcObj, jclass mcClass, const std::s
 
 void SessionStatsTick(JNIEnv* env, jobject mcObj, jclass mcClass, jclass guiClass) {
     if (env && mcObj && mcClass) {
-        FrenchifyUpdateHypixelServerWhitelist(env, mcObj, mcClass);
+        VigilUpdateHypixelServerWhitelist(env, mcObj, mcClass);
     }
-    if (!FrenchifyIsHypixelServerActive()) {
+    if (!VigilIsHypixelServerActive()) {
         g_stats.rows.clear();
         PublishSessionHudState(env);
         return;
@@ -1845,7 +1845,7 @@ bool SessionStatsRender(JNIEnv* env) {
         SessionStatsLogEvery("render_no_env", 5000, "render skip: no JNIEnv");
         return false;
     }
-    if (!FrenchifyIsHypixelServerActive()) return false;
+    if (!VigilIsHypixelServerActive()) return false;
     if (taboverlay::GetOverlayActiveGamemode() != taboverlay::OverlayGamemode::Bedwars) return false;
     if (g_customGuiClassGlobal) {
         g_settings = ReadSettings(env, g_customGuiClassGlobal);
@@ -1978,28 +1978,28 @@ static bool EnsureSessionHudHookClasses(JNIEnv* env, jobject classLoader) {
     }
     if (!classLoader) return false;
 
-    jclass hookClass = LoadInjectedClass(env, classLoader, "FrenchifyIngameGui",
-#ifdef FRENCHIFY_LUNAR
-                                         FrenchifyIngameGuiLunar_class, FrenchifyIngameGuiLunar_class_len);
+    jclass hookClass = LoadInjectedClass(env, classLoader, "VigilIngameGui",
+#ifdef VIGIL_LUNAR
+                                         VigilIngameGuiLunar_class, VigilIngameGuiLunar_class_len);
 #else
-                                         FrenchifyIngameGui_class, FrenchifyIngameGui_class_len);
+                                         VigilIngameGui_class, VigilIngameGui_class_len);
 #endif
-    jclass installerClass = LoadInjectedClass(env, classLoader, "FrenchifySessionHudInstaller",
-#ifdef FRENCHIFY_LUNAR
-                                              FrenchifySessionHudInstallerLunar_class,
-                                              FrenchifySessionHudInstallerLunar_class_len);
+    jclass installerClass = LoadInjectedClass(env, classLoader, "VigilSessionHudInstaller",
+#ifdef VIGIL_LUNAR
+                                              VigilSessionHudInstallerLunar_class,
+                                              VigilSessionHudInstallerLunar_class_len);
 #else
-                                              FrenchifySessionHudInstaller_class,
-                                              FrenchifySessionHudInstaller_class_len);
+                                              VigilSessionHudInstaller_class,
+                                              VigilSessionHudInstaller_class_len);
 #endif
-    jclass hudClass = LoadInjectedClass(env, classLoader, "FrenchifySessionHud",
-#ifdef FRENCHIFY_LUNAR
-                                      FrenchifySessionHudLunar_class, FrenchifySessionHudLunar_class_len);
+    jclass hudClass = LoadInjectedClass(env, classLoader, "VigilSessionHud",
+#ifdef VIGIL_LUNAR
+                                      VigilSessionHudLunar_class, VigilSessionHudLunar_class_len);
 #else
-                                      FrenchifySessionHud_class, FrenchifySessionHud_class_len);
+                                      VigilSessionHud_class, VigilSessionHud_class_len);
 #endif
     if (!hookClass || !installerClass || !hudClass) {
-        SessionStatsLog("hook classes load FAILED (FrenchifyIngameGui / FrenchifySessionHud / installer)");
+        SessionStatsLog("hook classes load FAILED (VigilIngameGui / VigilSessionHud / installer)");
         SessionCfLogf("session: hook class load FAIL hook=%d installer=%d hud=%d",
             hookClass ? 1 : 0, installerClass ? 1 : 0, hudClass ? 1 : 0);
         if (hookClass) env->DeleteLocalRef(hookClass);
@@ -2010,14 +2010,14 @@ static bool EnsureSessionHudHookClasses(JNIEnv* env, jobject classLoader) {
 
     JNINativeMethod hookMethods[] = {
         {(char*)"nativeSessionStatsTick", (char*)"()V",
-         (void*)&Java_FrenchifyIngameGui_nativeSessionStatsTick},
+         (void*)&Java_VigilIngameGui_nativeSessionStatsTick},
     };
     JNINativeMethod installerMethods[] = {
         {(char*)"nativeInstallIngameGui", (char*)"()V",
-         (void*)&Java_FrenchifySessionHudInstaller_nativeInstallIngameGui},
+         (void*)&Java_VigilSessionHudInstaller_nativeInstallIngameGui},
     };
     if (env->RegisterNatives(hookClass, hookMethods, 1) != JNI_OK || env->ExceptionCheck()) {
-        SessionCfLog("session: RegisterNatives FrenchifyIngameGui FAILED");
+        SessionCfLog("session: RegisterNatives VigilIngameGui FAILED");
         env->ExceptionClear();
         env->DeleteLocalRef(hookClass);
         env->DeleteLocalRef(installerClass);
@@ -2025,7 +2025,7 @@ static bool EnsureSessionHudHookClasses(JNIEnv* env, jobject classLoader) {
         return false;
     }
     if (env->RegisterNatives(installerClass, installerMethods, 1) != JNI_OK || env->ExceptionCheck()) {
-        SessionCfLog("session: RegisterNatives FrenchifySessionHudInstaller FAILED");
+        SessionCfLog("session: RegisterNatives VigilSessionHudInstaller FAILED");
         env->ExceptionClear();
         env->DeleteLocalRef(hookClass);
         env->DeleteLocalRef(installerClass);
@@ -2035,13 +2035,13 @@ static bool EnsureSessionHudHookClasses(JNIEnv* env, jobject classLoader) {
 
     JNINativeMethod hudMethods[] = {
         {(char*)"nativePrepareDraw", (char*)"()V",
-         (void*)&Java_FrenchifySessionHud_nativePrepareDraw},
+         (void*)&Java_VigilSessionHud_nativePrepareDraw},
         {(char*)"nativeDrawText", (char*)"(Ljava/lang/String;FFZ)V",
-         (void*)&Java_FrenchifySessionHud_nativeDrawText},
+         (void*)&Java_VigilSessionHud_nativeDrawText},
     };
     if (env->RegisterNatives(hudClass, hudMethods, 2) != JNI_OK || env->ExceptionCheck()) {
         env->ExceptionClear();
-        SessionStatsLog("FrenchifySessionHud RegisterNatives FAILED");
+        SessionStatsLog("VigilSessionHud RegisterNatives FAILED");
         env->DeleteLocalRef(hookClass);
         env->DeleteLocalRef(installerClass);
         env->DeleteLocalRef(hudClass);
@@ -2078,7 +2078,7 @@ static bool InstallSessionHudHookImpl(JNIEnv* env, jobject mcObj) {
         return false;
     }
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jfieldID fidGui = env->GetFieldID(mcClass, "ingameGUI", "Lnet/minecraft/client/gui/GuiIngame;");
 #else
     jfieldID fidGui = env->GetFieldID(mcClass, "q", "Lavo;");
@@ -2107,14 +2107,14 @@ static bool InstallSessionHudHookImpl(JNIEnv* env, jobject mcObj) {
         return true;
     }
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jmethodID ctor = env->GetMethodID(g_sessionHudHookClassGlobal, "<init>", "(Lnet/minecraft/client/Minecraft;)V");
 #else
     jmethodID ctor = env->GetMethodID(g_sessionHudHookClassGlobal, "<init>", "(Lave;)V");
 #endif
     if (!ctor || env->ExceptionCheck()) {
         env->ExceptionClear();
-        SessionCfLog("session: MISS FrenchifyIngameGui.<init>");
+        SessionCfLog("session: MISS VigilIngameGui.<init>");
         env->DeleteLocalRef(oldGui);
         if (ownsMcClass) env->DeleteLocalRef(mcClass);
         return false;
@@ -2123,13 +2123,13 @@ static bool InstallSessionHudHookImpl(JNIEnv* env, jobject mcObj) {
     jobject newGui = env->NewObject(g_sessionHudHookClassGlobal, ctor, mcObj);
     if (!newGui || env->ExceptionCheck()) {
         env->ExceptionClear();
-        SessionCfLog("session: FrenchifyIngameGui ctor FAILED");
+        SessionCfLog("session: VigilIngameGui ctor FAILED");
         env->DeleteLocalRef(oldGui);
         if (ownsMcClass) env->DeleteLocalRef(mcClass);
         return false;
     }
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jmethodID midCopy = env->GetStaticMethodID(
         g_sessionHudInstallerClassGlobal, "copyGuiIngameFields",
         "(Lnet/minecraft/client/gui/GuiIngame;Lnet/minecraft/client/gui/GuiIngame;)V");
@@ -2149,7 +2149,7 @@ static bool InstallSessionHudHookImpl(JNIEnv* env, jobject mcObj) {
         }
     } else {
         env->ExceptionClear();
-        SessionCfLog("session: MISS FrenchifySessionHudInstaller.copyGuiIngameFields");
+        SessionCfLog("session: MISS VigilSessionHudInstaller.copyGuiIngameFields");
     }
 
     env->SetObjectField(mcObj, fidGui, newGui);
@@ -2172,10 +2172,10 @@ static bool InstallSessionHudHookImpl(JNIEnv* env, jobject mcObj) {
     return true;
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyIngameGui_nativeSessionStatsTick(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_VigilIngameGui_nativeSessionStatsTick(JNIEnv* env, jclass) {
     if (!env || !g_jvmGlobal) return;
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jclass mcClass = g_mcClassGlobal ? g_mcClassGlobal : McFindClass(env, "net/minecraft/client/Minecraft");
 #else
     jclass mcClass = g_mcClassGlobal ? g_mcClassGlobal : env->FindClass("ave");
@@ -2188,7 +2188,7 @@ extern "C" JNIEXPORT void JNICALL Java_FrenchifyIngameGui_nativeSessionStatsTick
 
     jmethodID midGetMc = g_midGetMinecraftStatic
         ? g_midGetMinecraftStatic
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         : env->GetStaticMethodID(mcClass, "getMinecraft", "()Lnet/minecraft/client/Minecraft;");
 #else
         : env->GetStaticMethodID(mcClass, "A", "()Lave;");
@@ -2212,11 +2212,11 @@ extern "C" JNIEXPORT void JNICALL Java_FrenchifyIngameGui_nativeSessionStatsTick
     if (ownsMcClass) env->DeleteLocalRef(mcClass);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifySessionHud_nativePrepareDraw(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_VigilSessionHud_nativePrepareDraw(JNIEnv* env, jclass) {
     taboverlay::RestoreVanillaGuiGlState(env);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifySessionHud_nativeDrawText(
+extern "C" JNIEXPORT void JNICALL Java_VigilSessionHud_nativeDrawText(
     JNIEnv* env, jclass, jstring jRow, jfloat x, jfloat y, jboolean shadow) {
     if (!env || !jRow) return;
     if (!ResolveHudJni(env)) return;
@@ -2259,7 +2259,7 @@ extern "C" JNIEXPORT void JNICALL Java_FrenchifySessionHud_nativeDrawText(
     env->DeleteLocalRef(mcObj);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifySessionHudInstaller_nativeInstallIngameGui(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_VigilSessionHudInstaller_nativeInstallIngameGui(JNIEnv* env, jclass) {
     g_sessionHudInstallScheduled.store(false, std::memory_order_relaxed);
     if (!env || !g_mcClassGlobal || !g_midGetMinecraftStatic) return;
 
@@ -2331,7 +2331,7 @@ bool TryInstallSessionHudHook(JNIEnv* env, jobject mcObj, jobject classLoader) {
         return false;
     }
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     jmethodID midSchedule = env->GetMethodID(
         mcClass, "addScheduledTask",
         "(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;");
@@ -2349,7 +2349,7 @@ bool TryInstallSessionHudHook(JNIEnv* env, jobject mcObj, jobject classLoader) {
     jmethodID installerCtor = env->GetMethodID(g_sessionHudInstallerClassGlobal, "<init>", "()V");
     if (!installerCtor || env->ExceptionCheck()) {
         env->ExceptionClear();
-        SessionCfLog("session: MISS FrenchifySessionHudInstaller.<init>");
+        SessionCfLog("session: MISS VigilSessionHudInstaller.<init>");
         if (ownsMcClass) env->DeleteLocalRef(mcClass);
         return false;
     }
@@ -2357,7 +2357,7 @@ bool TryInstallSessionHudHook(JNIEnv* env, jobject mcObj, jobject classLoader) {
     jobject installer = env->NewObject(g_sessionHudInstallerClassGlobal, installerCtor);
     if (!installer || env->ExceptionCheck()) {
         env->ExceptionClear();
-        SessionCfLog("session: FrenchifySessionHudInstaller ctor FAILED");
+        SessionCfLog("session: VigilSessionHudInstaller ctor FAILED");
         if (ownsMcClass) env->DeleteLocalRef(mcClass);
         return false;
     }

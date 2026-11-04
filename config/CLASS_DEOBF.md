@@ -1,4 +1,4 @@
-# CLASS_DEOBF — vanilla obf → MCP (Frenchify JNI)
+# CLASS_DEOBF — vanilla obf → MCP (Vigil JNI)
 
 Généré: `2026-06-14T10:55:54Z` · source: `src` · MC 1.8.9
 

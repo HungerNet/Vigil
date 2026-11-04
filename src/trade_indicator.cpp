@@ -3,7 +3,7 @@
 #include "globals.h"
 #include "jni_helpers.h"
 #include "utils.h"
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 #include "class_finder.h"
 #endif
 
@@ -18,7 +18,7 @@
 namespace {
 
 static const char* g_tradeCrashStage = "demarrage";
-constexpr const char* kInjectLog = "frenchify_inject.log";
+constexpr const char* kInjectLog = "vigil_inject.log";
 
 void TradeLog(const char*) {}
 void TradeLogf(const char*, ...) {}
@@ -36,7 +36,7 @@ void TradeLogCrash(const char* stage, unsigned long code, const char* detail) {
         std::snprintf(buf, sizeof(buf),
             "CRASH TradeIndicator HUD | etape=%s | code=0x%08lX", stage, code);
     }
-    AppendFrenchifyNamedLog(kInjectLog, buf);
+    AppendVigilNamedLog(kInjectLog, buf);
 }
 
 void TradeLogJniError(JNIEnv* env, const char* stage) {
@@ -49,7 +49,7 @@ void TradeLogJniError(JNIEnv* env, const char* stage) {
     } else {
         std::snprintf(buf, sizeof(buf), "ERREUR TradeIndicator JNI | etape=%s", stage);
     }
-    AppendFrenchifyNamedLog(kInjectLog, buf);
+    AppendVigilNamedLog(kInjectLog, buf);
 }
 
 void TradeResetLogFile() {}
@@ -144,7 +144,7 @@ jmethodID FindFontDrawMethod(JNIEnv* env, jclass fontClass, bool shadow) {
             env->ExceptionClear();
         }
     }
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     return env->GetMethodID(fontClass, shadow ? "drawStringWithShadow" : "drawString",
         "(Ljava/lang/String;FFI)I");
 #else
@@ -179,7 +179,7 @@ bool ResolveBindTexture(JNIEnv* env, jobject textureManager) {
         env->ExceptionClear();
         return false;
     }
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     g_jni.midBindTexture = env->GetMethodID(texClass, "bindTexture",
         "(Lnet/minecraft/util/ResourceLocation;)V");
 #else
@@ -218,7 +218,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     if (g_jni.ready) return true;
     if (!env || !mcClass) return false;
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     g_jni.fidObjectMouseOver = env->GetFieldID(mcClass, "objectMouseOver",
         "Lnet/minecraft/util/MovingObjectPosition;");
     g_jni.fidThePlayer = env->GetFieldID(mcClass, "thePlayer",
@@ -300,7 +300,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     if (env->ExceptionCheck()) env->ExceptionClear();
 
     if (mopClass && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         g_jni.fidEntityHit = env->GetFieldID(mopClass, "entityHit", "Lnet/minecraft/entity/Entity;");
 #else
         g_jni.fidEntityHit = env->GetFieldID(mopClass, "d", "Lpk;");
@@ -316,7 +316,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
 
     jclass livingLocal = nullptr;
     jclass abstractLocal = nullptr;
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     livingLocal = McFindClass(env, "net/minecraft/entity/EntityLivingBase");
     abstractLocal = McFindClass(env, "net/minecraft/client/entity/AbstractClientPlayer");
 #else
@@ -330,7 +330,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     if (env->ExceptionCheck()) env->ExceptionClear();
 
     if (livingLocal && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         g_jni.midGetHealth = env->GetMethodID(livingLocal, "getHealth", "()F");
 #else
         g_jni.midGetHealth = env->GetMethodID(livingLocal, "bn", "()F");
@@ -346,7 +346,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     }
 
     if (abstractLocal && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         g_jni.midGetLocationSkin = env->GetMethodID(abstractLocal, "getLocationSkin",
             "()Lnet/minecraft/util/ResourceLocation;");
         g_jni.midGetLocationSkinAlt = env->GetMethodID(abstractLocal, "getLocationCape",
@@ -378,13 +378,13 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
         if (env->ExceptionCheck()) env->ExceptionClear();
 
         jclass npiClass = nullptr;
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         npiClass = McFindClass(env, "net/minecraft/client/network/NetworkPlayerInfo");
 #else
         npiClass = env->FindClass("bdc");
 #endif
         if (npiClass && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
             g_jni.midNpiGetLocationSkin = env->GetMethodID(npiClass, "getLocationSkin",
                 "()Lnet/minecraft/util/ResourceLocation;");
 #else
@@ -401,13 +401,13 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
         }
 
         jclass rlClass = nullptr;
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         rlClass = McFindClass(env, "net/minecraft/util/ResourceLocation");
 #else
         rlClass = env->FindClass("jy");
 #endif
         if (rlClass && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
             g_jni.midRlGetPath = env->GetMethodID(rlClass, "getResourcePath", "()Ljava/lang/String;");
 #else
             g_jni.midRlGetPath = env->GetMethodID(rlClass, "a", "()Ljava/lang/String;");
@@ -421,7 +421,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
             env->ExceptionClear();
         }
 
-#ifndef FRENCHIFY_LUNAR
+#ifndef VIGIL_LUNAR
         jclass entityPlayerClass = env->FindClass("wn");
         if (entityPlayerClass && !env->ExceptionCheck()) {
             g_jni.midGetGameProfile = env->GetMethodID(entityPlayerClass, "cd",
@@ -461,7 +461,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     }
 
     if (guiClass && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         g_jni.midGuiDrawRect = env->GetStaticMethodID(guiClass, "drawRect", "(IIIII)V");
         g_jni.midGuiDrawScaledCustomRect = env->GetStaticMethodID(guiClass,
             "drawScaledCustomSizeModalRect", "(IIFFIIFF)V");
@@ -481,7 +481,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     }
 
     if (texClass && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         g_jni.midBindTexture = env->GetMethodID(texClass, "bindTexture",
             "(Lnet/minecraft/util/ResourceLocation;)V");
 #else
@@ -493,7 +493,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     }
 
     if (fontClass && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         g_jni.midDrawStringShadow = env->GetMethodID(fontClass, "drawStringWithShadow",
             "(Ljava/lang/String;FFI)I");
 #else
@@ -508,7 +508,7 @@ bool ResolveTargetHudJni(JNIEnv* env, jclass mcClass) {
     }
 
     if (scaledClass && !env->ExceptionCheck()) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         g_jni.midScaledResCtor = env->GetMethodID(scaledClass, "<init>", "(Lnet/minecraft/client/Minecraft;)V");
         g_jni.midScaledWidth = env->GetMethodID(scaledClass, "getScaledWidth", "()I");
         g_jni.midScaledHeight = env->GetMethodID(scaledClass, "getScaledHeight", "()I");
@@ -862,7 +862,7 @@ void TradeIndicatorTick(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
 void TradeIndicatorRender(JNIEnv* env) {
     g_tradeCrashStage = "entree";
     if (!env) return;
-    if (!FrenchifyIsHypixelServerActive()) return;
+    if (!VigilIsHypixelServerActive()) return;
     if (!g_customGuiClassGlobal) return;
     const bool tradeOn = ReadGuiStaticBool(env, g_customGuiClassGlobal, "tradeIndicator", false);
     const bool hudEditMode = ReadGuiStaticBool(env, g_customGuiClassGlobal, "hudEditMode", false);
@@ -872,7 +872,7 @@ void TradeIndicatorRender(JNIEnv* env) {
     bool ownsMcClass = false;
     g_tradeCrashStage = "resolve_mc_class";
     if (!mcClass) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         mcClass = McFindClass(env, "net/minecraft/client/Minecraft");
 #else
         mcClass = env->FindClass("ave");
@@ -887,7 +887,7 @@ void TradeIndicatorRender(JNIEnv* env) {
     g_tradeCrashStage = "get_minecraft";
     jmethodID midGetMc = g_midGetMinecraftStatic;
     if (!midGetMc) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         midGetMc = env->GetStaticMethodID(mcClass, "getMinecraft", "()Lnet/minecraft/client/Minecraft;");
 #else
         midGetMc = env->GetStaticMethodID(mcClass, "A", "()Lave;");

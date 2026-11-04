@@ -2,12 +2,12 @@
 #include "utils.h"
 #include "globals.h"
 #include "jni_helpers.h"
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 #include "class_finder_log.h"
 #include "class_finder.h"
 #endif
-#include "../java_src/lunar_headers/FrenchifyRenderGlobalLunar.h"
-#include "../java_src/lunar_headers/FrenchifyHitboxInstallerLunar.h"
+#include "../java_src/lunar_headers/VigilRenderGlobalLunar.h"
+#include "../java_src/lunar_headers/VigilHitboxInstallerLunar.h"
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -391,7 +391,7 @@ static jclass LoadClassViaMc(JNIEnv* env, jobject mcObj, const char* binaryName)
 }
 
 static jclass LoadHitboxEntityClass(JNIEnv* env, jobject mcObj, const char* obfName, const char* mcpSlash) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     if (mcpSlash) {
         jclass lunarCls = McFindClass(env, mcpSlash);
         if (lunarCls && !env->ExceptionCheck()) return lunarCls;
@@ -491,7 +491,7 @@ static std::string DragonLogClip(const std::string& s, size_t maxLen = 96) {
 }
 
 static void DragonHitboxLog(const char* msg) {
-    if (msg && msg[0]) FrenchifyFileLog("dragon", msg);
+    if (msg && msg[0]) VigilFileLog("dragon", msg);
 }
 
 static void DragonHitboxLogState(int entityId, const HitboxTeamColorInfo& info,
@@ -1027,7 +1027,7 @@ bool TryResolveHitboxJni(JNIEnv* env, jobject mcObj) {
         g_hitbox.fidDisplayW && g_hitbox.fidDisplayH;
 
     g_hitbox.resolved = g_hitbox.ok;
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     if (!g_hitbox.ok) {
         static ULONGLONG s_lastLog = 0;
         const ULONGLONG now = GetTickCount64();
@@ -1215,7 +1215,7 @@ static bool DrawTeamColoredBoxVanilla(JNIEnv* env,
 void RenderColoredHitboxes(JNIEnv* env, jobject mcObj, jclass mcClass, jclass customGuiClass) {
     if (!env || !mcObj || !mcClass) return;
     if (!customGuiClass) return;
-    if (!FrenchifyIsHypixelServerActive()) return;
+    if (!VigilIsHypixelServerActive()) return;
 
     const bool playerHitboxes = ReadGuiStaticBool(env, customGuiClass, "coloredHitboxes", false);
     const bool dragonHitboxes = ReadGuiStaticBool(env, customGuiClass, "dragonHitboxes", false);
@@ -1514,9 +1514,9 @@ void RenderColoredHitboxes(JNIEnv* env, jobject mcObj, jclass mcClass, jclass cu
     env->DeleteLocalRef(renderManager);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyHitboxInstaller_nativeInstallRenderGlobal(JNIEnv* env, jclass);
+extern "C" JNIEXPORT void JNICALL Java_VigilHitboxInstaller_nativeInstallRenderGlobal(JNIEnv* env, jclass);
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyRenderGlobal_nativeAfterRenderEntities(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_VigilRenderGlobal_nativeAfterRenderEntities(JNIEnv* env, jclass) {
     if (!env || !g_mcClassGlobal || !g_midGetMinecraftStatic) return;
 
     jobject mcObj = env->CallStaticObjectMethod(g_mcClassGlobal, g_midGetMinecraftStatic);
@@ -1553,10 +1553,10 @@ static bool EnsureHitboxHookClasses(JNIEnv* env, jobject classLoader) {
     }
     if (!classLoader) return false;
 
-    jclass hookClass = LoadInjectedClass(env, classLoader, "FrenchifyRenderGlobal",
-                                         FrenchifyRenderGlobalLunar_class, FrenchifyRenderGlobalLunar_class_len);
-    jclass installerClass = LoadInjectedClass(env, classLoader, "FrenchifyHitboxInstaller",
-                                              FrenchifyHitboxInstallerLunar_class, FrenchifyHitboxInstallerLunar_class_len);
+    jclass hookClass = LoadInjectedClass(env, classLoader, "VigilRenderGlobal",
+                                         VigilRenderGlobalLunar_class, VigilRenderGlobalLunar_class_len);
+    jclass installerClass = LoadInjectedClass(env, classLoader, "VigilHitboxInstaller",
+                                              VigilHitboxInstallerLunar_class, VigilHitboxInstallerLunar_class_len);
     if (!hookClass || !installerClass) {
         if (hookClass) env->DeleteLocalRef(hookClass);
         if (installerClass) env->DeleteLocalRef(installerClass);
@@ -1565,11 +1565,11 @@ static bool EnsureHitboxHookClasses(JNIEnv* env, jobject classLoader) {
 
     JNINativeMethod hookMethods[] = {
         {(char*)"nativeAfterRenderEntities", (char*)"()V",
-         (void*)&Java_FrenchifyRenderGlobal_nativeAfterRenderEntities},
+         (void*)&Java_VigilRenderGlobal_nativeAfterRenderEntities},
     };
     JNINativeMethod installerMethods[] = {
         {(char*)"nativeInstallRenderGlobal", (char*)"()V",
-         (void*)&Java_FrenchifyHitboxInstaller_nativeInstallRenderGlobal},
+         (void*)&Java_VigilHitboxInstaller_nativeInstallRenderGlobal},
     };
     if (env->RegisterNatives(hookClass, hookMethods, 1) != JNI_OK || env->ExceptionCheck()) {
         env->DeleteLocalRef(hookClass);
@@ -1679,7 +1679,7 @@ static bool InstallRenderGlobalHookImpl(JNIEnv* env, jobject mcObj) {
     return true;
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyHitboxInstaller_nativeInstallRenderGlobal(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_VigilHitboxInstaller_nativeInstallRenderGlobal(JNIEnv* env, jclass) {
     HitboxInstallScheduledFlag() = false;
     if (!env || !g_mcClassGlobal || !g_midGetMinecraftStatic) {
         return;
@@ -1691,11 +1691,11 @@ extern "C" JNIEXPORT void JNICALL Java_FrenchifyHitboxInstaller_nativeInstallRen
     }
 
     if (!InstallRenderGlobalHookImpl(env, mcObj)) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         ClassFinderLogLine("[FAIL] RenderGlobal hook install");
 #endif
     } else {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         ClassFinderLogLine("[OK] RenderGlobal hook installed");
 #endif
     }

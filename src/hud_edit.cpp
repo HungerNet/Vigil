@@ -142,7 +142,7 @@ bool GetMouseScaled(JNIEnv* env, jobject mcObj, int scaledW, int scaledH, int& o
     jclass mcClass = env->GetObjectClass(mcObj);
     jfieldID fidW = env->GetFieldID(mcClass, "displayWidth", "I");
     jfieldID fidH = env->GetFieldID(mcClass, "displayHeight", "I");
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     if ((!fidW || env->ExceptionCheck()) && mcClass) {
         env->ExceptionClear();
         fidW = env->GetFieldID(mcClass, "displayWidth", "I");

@@ -7,7 +7,7 @@
 #include "globals.h"
 #include "class_finder.h"
 #include <functional>
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 #include "class_finder_log.h"
 #endif
 #include <algorithm>
@@ -2328,7 +2328,7 @@ static std::string ChatOverlayPlayerLabel(const PlayerBedwarsStats& p, bool isNi
     return label;
 }
 
-static std::string FrenchifyPrefix() {
+static std::string VigilPrefix() {
     const std::string sec = Sec();
     return sec + "7[" + sec + "1Fre" + sec + "fnch" + sec + "cify" + sec + "7] ";
 }
@@ -2340,7 +2340,7 @@ PlayerLookupChatOutput FormatPlayerLookupChatMessage(const PlayerLookupStats& st
     const CachedHypixelStats& h = st.hypixel;
     const OverlayGamemode mode = OverlayGamemodeFromString(st.lookupMode);
     const std::string sec = Sec();
-    const std::string prefix = FrenchifyPrefix();
+    const std::string prefix = VigilPrefix();
     const std::string correctedName = st.displayName.empty() ? st.playerName : st.displayName;
     const std::string nameColored = sec + std::string(1, st.rankColor) + correctedName;
     std::string prefixStars;
@@ -2549,7 +2549,7 @@ static void MaybeAnnounceBlacklist(JNIEnv* env,
             reasonText + "\n" + sec + "7- " + whenText;
         std::string json =
             "{\"text\":\"\",\"extra\":["
-            "{\"text\":\"" + JsonEscapeChat(FrenchifyPrefix()) + "\"},"
+            "{\"text\":\"" + JsonEscapeChat(VigilPrefix()) + "\"},"
             "{\"text\":\"" + JsonEscapeChat(playerNameColored + " ") + "\"},"
             "{\"text\":\"[\",\"color\":\"gray\"},"
             "{\"text\":\"" + JsonEscapeChat(std::string(renderTag.text)) + "\",\"color\":\"" +
@@ -2566,7 +2566,7 @@ static void MaybeAnnounceBlacklist(JNIEnv* env,
 
     const std::string sec = Sec();
     const std::string playerNameColored = ColoredPlayerName(p);
-    const std::string msg = FrenchifyPrefix() +
+    const std::string msg = VigilPrefix() +
                           playerNameColored + sec + "r" + sec + "7 is blacklisted for " +
                           sec + std::string(1, renderTag.mcCode) + typeText +
                           (tag.verified ? (std::string(" ") + sec + "a" + "\xE2\x9C\x94") : std::string()) +
@@ -2613,7 +2613,7 @@ static void MaybeAnnounceChatOverlay(JNIEnv* env,
     if (!ShouldShowChatOverlay(mode, h, cfg, playerKey, displayName)) return;
 
     const std::string sec = Sec();
-    const std::string prefix = FrenchifyPrefix();
+    const std::string prefix = VigilPrefix();
     const std::string playerName = ChatOverlayPlayerLabel(p, isNick);
     std::string msg;
 
@@ -3021,14 +3021,14 @@ bool JniCache::init(JNIEnv* env) {
         !midIteratorNext || !midGetLocationSkin || !midGetGameProfile || !midGetProfileName || !midGetProfileId || !midUUIDToString || !midGetPing || !fidDisplayWidth ||
         !midChatComponentGetText || !fidDisplayHeight || !fidThePlayer || !fidIngameGui || !fidGuiTabOverlay || !fidTabFooter || !fidFontRenderer || !fidTextureManager || !fidSendQueue || env->ExceptionCheck()) {
         env->ExceptionClear();
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
         ClassFinderLogLine("[FAIL] TabOverlay JniCache init (field/method missing — see JNI MISS lines)");
 #endif
         shutdown(env);
         return false;
     }
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     ClassFinderLogLine("[OK] TabOverlay JniCache init");
 #endif
     initialized = true;

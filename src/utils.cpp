@@ -383,11 +383,11 @@ std::string JsonEscapeString(const std::string& s) {
 }
 
 void JsonLineLog(const std::string& line) {
-    FrenchifyFileLog("json", line.c_str());
+    VigilFileLog("json", line.c_str());
 }
 
-void FrenchifyFileLog(const char* tag, const char* msg) {
-#if !FRENCHIFY_DEBUG_LOG
+void VigilFileLog(const char* tag, const char* msg) {
+#if !VIGIL_DEBUG_LOG
     (void)tag;
     (void)msg;
     return;
@@ -397,7 +397,7 @@ void FrenchifyFileLog(const char* tag, const char* msg) {
     std::lock_guard<std::mutex> lk(s_logMu);
     if (g_dllDir.empty()) return;
 
-    const std::string path = g_dllDir + "\\frenchify_debug.log";
+    const std::string path = g_dllDir + "\\vigil_debug.log";
     std::ofstream fout(path, std::ios::out | std::ios::app);
     if (!fout) return;
 
@@ -409,7 +409,7 @@ void FrenchifyFileLog(const char* tag, const char* msg) {
 #endif
 }
 
-void AppendFrenchifyNamedLog(const char* filename, const std::string& msg) {
+void AppendVigilNamedLog(const char* filename, const std::string& msg) {
     if (!filename || !filename[0] || msg.empty()) return;
     for (const char* p = filename; *p; ++p) {
         if (*p == '\\' || *p == '/' || *p == ':') return;
@@ -672,7 +672,7 @@ bool HttpGetHttps(const std::string& url, std::string& body, DWORD& status, cons
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "FrenchifyInject/1.5");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "VigilInject/1.5");
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, kHttpTimeoutSec);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, kHttpTimeoutSec);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -1865,7 +1865,7 @@ std::string ReadGuiStaticString(JNIEnv* env, jclass customGuiClass, const char* 
 }
 
 namespace {
-std::atomic<bool> g_frenchifyHypixelServerActive{false};
+std::atomic<bool> g_vigilHypixelServerActive{false};
 
 static bool JstringToStd(JNIEnv* env, jstring js, std::string& out) {
     out.clear();
@@ -1971,11 +1971,11 @@ bool ReadMinecraftServerHost(JNIEnv* env, jobject mcObj, jclass mcClass, std::st
     return ok;
 }
 
-bool FrenchifyIsHypixelServerActive() {
-    return g_frenchifyHypixelServerActive.load(std::memory_order_relaxed);
+bool VigilIsHypixelServerActive() {
+    return g_vigilHypixelServerActive.load(std::memory_order_relaxed);
 }
 
-void FrenchifyUpdateHypixelServerWhitelist(JNIEnv* env, jobject mcObj, jclass mcClass) {
+void VigilUpdateHypixelServerWhitelist(JNIEnv* env, jobject mcObj, jclass mcClass) {
     std::string host;
     const bool readOk = ReadMinecraftServerHost(env, mcObj, mcClass, host);
     static ULONGLONG s_lastHypixelHostOkAt = 0;
@@ -2003,7 +2003,7 @@ void FrenchifyUpdateHypixelServerWhitelist(JNIEnv* env, jobject mcObj, jclass mc
         }
     }
 
-    g_frenchifyHypixelServerActive.store(onHypixel, std::memory_order_relaxed);
+    g_vigilHypixelServerActive.store(onHypixel, std::memory_order_relaxed);
 }
 
 static jobject BowEnumFormatting(JNIEnv* env, char colorCode);

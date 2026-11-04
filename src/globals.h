@@ -17,14 +17,14 @@
 #include <chrono>
 #include <jni.h>
 
-#include "../java_src/lunar_headers/FrenchifyGuiLunar.h"
+#include "../java_src/lunar_headers/VigilGuiLunar.h"
 
 namespace taboverlay {
 class OverlayController;
 }
 
-#ifndef FRENCHIFY_DEBUG_LOG
-#define FRENCHIFY_DEBUG_LOG 0
+#ifndef VIGIL_DEBUG_LOG
+#define VIGIL_DEBUG_LOG 0
 #endif
 
 // ====== ANTICHEAT STATE ======
@@ -148,7 +148,7 @@ extern bool         g_tabOverlayGuiEnabled;
 extern bool         g_tabOverlayStateAllowed;
 extern std::atomic<bool> g_injectReady;
 
-void FrenchifyBootLog(const char* msg);
+void VigilBootLog(const char* msg);
 
 void PumpMinecraftClientLogic(JNIEnv* env, jobject mcObj, jclass mcClass);
 extern std::atomic<ULONGLONG> g_clientPumpHeartbeat;

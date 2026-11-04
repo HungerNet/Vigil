@@ -1,6 +1,6 @@
-# Lunar Client — mappings Frenchify (vanilla obf → MCP)
+# Lunar Client — mappings Vigil (vanilla obf → MCP)
 
-> **Règle projet** : le code Frenchify de base (`src/`) n'est **pas modifié**.
+> **Règle projet** : le code Vigil de base (`src/`) n'est **pas modifié**.
 > La build Lunar (`release_lunar/`) reprend la même logique et applique uniquement
 > les mappings via `scripts/convert_lunar_mappings.py` + `McFindClass` / ClassLoader Lunar.
 
@@ -8,7 +8,7 @@
 
 1. Copier `src/*.cpp` / `src/*.h` vers `release_lunar/src/` (garder `jni_mc_loader`, `injector`).
 2. Exécuter `python scripts/convert_lunar_mappings.py` dans `release_lunar/`.
-3. Bytecode Java : `java_src/FrenchifyTabOverlayNativeLunar.java` (noms MCP).
+3. Bytecode Java : `java_src/VigilTabOverlayNativeLunar.java` (noms MCP).
 4. Headers : `java_src/lunar_headers/*Lunar.h`.
 
 Sources : `mcp/joined.srg`, `mcp_csv/fields.csv`, `mcp_csv/methods.csv`.

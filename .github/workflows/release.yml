@@ -58,6 +58,10 @@ jobs:
         shell: pwsh
         run: ./scripts/compile_gui_lunar.ps1
 
+      - name: Rename embedded Java classes
+        if: ${{ env.RUN == 'true' }}
+        run: python scripts/rename_embedded_java.py
+
       - name: Configure CMake
         if: ${{ env.RUN == 'true' }}
         run: cmake -S . -B build -A x64

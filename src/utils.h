@@ -47,8 +47,8 @@ char         HypixelRankColorCode(const std::string& newPackageRank,
 std::string  FormatSeraphReportTitleCase(const std::string& reportType);
 std::string  JsonEscapeString(const std::string& s);
 void         JsonLineLog(const std::string& line);
-void         FrenchifyFileLog(const char* tag, const char* msg);
-void         AppendFrenchifyNamedLog(const char* filename, const std::string& msg);
+void         VigilFileLog(const char* tag, const char* msg);
+void         AppendVigilNamedLog(const char* filename, const std::string& msg);
 
 std::vector<std::string> ParseOnlineNamesFromMessage(const std::string& cleanMsg);
 bool IsWhoTeamsHeaderLine(const std::string& cleanMsg);
@@ -96,5 +96,5 @@ std::string ReadGuiStaticString(JNIEnv* env, jclass customGuiClass, const char* 
 // Server whitelist: mod features only run when connected host ends with "hypixel.net".
 bool HostEndsWithHypixelNet(const std::string& hostOrIp);
 bool ReadMinecraftServerHost(JNIEnv* env, jobject mcObj, jclass mcClass, std::string& outHost);
-bool FrenchifyIsHypixelServerActive();
-void FrenchifyUpdateHypixelServerWhitelist(JNIEnv* env, jobject mcObj, jclass mcClass);
+bool VigilIsHypixelServerActive();
+void VigilUpdateHypixelServerWhitelist(JNIEnv* env, jobject mcObj, jclass mcClass);

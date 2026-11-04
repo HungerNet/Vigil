@@ -32,52 +32,52 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 # GUI
 $guiOut = Join-Path $root "build\gui_lunar_compile"
 New-Item -ItemType Directory -Force -Path $guiOut | Out-Null
-Copy-Item (Join-Path $root "java_src\FrenchifyGui4Lunar.java") (Join-Path $guiOut "FrenchifyGui4.java") -Force
-javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $guiOut (Join-Path $guiOut "FrenchifyGui4.java")
+Copy-Item (Join-Path $root "java_src\VigilGui4Lunar.java") (Join-Path $guiOut "VigilGui4.java") -Force
+javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $guiOut (Join-Path $guiOut "VigilGui4.java")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Write-ClassHeader (Join-Path $guiOut "FrenchifyGui4.class") (Join-Path $headers "FrenchifyGuiLunar.h") "FrenchifyGuiLunar_class" "FrenchifyGui4 MCP"
+Write-ClassHeader (Join-Path $guiOut "VigilGui4.class") (Join-Path $headers "VigilGuiLunar.h") "VigilGuiLunar_class" "VigilGui4 MCP"
 
 # Tab overlay
 $tabOut = Join-Path $root "build\tab_overlay_lunar_compile"
 New-Item -ItemType Directory -Force -Path $tabOut | Out-Null
-Copy-Item (Join-Path $root "java_src\FrenchifyTabOverlayNativeLunar.java") (Join-Path $tabOut "FrenchifyTabOverlayNative.java") -Force
-javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $tabOut (Join-Path $tabOut "FrenchifyTabOverlayNative.java")
+Copy-Item (Join-Path $root "java_src\VigilTabOverlayNativeLunar.java") (Join-Path $tabOut "VigilTabOverlayNative.java") -Force
+javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $tabOut (Join-Path $tabOut "VigilTabOverlayNative.java")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Write-ClassHeader (Join-Path $tabOut "FrenchifyTabOverlayNative.class") (Join-Path $headers "FrenchifyTabOverlayNativeLunar.h") "FrenchifyTabOverlayNativeLunar_class" "FrenchifyTabOverlayNative MCP"
+Write-ClassHeader (Join-Path $tabOut "VigilTabOverlayNative.class") (Join-Path $headers "VigilTabOverlayNativeLunar.h") "VigilTabOverlayNativeLunar_class" "VigilTabOverlayNative MCP"
 
 # Hitboxes
 $hbOut = Join-Path $root "build\hitbox_lunar_compile"
 New-Item -ItemType Directory -Force -Path $hbOut | Out-Null
-foreach ($name in @("FrenchifyRenderGlobalLunar.java", "FrenchifyHitboxInstallerLunar.java")) {
+foreach ($name in @("VigilRenderGlobalLunar.java", "VigilHitboxInstallerLunar.java")) {
     $base = [System.IO.Path]::GetFileNameWithoutExtension($name) -replace "Lunar$", ""
     Copy-Item (Join-Path $root "java_src\$name") (Join-Path $hbOut "$base.java") -Force
     javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $hbOut (Join-Path $hbOut "$base.java")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
-Write-ClassHeader (Join-Path $hbOut "FrenchifyRenderGlobal.class") (Join-Path $headers "FrenchifyRenderGlobalLunar.h") "FrenchifyRenderGlobalLunar_class" "FrenchifyRenderGlobal MCP"
-Write-ClassHeader (Join-Path $hbOut "FrenchifyHitboxInstaller.class") (Join-Path $headers "FrenchifyHitboxInstallerLunar.h") "FrenchifyHitboxInstallerLunar_class" "FrenchifyHitboxInstaller MCP"
+Write-ClassHeader (Join-Path $hbOut "VigilRenderGlobal.class") (Join-Path $headers "VigilRenderGlobalLunar.h") "VigilRenderGlobalLunar_class" "VigilRenderGlobal MCP"
+Write-ClassHeader (Join-Path $hbOut "VigilHitboxInstaller.class") (Join-Path $headers "VigilHitboxInstallerLunar.h") "VigilHitboxInstallerLunar_class" "VigilHitboxInstaller MCP"
 
 # Client pump
 $pumpOut = Join-Path $root "build\client_pump_lunar_compile"
 New-Item -ItemType Directory -Force -Path $pumpOut | Out-Null
-Copy-Item (Join-Path $root "java_src\FrenchifyClientPumpLunar.java") (Join-Path $pumpOut "FrenchifyClientPump.java") -Force
-javac -source 1.8 -target 1.8 -encoding UTF-8 -d $pumpOut (Join-Path $pumpOut "FrenchifyClientPump.java")
+Copy-Item (Join-Path $root "java_src\VigilClientPumpLunar.java") (Join-Path $pumpOut "VigilClientPump.java") -Force
+javac -source 1.8 -target 1.8 -encoding UTF-8 -d $pumpOut (Join-Path $pumpOut "VigilClientPump.java")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Write-ClassHeader (Join-Path $pumpOut "FrenchifyClientPump.class") (Join-Path $headers "FrenchifyClientPumpLunar.h") "FrenchifyClientPumpLunar_class" "FrenchifyClientPump MCP"
+Write-ClassHeader (Join-Path $pumpOut "VigilClientPump.class") (Join-Path $headers "VigilClientPumpLunar.h") "VigilClientPumpLunar_class" "VigilClientPump MCP"
 
 # Session HUD
 $sessionOut = Join-Path $root "build\session_lunar_compile"
 New-Item -ItemType Directory -Force -Path $sessionOut | Out-Null
-Copy-Item (Join-Path $root "java_src\FrenchifyIngameGuiLunar.java") (Join-Path $sessionOut "FrenchifyIngameGui.java") -Force
-Copy-Item (Join-Path $root "java_src\FrenchifySessionHudLunar.java") (Join-Path $sessionOut "FrenchifySessionHud.java") -Force
-Copy-Item (Join-Path $root "java_src\FrenchifySessionHudInstallerLunar.java") (Join-Path $sessionOut "FrenchifySessionHudInstaller.java") -Force
+Copy-Item (Join-Path $root "java_src\VigilIngameGuiLunar.java") (Join-Path $sessionOut "VigilIngameGui.java") -Force
+Copy-Item (Join-Path $root "java_src\VigilSessionHudLunar.java") (Join-Path $sessionOut "VigilSessionHud.java") -Force
+Copy-Item (Join-Path $root "java_src\VigilSessionHudInstallerLunar.java") (Join-Path $sessionOut "VigilSessionHudInstaller.java") -Force
 javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $sessionOut `
-    (Join-Path $sessionOut "FrenchifySessionHud.java") `
-    (Join-Path $sessionOut "FrenchifyIngameGui.java") `
-    (Join-Path $sessionOut "FrenchifySessionHudInstaller.java")
+    (Join-Path $sessionOut "VigilSessionHud.java") `
+    (Join-Path $sessionOut "VigilIngameGui.java") `
+    (Join-Path $sessionOut "VigilSessionHudInstaller.java")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Write-ClassHeader (Join-Path $sessionOut "FrenchifyIngameGui.class") (Join-Path $headers "FrenchifyIngameGuiLunar.h") "FrenchifyIngameGuiLunar_class" "FrenchifyIngameGui MCP"
-Write-ClassHeader (Join-Path $sessionOut "FrenchifySessionHud.class") (Join-Path $headers "FrenchifySessionHudLunar.h") "FrenchifySessionHudLunar_class" "FrenchifySessionHud MCP"
-Write-ClassHeader (Join-Path $sessionOut "FrenchifySessionHudInstaller.class") (Join-Path $headers "FrenchifySessionHudInstallerLunar.h") "FrenchifySessionHudInstallerLunar_class" "FrenchifySessionHudInstaller MCP"
+Write-ClassHeader (Join-Path $sessionOut "VigilIngameGui.class") (Join-Path $headers "VigilIngameGuiLunar.h") "VigilIngameGuiLunar_class" "VigilIngameGui MCP"
+Write-ClassHeader (Join-Path $sessionOut "VigilSessionHud.class") (Join-Path $headers "VigilSessionHudLunar.h") "VigilSessionHudLunar_class" "VigilSessionHud MCP"
+Write-ClassHeader (Join-Path $sessionOut "VigilSessionHudInstaller.class") (Join-Path $headers "VigilSessionHudInstallerLunar.h") "VigilSessionHudInstallerLunar_class" "VigilSessionHudInstaller MCP"
 
 Write-Host "All lunar headers regenerated in $headers"

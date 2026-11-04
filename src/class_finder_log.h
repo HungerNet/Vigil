@@ -1,10 +1,10 @@
 #pragma once
 
-#ifndef FRENCHIFY_DEBUG_LOG
-#define FRENCHIFY_DEBUG_LOG 0
+#ifndef VIGIL_DEBUG_LOG
+#define VIGIL_DEBUG_LOG 0
 #endif
 
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 
 void ClassFinderLogInit(void* moduleHandle);
 void ClassFinderLogShutdown();

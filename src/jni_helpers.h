@@ -35,5 +35,5 @@ void PlayBlacklistPlingSound(JNIEnv* env, jobject mcObj, jclass mcClass);
 // On-screen toast shown once after injection (works on main menu and in-game).
 // Returns true when the toast has fully finished and can stop being rendered.
 bool RenderInjectToast(JNIEnv* env);
-void ShowFrenchifyToast(const std::string& headline, const std::string& detail);
-bool FrenchifyToastIsShowing();
+void ShowVigilToast(const std::string& headline, const std::string& detail);
+bool VigilToastIsShowing();

@@ -8,14 +8,14 @@
 #include "tab_overlay.h"
 #include "player_api.h"
 #include "denick.h"
-#include "../java_src/lunar_headers/FrenchifyTabOverlayNativeLunar.h"
-#include "../java_src/FrenchifyGuiNewChat.h"
+#include "../java_src/lunar_headers/VigilTabOverlayNativeLunar.h"
+#include "../java_src/VigilGuiNewChat.h"
 #include "number_denicker.h"
 #include "session_stats.h"
 #include "party_queue_detector.h"
 #include "trade_indicator.h"
 #include "hud_edit.h"
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
 #include "class_finder_log.h"
 #endif
 #include <cstdio>
@@ -96,7 +96,7 @@ static ULONGLONG scheduledWantToBetTime = 0;
 static ULONGLONG scheduledNickQolTime = 0;
 
 static jobject  g_lastWorldObjGlobal = nullptr;
-#ifndef FRENCHIFY_LUNAR
+#ifndef VIGIL_LUNAR
 static ULONGLONG scheduledLocrawTime = 0;
 #endif
 
@@ -205,7 +205,7 @@ std::atomic<bool> g_injectReady{false};
 static std::atomic<bool> g_injectNotified{false};
 
 static void LogInitOnce(const char* line) {
-#ifdef FRENCHIFY_LUNAR
+#ifdef VIGIL_LUNAR
     static std::mutex s_mu;
     static std::unordered_set<std::string> s_seen;
     if (!line || !line[0]) return;
@@ -217,8 +217,8 @@ static void LogInitOnce(const char* line) {
 #endif
 }
 
-#ifdef FRENCHIFY_LUNAR
-void FrenchifyBootLog(const char* msg) {
+#ifdef VIGIL_LUNAR
+void VigilBootLog(const char* msg) {
     if (msg) ClassFinderLogLine(msg);
 }
 #endif
@@ -232,13 +232,13 @@ static void BootLogInit(HMODULE mod) {
     const auto pos = s.find_last_of("\\/");
     if (pos != std::string::npos) g_dllDir = s.substr(0, pos);
     if (!g_dllDir.empty()) {
-        AppendFrenchifyNamedLog("frenchify_inject.log",
-            "=== Frenchify Lunar boot | log: " + g_dllDir + "\\frenchify_inject.log ===");
+        AppendVigilNamedLog("vigil_inject.log",
+            "=== Vigil Lunar boot | log: " + g_dllDir + "\\vigil_inject.log ===");
     }
-#if FRENCHIFY_DEBUG_LOG
+#if VIGIL_DEBUG_LOG
     if (!g_dllDir.empty()) {
-        std::string msg = "Frenchify loaded. Debug log: " + g_dllDir + "\\frenchify_debug.log";
-        FrenchifyFileLog("boot", msg.c_str());
+        std::string msg = "Vigil loaded. Debug log: " + g_dllDir + "\\vigil_debug.log";
+        VigilFileLog("boot", msg.c_str());
     }
 #endif
 }
@@ -437,7 +437,7 @@ static void SendVanillaChatMessage(JNIEnv* env, jobject mcObj, jclass mcClass, c
     env->DeleteLocalRef(player);
 }
 
-static bool OpenFrenchifyConfigGui(JNIEnv* env, jobject mcObj, jclass mcClass, jclass guiClass) {
+static bool OpenVigilConfigGui(JNIEnv* env, jobject mcObj, jclass mcClass, jclass guiClass) {
     if (!env || !mcObj || !mcClass) return false;
     jclass useGuiClass = guiClass ? guiClass : g_customGuiClassGlobal;
     if (!useGuiClass) {
@@ -528,7 +528,7 @@ static bool OpenFrenchifyConfigGui(JNIEnv* env, jobject mcObj, jclass mcClass, j
     return true;
 }
 
-static bool IsFrenchifyChatCommand(const std::string& rawCmd) {
+static bool IsVigilChatCommand(const std::string& rawCmd) {
     const std::string cmd = NormalizeChatCommand(rawCmd);
     return cmd == "/config" || cmd == "/stats" || cmd.rfind("/stats ", 0) == 0;
 }
@@ -593,19 +593,19 @@ static void ProcessPendingChatSubmit(JNIEnv* env, jobject mcObj, jclass mcClass)
         std::lock_guard<std::mutex> lk(g_chatInputMutex);
         rawCmd = currentChatInput;
     }
-    if (!IsFrenchifyChatCommand(rawCmd)) return;
+    if (!IsVigilChatCommand(rawCmd)) return;
 
     const std::string cmd = NormalizeChatCommand(rawCmd);
 
     if (cmd == "/config") {
-        if (OpenFrenchifyConfigGui(env, mcObj, mcClass, g_customGuiClassGlobal)) {
+        if (OpenVigilConfigGui(env, mcObj, mcClass, g_customGuiClassGlobal)) {
             return;
         }
         shouldExecuteConfig = true;
     } else if (cmd == "/stats" || cmd.rfind("/stats ", 0) == 0) {
-        if (!FrenchifyIsHypixelServerActive()) {
+        if (!VigilIsHypixelServerActive()) {
             PrintLocalChat(env, mcObj, mcClass,
-                "\xC2\xA7""7[\xC2\xA7""1Fre\xC2\xA7""fnch\xC2\xA7""cify\xC2\xA7""7] \xC2\xA7""cFrenchify features require a hypixel.net server.");
+                "\xC2\xA7""7[\xC2\xA7""1Fre\xC2\xA7""fnch\xC2\xA7""cify\xC2\xA7""7] \xC2\xA7""cVigil features require a hypixel.net server.");
         } else {
             std::string player;
             std::string mode;
@@ -630,7 +630,7 @@ static void ProcessPendingChatSubmit(JNIEnv* env, jobject mcObj, jclass mcClass)
 }
 
 static void InjectDiagLog(const char* msg) {
-    AppendFrenchifyNamedLog("frenchify_inject.log", msg ? msg : "");
+    AppendVigilNamedLog("vigil_inject.log", msg ? msg : "");
 }
 
 static LONG WINAPI UnhandledCrashFilter(EXCEPTION_POINTERS* ep) {
@@ -643,10 +643,10 @@ static LONG WINAPI UnhandledCrashFilter(EXCEPTION_POINTERS* ep) {
 
     char line[320] = {};
     std::snprintf(line, sizeof(line),
-        "CRASH non gere | code=0x%08lX addr=%p | voir frenchify_inject.log a cote de la DLL",
+        "CRASH non gere | code=0x%08lX addr=%p | voir vigil_inject.log a cote de la DLL",
         code, addr);
     InjectDiagLog(line);
-    MessageBoxA(nullptr, line, "Frenchify Inject - CRASH", MB_ICONERROR | MB_TOPMOST);
+    MessageBoxA(nullptr, line, "Vigil Inject - CRASH", MB_ICONERROR | MB_TOPMOST);
 
     return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -1178,13 +1178,13 @@ static void PollWorldJoinForLocraw(JNIEnv* env, jobject mcObj, jclass mcClass) {
 
     if (worldChanged) {
         PartyQueueDetectorOnWorldLoad();
-#ifndef FRENCHIFY_LUNAR
+#ifndef VIGIL_LUNAR
         scheduledLocrawTime = GetTickCount64() + 500;
 #endif
     }
 }
 
-#ifndef FRENCHIFY_LUNAR
+#ifndef VIGIL_LUNAR
 static void ExecutePendingAutoLocraw(JNIEnv* env, jobject mcObj, jclass mcClass) {
     if (scheduledLocrawTime == 0 || GetTickCount64() < scheduledLocrawTime) return;
     scheduledLocrawTime = 0;
@@ -1318,9 +1318,9 @@ static void ApplyOverlayGamemodeFromWhoHeader(JNIEnv* env, jclass customGuiClass
     ApplyOverlayGamemodeIfChanged(env, customGuiClass, mode);
 }
 
-static bool IsFrenchifyOwnedChat(const std::string& rawMsg, const std::string& cleanMsg) {
-    if (cleanMsg.find("Frenchify") != std::string::npos) return true;
-    if (rawMsg.find("Frenchify") != std::string::npos) return true;
+static bool IsVigilOwnedChat(const std::string& rawMsg, const std::string& cleanMsg) {
+    if (cleanMsg.find("Vigil") != std::string::npos) return true;
+    if (rawMsg.find("Vigil") != std::string::npos) return true;
     if (cleanMsg.find('[') != std::string::npos &&
         cleanMsg.find("Fre") != std::string::npos &&
         cleanMsg.find("nch") != std::string::npos &&
@@ -1382,7 +1382,7 @@ static void HandleIncomingChatFromHook(JNIEnv* env, jobject chatComponent) {
     if (jsonText.size() > rawMsg.size()) rawMsg = jsonText;
     else if (rawMsg.empty()) rawMsg = jsonText;
     const std::string cleanMsg = CleanMinecraftText(rawMsg);
-    if (cleanMsg.empty() || IsFrenchifyOwnedChat(rawMsg, cleanMsg)) {
+    if (cleanMsg.empty() || IsVigilOwnedChat(rawMsg, cleanMsg)) {
         env->DeleteLocalRef(mcObj);
         if (mcClassLocal) env->DeleteLocalRef(mcClass);
         return;
@@ -1395,13 +1395,13 @@ static void HandleIncomingChatFromHook(JNIEnv* env, jobject chatComponent) {
     if (mcClassLocal) env->DeleteLocalRef(mcClass);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyGuiNewChat_nativeOnIncomingChat(JNIEnv* env,
+extern "C" JNIEXPORT void JNICALL Java_VigilGuiNewChat_nativeOnIncomingChat(JNIEnv* env,
                                                                                 jclass,
                                                                                 jobject chatComponent) {
     HandleIncomingChatFromHook(env, chatComponent);
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_FrenchifyGuiNewChat_nativeShouldSuppressIncomingChat(
+extern "C" JNIEXPORT jboolean JNICALL Java_VigilGuiNewChat_nativeShouldSuppressIncomingChat(
     JNIEnv* env, jclass, jobject chatComponent) {
     return ShouldSuppressIncomingChat(env, chatComponent) ? JNI_TRUE : JNI_FALSE;
 }
@@ -1414,7 +1414,7 @@ static void ProcessChatMessage(JNIEnv* env,
                                const std::string& rawMsg,
                                const std::string& msg) {
     if (msg.empty()) return;
-    if (IsFrenchifyOwnedChat(rawMsg, msg)) return;
+    if (IsVigilOwnedChat(rawMsg, msg)) return;
 
     if (IsHypixelLocrawChatLine(msg)) {
         ApplyOverlayGamemodeFromLocraw(env, customGuiClass, msg);
@@ -1574,7 +1574,7 @@ static void ProcessChatMessage(JNIEnv* env,
             if (isWin) {
                 g_georgeWinCount++;
                 if (g_georgeWinCount % 2 == 0) {
-                    ShowFrenchifyToast("Time To Bet", "");
+                    ShowVigilToast("Time To Bet", "");
                 }
             }
             if (lower.find("+200") != std::string::npos && lower.find("slumber tickets") != std::string::npos) {
@@ -2575,7 +2575,7 @@ static void LogSidebarScoreboard(JNIEnv* env, jobject mcObj, jclass mcClass) {
     env->DeleteLocalRef(thePlayer);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_FrenchifyTabOverlayNative_nativeRenderCustomTab(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_VigilTabOverlayNative_nativeRenderCustomTab(JNIEnv* env, jclass) {
     if (!env) return;
     static ULONGLONG s_lastNativeRenderLogAt = 0;
     static int s_nativeRenderCalls = 0;
@@ -2684,8 +2684,8 @@ static bool InstallNativeTabOverlay(JNIEnv* env, jobject classLoader) {
         return fail("GetObjectField(ingameGui)");
     }
 
-    jclass tabClass = env->DefineClass("FrenchifyTabOverlayNative", classLoader,
-        (const jbyte*)FrenchifyTabOverlayNativeLunar_class, FrenchifyTabOverlayNativeLunar_class_len);
+    jclass tabClass = env->DefineClass("VigilTabOverlayNative", classLoader,
+        (const jbyte*)VigilTabOverlayNativeLunar_class, VigilTabOverlayNativeLunar_class_len);
     if (env->ExceptionCheck() || !tabClass) {
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe();
@@ -2697,7 +2697,7 @@ static bool InstallNativeTabOverlay(JNIEnv* env, jobject classLoader) {
             if (loaderClass) {
                 jmethodID midLoadClass = env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
                 if (midLoadClass) {
-                    jstring className = env->NewStringUTF("FrenchifyTabOverlayNative");
+                    jstring className = env->NewStringUTF("VigilTabOverlayNative");
                     tabClass = (jclass)env->CallObjectMethod(classLoader, midLoadClass, className);
                     if (env->ExceptionCheck()) {
                         env->ExceptionClear();
@@ -2714,11 +2714,11 @@ static bool InstallNativeTabOverlay(JNIEnv* env, jobject classLoader) {
         env->DeleteLocalRef(ingameGui);
         env->DeleteLocalRef(mcObj);
         env->DeleteLocalRef(mcClass);
-        return fail("DefineClass/LoadClass(FrenchifyTabOverlayNative)");
+        return fail("DefineClass/LoadClass(VigilTabOverlayNative)");
     }
 
     JNINativeMethod methods[] = {
-        {(char*)"nativeRenderCustomTab", (char*)"()V", (void*)&Java_FrenchifyTabOverlayNative_nativeRenderCustomTab}
+        {(char*)"nativeRenderCustomTab", (char*)"()V", (void*)&Java_VigilTabOverlayNative_nativeRenderCustomTab}
     };
     if (env->RegisterNatives(tabClass, methods, 1) != JNI_OK || env->ExceptionCheck()) {
         if (env->ExceptionCheck()) {
@@ -2747,7 +2747,7 @@ static bool InstallNativeTabOverlay(JNIEnv* env, jobject classLoader) {
         env->DeleteLocalRef(ingameGui);
         env->DeleteLocalRef(mcObj);
         env->DeleteLocalRef(mcClass);
-        return fail("NewObject(FrenchifyTabOverlayNative)");
+        return fail("NewObject(VigilTabOverlayNative)");
     }
 
     jclass ingameGuiClass = env->GetObjectClass(ingameGui);
@@ -2907,8 +2907,8 @@ static bool InstallNativeChatHook(JNIEnv* env, jobject classLoader) {
         return fail("GetObjectField(ingameGui)");
     }
 
-    jclass chatHookClass = env->DefineClass("FrenchifyGuiNewChat", classLoader,
-        (const jbyte*)FrenchifyGuiNewChat_class, FrenchifyGuiNewChat_class_len);
+    jclass chatHookClass = env->DefineClass("VigilGuiNewChat", classLoader,
+        (const jbyte*)VigilGuiNewChat_class, VigilGuiNewChat_class_len);
     if (env->ExceptionCheck() || !chatHookClass) {
         env->ExceptionClear();
         if (classLoader) {
@@ -2916,7 +2916,7 @@ static bool InstallNativeChatHook(JNIEnv* env, jobject classLoader) {
             if (loaderClass) {
                 jmethodID midLoadClass = env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
                 if (midLoadClass) {
-                    jstring className = env->NewStringUTF("FrenchifyGuiNewChat");
+                    jstring className = env->NewStringUTF("VigilGuiNewChat");
                     chatHookClass = (jclass)env->CallObjectMethod(classLoader, midLoadClass, className);
                     if (env->ExceptionCheck()) {
                         env->ExceptionClear();
@@ -2933,21 +2933,21 @@ static bool InstallNativeChatHook(JNIEnv* env, jobject classLoader) {
         env->DeleteLocalRef(ingameGui);
         env->DeleteLocalRef(mcObj);
         if (mcClassLocal) env->DeleteLocalRef(mcClass);
-        return fail("DefineClass/LoadClass(FrenchifyGuiNewChat)");
+        return fail("DefineClass/LoadClass(VigilGuiNewChat)");
     }
 
     JNINativeMethod chatMethods[] = {
         {(char*)"nativeOnIncomingChat", (char*)"(Ljava/lang/Object;)V",
-         (void*)&Java_FrenchifyGuiNewChat_nativeOnIncomingChat},
+         (void*)&Java_VigilGuiNewChat_nativeOnIncomingChat},
         {(char*)"nativeShouldSuppressIncomingChat", (char*)"(Ljava/lang/Object;)Z",
-         (void*)&Java_FrenchifyGuiNewChat_nativeShouldSuppressIncomingChat}
+         (void*)&Java_VigilGuiNewChat_nativeShouldSuppressIncomingChat}
     };
     if (env->RegisterNatives(chatHookClass, chatMethods, 2) != JNI_OK || env->ExceptionCheck()) {
         env->DeleteLocalRef(chatHookClass);
         env->DeleteLocalRef(ingameGui);
         env->DeleteLocalRef(mcObj);
         if (mcClassLocal) env->DeleteLocalRef(mcClass);
-        return fail("RegisterNatives(FrenchifyGuiNewChat)");
+        return fail("RegisterNatives(VigilGuiNewChat)");
     }
 
     jclass ingameGuiClass = env->GetObjectClass(ingameGui);
@@ -2981,7 +2981,7 @@ static bool InstallNativeChatHook(JNIEnv* env, jobject classLoader) {
         env->DeleteLocalRef(ingameGui);
         env->DeleteLocalRef(mcObj);
         if (mcClassLocal) env->DeleteLocalRef(mcClass);
-        return fail("GetMethodID(FrenchifyGuiNewChat.<init>)");
+        return fail("GetMethodID(VigilGuiNewChat.<init>)");
     }
 
     jobject chatHookObj = env->NewObject(chatHookClass, chatCtor, mcObj, originalChatGui);
@@ -2992,7 +2992,7 @@ static bool InstallNativeChatHook(JNIEnv* env, jobject classLoader) {
         env->DeleteLocalRef(ingameGui);
         env->DeleteLocalRef(mcObj);
         if (mcClassLocal) env->DeleteLocalRef(mcClass);
-        return fail("NewObject(FrenchifyGuiNewChat)");
+        return fail("NewObject(VigilGuiNewChat)");
     }
 
     jfieldID fidChatGui = ResolveIngameChatGuiField(env, ingameGui, ingameGuiClass);
@@ -3278,7 +3278,7 @@ static void RemoveSwapBuffersHook() {
 
 static void TryRenderInjectToastOnPresent() {
     if (!g_injectReady.load(std::memory_order_relaxed)) return;
-    if (g_injectNotified.load(std::memory_order_relaxed) && !FrenchifyToastIsShowing()) return;
+    if (g_injectNotified.load(std::memory_order_relaxed) && !VigilToastIsShowing()) return;
     if (!g_jvmGlobal) return;
     if (wglGetCurrentContext() == nullptr) return;
 
@@ -3339,7 +3339,7 @@ static void TryRenderSessionStatsOnPresent() {
     if (env->ExceptionCheck()) env->ExceptionClear();
     if (mcObj) {
         PumpMinecraftClientLogic(env, mcObj, mcClass);
-        if (FrenchifyIsHypixelServerActive()) {
+        if (VigilIsHypixelServerActive()) {
             if (g_customGuiClassGlobal && !IsSessionHudHookInstalled()) {
                 SessionStatsTick(env, mcObj, mcClass, g_customGuiClassGlobal);
                 SessionStatsRender(env);
@@ -3503,13 +3503,13 @@ LRESULT CALLBACK hkWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     if (uMsg == WM_KEYDOWN && wParam == VK_RETURN && g_chatInputLive)
     {
-        // Intercept only Frenchify commands; vanilla Enter keeps chat history (arrow keys).
+        // Intercept only Vigil commands; vanilla Enter keeps chat history (arrow keys).
         std::string rawCmd;
         {
             std::lock_guard<std::mutex> lk(g_chatInputMutex);
             rawCmd = currentChatInput;
         }
-        if (IsFrenchifyChatCommand(rawCmd)) {
+        if (IsVigilChatCommand(rawCmd)) {
             g_pendingChatSubmit.store(true);
             return 0;
         }
@@ -3547,7 +3547,7 @@ void PumpMinecraftClientLogic(JNIEnv* env, jobject mcObj, jclass mcClass) {
     if (!env || !mcObj || !mcClass) return;
 
     // Keep server whitelist fresh even when the rest of the pump is throttled.
-    FrenchifyUpdateHypixelServerWhitelist(env, mcObj, mcClass);
+    VigilUpdateHypixelServerWhitelist(env, mcObj, mcClass);
 
     static ULONGLONG s_lastPumpAt = 0;
     const ULONGLONG nowPump = GetTickCount64();
@@ -3569,7 +3569,7 @@ void PumpMinecraftClientLogic(JNIEnv* env, jobject mcObj, jclass mcClass) {
     ProcessPendingChatSubmit(env, mcObj, mcClass);
 
     static bool s_wasOnHypixel = false;
-    if (!FrenchifyIsHypixelServerActive()) {
+    if (!VigilIsHypixelServerActive()) {
         if (s_wasOnHypixel) {
             s_wasOnHypixel = false;
             g_tabOverlayStateAllowed = false;
@@ -3607,7 +3607,7 @@ void PumpMinecraftClientLogic(JNIEnv* env, jobject mcObj, jclass mcClass) {
     ExecutePendingAutoGL(env, mcObj, mcClass);
     ExecutePendingWantToBet(env, mcObj, mcClass);
     PollWorldJoinForLocraw(env, mcObj, mcClass);
-#ifndef FRENCHIFY_LUNAR
+#ifndef VIGIL_LUNAR
     ExecutePendingAutoLocraw(env, mcObj, mcClass);
 #endif
 
@@ -4014,12 +4014,12 @@ void PumpMinecraftClientLogic(JNIEnv* env, jobject mcObj, jclass mcClass) {
                 char buf[128];
                 std::snprintf(buf, sizeof(buf), "pump session ON hook=%d scheduled=%d",
                               IsSessionHudHookInstalled() ? 1 : 0, 1);
-                FrenchifyFileLog("session", buf);
+                VigilFileLog("session", buf);
             }
             if (!IsSessionHudHookInstalled()
                 && nowPump - s_lastSessionHudHookTryAt >= 2000) {
                 s_lastSessionHudHookTryAt = nowPump;
-                FrenchifyFileLog("session", "pump: trying GuiIngame hook install");
+                VigilFileLog("session", "pump: trying GuiIngame hook install");
                 TryInstallSessionHudHook(env, mcObj, g_injectClassLoaderGlobal);
             }
         }
@@ -4052,7 +4052,7 @@ void PumpMinecraftClientLogic(JNIEnv* env, jobject mcObj, jclass mcClass) {
         }
     }
     if (shouldExecuteConfig) {
-        if (OpenFrenchifyConfigGui(env, mcObj, mcClass, customGuiClass)) {
+        if (OpenVigilConfigGui(env, mcObj, mcClass, customGuiClass)) {
             shouldExecuteConfig = false;
         }
     }
@@ -4415,24 +4415,24 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
             }
         }
 
-        customGuiClass = env->DefineClass("FrenchifyGui4", loader, (const jbyte*)FrenchifyGuiLunar_class, FrenchifyGuiLunar_class_len);
+        customGuiClass = env->DefineClass("VigilGui4", loader, (const jbyte*)VigilGuiLunar_class, VigilGuiLunar_class_len);
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
             customGuiClass = nullptr;
-            InjectDiagLog("WARN: DefineClass(FrenchifyGui4) a echoue, tentative loadClass...");
+            InjectDiagLog("WARN: DefineClass(VigilGui4) a echoue, tentative loadClass...");
 
             if (loader) {
                 jclass loaderClass = env->GetObjectClass(loader);
                 if (loaderClass) {
                     jmethodID midLoadClass = env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
                     if (midLoadClass) {
-                        jstring className = env->NewStringUTF("FrenchifyGui4");
+                        jstring className = env->NewStringUTF("VigilGui4");
                         customGuiClass = (jclass)env->CallObjectMethod(loader, midLoadClass, className);
                         if (env->ExceptionCheck() || !customGuiClass) {
                             env->ExceptionDescribe();
                             env->ExceptionClear();
                             customGuiClass = nullptr;
-                            InjectDiagLog("ECHEC inject: loadClass(FrenchifyGui4) a echoue (GUI non chargee)");
+                            InjectDiagLog("ECHEC inject: loadClass(VigilGui4) a echoue (GUI non chargee)");
                         }
                         env->DeleteLocalRef(className);
                     } else {
@@ -4442,7 +4442,7 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
                     env->DeleteLocalRef(loaderClass);
                 }
             } else {
-                InjectDiagLog("ECHEC inject: pas de ClassLoader pour charger FrenchifyGui4");
+                InjectDiagLog("ECHEC inject: pas de ClassLoader pour charger VigilGui4");
             }
         }
 
@@ -4451,9 +4451,9 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
             env->DeleteLocalRef(customGuiClass);
             customGuiClass = globalClass;
             g_customGuiClassGlobal = customGuiClass;
-            InjectDiagLog("OK: FrenchifyGui4 chargee");
+            InjectDiagLog("OK: VigilGui4 chargee");
         } else {
-            InjectDiagLog("ECHEC inject: FrenchifyGui4 absente — /config et toggles GUI indisponibles");
+            InjectDiagLog("ECHEC inject: VigilGui4 absente — /config et toggles GUI indisponibles");
         }
 
         if (aveClass) env->DeleteLocalRef(aveClass);

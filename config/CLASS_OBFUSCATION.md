@@ -1,4 +1,4 @@
-# Frenchify Inject — Classes & obfuscation (Minecraft 1.8.9)
+# Vigil Inject — Classes & obfuscation (Minecraft 1.8.9)
 
 Référence des classes Java utilisées par l'inject C++/JNI (`src/`) avec leurs noms **obfusqués vanilla** et leurs noms **MCP** (lisibles).
 
@@ -16,18 +16,18 @@ Référence des classes Java utilisées par l'inject C++/JNI (`src/`) avec leurs
 
 ---
 
-## Classes injectées Frenchify (non obfusquées)
+## Classes injectées Vigil (non obfusquées)
 
 Ces classes sont compilées puis injectées via `DefineClass` / `loadClass` dans le classloader du jeu.
 
 | Classe | Étend / implémente | Rôle | Fichiers |
 |--------|-------------------|------|----------|
-| `FrenchifyGui4` | `axu` (`GuiScreen`) | GUI `/config` | `dllmain.cpp`, `java_src/FrenchifyGui4.java`, `FrenchifyGui.h` |
-| `FrenchifyTabOverlayNative` | `awh` (`GuiPlayerTabOverlay`) | Tab overlay custom (hook render) | `dllmain.cpp`, `java_src/FrenchifyTabOverlayNative.java` |
-| `FrenchifyTabOverlay` | `awh` | Variante tab (bytecode legacy) | `java_src/FrenchifyTabOverlay.java` |
-| `FrenchifyRenderGlobal` | `bfr` (`RenderGlobal`) | Hook `renderEntities` → hitboxes | `colored_hitboxes.cpp`, `java_src/FrenchifyRenderGlobal.java` |
-| `FrenchifyHitboxInstaller` | `Runnable` | Install du hook sur le client thread | `colored_hitboxes.cpp`, `java_src/FrenchifyHitboxInstaller.java` |
-| `FrenchifyClientPump` | `Runnable` | Pump JNI côté client thread (Lunar) | `java_src/FrenchifyClientPumpLunar.java` |
+| `VigilGui4` | `axu` (`GuiScreen`) | GUI `/config` | `dllmain.cpp`, `java_src/VigilGui4.java`, `VigilGui.h` |
+| `VigilTabOverlayNative` | `awh` (`GuiPlayerTabOverlay`) | Tab overlay custom (hook render) | `dllmain.cpp`, `java_src/VigilTabOverlayNative.java` |
+| `VigilTabOverlay` | `awh` | Variante tab (bytecode legacy) | `java_src/VigilTabOverlay.java` |
+| `VigilRenderGlobal` | `bfr` (`RenderGlobal`) | Hook `renderEntities` → hitboxes | `colored_hitboxes.cpp`, `java_src/VigilRenderGlobal.java` |
+| `VigilHitboxInstaller` | `Runnable` | Install du hook sur le client thread | `colored_hitboxes.cpp`, `java_src/VigilHitboxInstaller.java` |
+| `VigilClientPump` | `Runnable` | Pump JNI côté client thread (Lunar) | `java_src/VigilClientPumpLunar.java` |
 
 ---
 
@@ -40,7 +40,7 @@ Ces classes sont compilées puis injectées via `DefineClass` / `loadClass` dans
 | `avp` | `net/minecraft/client/gui/Gui` | `tab_overlay.cpp` |
 | `avr` | `net/minecraft/client/gui/ScaledResolution` | `tab_overlay.cpp` |
 | `avn` | `net/minecraft/client/gui/FontRenderer` | `tab_overlay.cpp` |
-| `awh` | `net/minecraft/client/gui/GuiPlayerTabOverlay` | `tab_overlay.cpp`, `dllmain.cpp`, `FrenchifyTabOverlayNative.java` |
+| `awh` | `net/minecraft/client/gui/GuiPlayerTabOverlay` | `tab_overlay.cpp`, `dllmain.cpp`, `VigilTabOverlayNative.java` |
 | `awv` | `net/minecraft/client/gui/GuiChat` | `dllmain.cpp` |
 | `axu` | `net/minecraft/client/gui/GuiScreen` | `dllmain.cpp` (champ `currentScreen`) |
 | `avw` | `net/minecraft/client/gui/GuiTextField` | `dllmain.cpp` (champ `inputField` de `GuiChat`) |
@@ -49,7 +49,7 @@ Ces classes sont compilées puis injectées via `DefineClass` / `loadClass` dans
 | `ayl` | `net/minecraft/client/gui/inventory/GuiContainer` | `dllmain.cpp` (fast buy) |
 | `ayr` | `net/minecraft/client/gui/inventory/GuiChest` | `dllmain.cpp` (fast buy) |
 | `avl` | `net/minecraft/util/Timer` | `colored_hitboxes.cpp` |
-| `bfr` | `net/minecraft/client/renderer/RenderGlobal` | `colored_hitboxes.cpp`, `FrenchifyRenderGlobal.java` |
+| `bfr` | `net/minecraft/client/renderer/RenderGlobal` | `colored_hitboxes.cpp`, `VigilRenderGlobal.java` |
 | `biu` | `net/minecraft/client/renderer/entity/RenderManager` | `colored_hitboxes.cpp` |
 | `bmj` | `net/minecraft/client/renderer/texture/TextureManager` | `tab_overlay.cpp` |
 | `bnp` | `net/minecraft/client/resources/SkinManager` | `denick.cpp` |
@@ -64,7 +64,7 @@ Ces classes sont compilées puis injectées via `DefineClass` / `loadClass` dans
 | `bpf` | `net/minecraft/client/audio/PositionedSoundRecord` | `jni_helpers.cpp` |
 | `bpj` | `net/minecraft/client/audio/ISound` | `jni_helpers.cpp` (`playSound`) |
 | `bpz` | `net/minecraft/client/audio/SoundHandler` | `jni_helpers.cpp` |
-| `bia` | `net/minecraft/client/renderer/culling/ICamera` | `FrenchifyRenderGlobal.java` (param `renderEntities`) |
+| `bia` | `net/minecraft/client/renderer/culling/ICamera` | `VigilRenderGlobal.java` (param `renderEntities`) |
 
 ---
 
@@ -133,7 +133,7 @@ Ces classes sont compilées puis injectées via `DefineClass` / `loadClass` dans
 | `java/lang/Object` | `colored_hitboxes.cpp`, `dllmain.cpp` |
 | `java/lang/Class` | `colored_hitboxes.cpp`, `dllmain.cpp` |
 | `java/lang/ClassLoader` | `colored_hitboxes.cpp`, `dllmain.cpp` |
-| `java/lang/Runnable` | `FrenchifyHitboxInstaller.java`, `colored_hitboxes.cpp` |
+| `java/lang/Runnable` | `VigilHitboxInstaller.java`, `colored_hitboxes.cpp` |
 | `java/util/Collection` | `tab_overlay.cpp` |
 | `java/util/Iterator` | `tab_overlay.cpp` |
 | `java/util/List` | `colored_hitboxes.cpp`, `anticheat.cpp`, `utils.cpp`, `dllmain.cpp` |
@@ -146,8 +146,8 @@ Ces classes sont compilées puis injectées via `DefineClass` / `loadClass` dans
 
 | Classe | Fichiers |
 |--------|----------|
-| `org/lwjgl/input/Mouse` | `FrenchifyGui4.java`, `FrenchifyGui4Lunar.java` |
-| `org/lwjgl/input/Keyboard` | `FrenchifyGui4.java`, `FrenchifyGui4Lunar.java` |
+| `org/lwjgl/input/Mouse` | `VigilGui4.java`, `VigilGui4Lunar.java` |
+| `org/lwjgl/input/Keyboard` | `VigilGui4.java`, `VigilGui4Lunar.java` |
 
 ---
 

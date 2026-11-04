@@ -200,7 +200,7 @@ static std::string JsonEscapeNd(const std::string& s) {
     return out;
 }
 
-static std::string BuildFrenchifyChatPrefixJson() {
+static std::string BuildVigilChatPrefixJson() {
     return "{\"text\":\"[\",\"color\":\"gray\"},"
            "{\"text\":\"Fre\",\"color\":\"dark_blue\"},"
            "{\"text\":\"nch\",\"color\":\"white\"},"
@@ -217,7 +217,7 @@ std::string BuildPotentialsChat(const std::string& nickDisplay, int count,
     }
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%d", count);
-    return "{\"text\":\"\"," + BuildFrenchifyChatPrefixJson() +
+    return "{\"text\":\"\"," + BuildVigilChatPrefixJson() +
            ",{\"text\":\"" + JsonEscapeNd(nickDisplay) + "\",\"color\":\"white\"},"
            "{\"text\":\" (" + std::string(buf) + " possible)\",\"color\":\"gray\","
            "\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"" + hover + "\"}}}"
@@ -231,8 +231,8 @@ std::string BuildDenickStatsChat(const std::string& nickDisplay, const std::stri
     char fkBuf[16];
     std::snprintf(fkBuf, sizeof(fkBuf), "%.2f", fkdr);
     const std::string hover = std::to_string(hyp.stars) + " stars - " + fkBuf + " FKDR";
-    // Small chat ping: [Frenchify] nick -> real
-    return "{\"text\":\"\"," + BuildFrenchifyChatPrefixJson() +
+    // Small chat ping: [Vigil] nick -> real
+    return "{\"text\":\"\"," + BuildVigilChatPrefixJson() +
            ",{\"text\":\"" + JsonEscapeNd(nickDisplay) + "\",\"color\":\"white\"},"
            "{\"text\":\" -> \",\"color\":\"gray\"},"
            "{\"text\":\"" + JsonEscapeNd(showName) + "\",\"color\":\"green\","

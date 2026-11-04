@@ -12,8 +12,8 @@ JAVA = PARENT / "java_src"
 
 
 def write_tab_overlay() -> None:
-    src = JAVA / "FrenchifyTabOverlayNative.java"
-    out = JAVA / "FrenchifyTabOverlayNativeLunar.java"
+    src = JAVA / "VigilTabOverlayNative.java"
+    out = JAVA / "VigilTabOverlayNativeLunar.java"
     text = src.read_text(encoding="utf-8")
     header = (
         "import net.minecraft.client.Minecraft;\n"
@@ -23,10 +23,10 @@ def write_tab_overlay() -> None:
         "import net.minecraft.scoreboard.ScoreObjective;\n\n"
     )
     text = text.replace(
-        "public class FrenchifyTabOverlayNative extends awh {",
-        header + "public class FrenchifyTabOverlayNative extends GuiPlayerTabOverlay {",
+        "public class VigilTabOverlayNative extends awh {",
+        header + "public class VigilTabOverlayNative extends GuiPlayerTabOverlay {",
     )
-    text = text.replace("FrenchifyTabOverlayNative(ave mc, avo guiIngame)", "FrenchifyTabOverlayNative(Minecraft mc, GuiIngame guiIngame)")
+    text = text.replace("VigilTabOverlayNative(ave mc, avo guiIngame)", "VigilTabOverlayNative(Minecraft mc, GuiIngame guiIngame)")
     text = text.replace("public void a(int width, auo scoreboard, auk objective)", "public void renderPlayerlist(int width, Scoreboard scoreboard, ScoreObjective objective)")
     text = text.replace("super.a(width, scoreboard, objective)", "super.renderPlayerlist(width, scoreboard, objective)")
     out.write_text(text, encoding="utf-8")
@@ -34,8 +34,8 @@ def write_tab_overlay() -> None:
 
 
 def write_render_global() -> None:
-    src = JAVA / "FrenchifyRenderGlobal.java"
-    out = JAVA / "FrenchifyRenderGlobalLunar.java"
+    src = JAVA / "VigilRenderGlobal.java"
+    out = JAVA / "VigilRenderGlobalLunar.java"
     text = src.read_text(encoding="utf-8")
     header = (
         "import net.minecraft.client.Minecraft;\n"
@@ -44,10 +44,10 @@ def write_render_global() -> None:
         "import net.minecraft.entity.Entity;\n\n"
     )
     text = text.replace(
-        "public class FrenchifyRenderGlobal extends bfr {",
-        header + "public class FrenchifyRenderGlobal extends RenderGlobal {",
+        "public class VigilRenderGlobal extends bfr {",
+        header + "public class VigilRenderGlobal extends RenderGlobal {",
     )
-    text = text.replace("FrenchifyRenderGlobal(ave mc)", "FrenchifyRenderGlobal(Minecraft mc)")
+    text = text.replace("VigilRenderGlobal(ave mc)", "VigilRenderGlobal(Minecraft mc)")
     text = text.replace("public void a(pk entity, bia camera, float partialTicks)", "public void renderEntities(Entity entity, ICamera camera, float partialTicks)")
     text = text.replace("super.a(entity, camera, partialTicks)", "super.renderEntities(entity, camera, partialTicks)")
     out.write_text(text, encoding="utf-8")
@@ -55,8 +55,8 @@ def write_render_global() -> None:
 
 
 def write_hitbox_installer() -> None:
-    src = JAVA / "FrenchifyHitboxInstaller.java"
-    out = JAVA / "FrenchifyHitboxInstallerLunar.java"
+    src = JAVA / "VigilHitboxInstaller.java"
+    out = JAVA / "VigilHitboxInstallerLunar.java"
     text = src.read_text(encoding="utf-8")
     header = (
         "import java.lang.reflect.Field;\n"
@@ -67,7 +67,7 @@ def write_hitbox_installer() -> None:
     lines = text.splitlines()
     body_start = 0
     for i, line in enumerate(lines):
-        if line.startswith("public class FrenchifyHitboxInstaller"):
+        if line.startswith("public class VigilHitboxInstaller"):
             body_start = i
             break
     text = header + "\n".join(lines[body_start:]) + "\n"
@@ -85,8 +85,8 @@ def write_gui() -> None:
 
 
 def write_session_ingame_gui() -> None:
-    src = JAVA / "FrenchifyIngameGui.java"
-    out = JAVA / "FrenchifyIngameGuiLunar.java"
+    src = JAVA / "VigilIngameGui.java"
+    out = JAVA / "VigilIngameGuiLunar.java"
     text = src.read_text(encoding="utf-8")
     header = (
         "import net.minecraft.client.Minecraft;\n"
@@ -95,13 +95,13 @@ def write_session_ingame_gui() -> None:
     lines = text.splitlines()
     body_start = 0
     for i, line in enumerate(lines):
-        if line.startswith("public class FrenchifyIngameGui"):
+        if line.startswith("public class VigilIngameGui"):
             body_start = i
             break
     text = header + "\n".join(lines[body_start:]) + "\n"
     text = text.replace("extends avo", "extends GuiIngame")
     text = text.replace("private final ave mcInstance", "private final Minecraft mcInstance")
-    text = text.replace("FrenchifyIngameGui(ave mc)", "FrenchifyIngameGui(Minecraft mc)")
+    text = text.replace("VigilIngameGui(ave mc)", "VigilIngameGui(Minecraft mc)")
     text = text.replace("public void a(float partialTicks)", "public void renderGameOverlay(float partialTicks)")
     text = text.replace("super.a(partialTicks)", "super.renderGameOverlay(partialTicks)")
     out.write_text(text, encoding="utf-8")
@@ -109,8 +109,8 @@ def write_session_ingame_gui() -> None:
 
 
 def write_session_hud() -> None:
-    src = JAVA / "FrenchifySessionHud.java"
-    out = JAVA / "FrenchifySessionHudLunar.java"
+    src = JAVA / "VigilSessionHud.java"
+    out = JAVA / "VigilSessionHudLunar.java"
     text = src.read_text(encoding="utf-8")
     header = (
         "import net.minecraft.client.Minecraft;\n"
@@ -121,7 +121,7 @@ def write_session_hud() -> None:
     lines = text.splitlines()
     body_start = 0
     for i, line in enumerate(lines):
-        if line.startswith("public final class FrenchifySessionHud"):
+        if line.startswith("public final class VigilSessionHud"):
             body_start = i
             break
     text = header + "\n".join(lines[body_start:]) + "\n"
@@ -141,8 +141,8 @@ def write_session_hud() -> None:
 
 
 def write_session_hud_installer() -> None:
-    src = JAVA / "FrenchifySessionHudInstaller.java"
-    out = JAVA / "FrenchifySessionHudInstallerLunar.java"
+    src = JAVA / "VigilSessionHudInstaller.java"
+    out = JAVA / "VigilSessionHudInstallerLunar.java"
     text = src.read_text(encoding="utf-8")
     header = (
         "import java.lang.reflect.Field;\n"
@@ -152,7 +152,7 @@ def write_session_hud_installer() -> None:
     lines = text.splitlines()
     body_start = 0
     for i, line in enumerate(lines):
-        if line.startswith("public class FrenchifySessionHudInstaller"):
+        if line.startswith("public class VigilSessionHudInstaller"):
             body_start = i
             break
     text = header + "\n".join(lines[body_start:]) + "\n"
