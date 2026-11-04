@@ -55,6 +55,23 @@ jobs:
         if: ${{ env.RUN == 'true' }}
         run: cmake --build build --config Release --parallel
 
+      - name: Package launch bundle
+        if: ${{ env.RUN == 'true' }}
+        shell: pwsh
+        run: |
+          $package = "Vigil-$env:VERSION-win-x64"
+          $stage = Join-Path $env:RUNNER_TEMP $package
+          New-Item -ItemType Directory -Force -Path "$stage\config" | Out-Null
+          Copy-Item build/Release/InjectorLunar.exe $stage
+          Copy-Item build/Release/ChatReaderLunar.dll $stage
+          Copy-Item build/Release/config/known-nicks.json "$stage\config"
+          @(
+            "Start Lunar Client and Minecraft, then run InjectorLunar.exe."
+            "Keep the EXE, DLL, and config folder together."
+          ) | Set-Content -Encoding utf8 "$stage\README.txt"
+          Compress-Archive -Path "$stage\*" -DestinationPath "$package.zip" -Force
+          "PACKAGE_FILE=$package.zip" >> $env:GITHUB_ENV
+
       - name: Create GitHub Release
         if: ${{ env.RUN == 'true' }}
         uses: softprops/action-gh-release@v2
@@ -62,7 +79,4 @@ jobs:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
           body: ${{ env.DESC }}
-          files: |
-            build/Release/ChatReaderLunar.dll
-            build/Release/InjectorLunar.exe
-            build/Release/config/known-nicks.json
+          files: ${{ env.PACKAGE_FILE }}

@@ -1,6 +1,10 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.15)
 
 project(FrenchifyLunar)
+
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 find_package(JNI REQUIRED)
 include_directories(${JNI_INCLUDE_DIRS})
