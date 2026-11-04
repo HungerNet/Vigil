@@ -1,6 +1,6 @@
 # Compile FrenchifyGui4Lunar.java and regenerate lunar_headers/FrenchifyGuiLunar.h
 $ErrorActionPreference = "Stop"
-$root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$root = Split-Path $PSScriptRoot -Parent
 $stubs = Join-Path $root "java_src\stubs_lunar"
 $maker = Join-Path $PSScriptRoot "make_lunar_gui.py"
 $srcGen = Join-Path $root "java_src\FrenchifyGui4Lunar.java"

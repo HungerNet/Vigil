@@ -47,10 +47,16 @@ jobs:
           java-version: '17'
           architecture: x64
 
+      - name: Set up Python
+        if: ${{ env.RUN == 'true' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Generate Lunar Java headers
         if: ${{ env.RUN == 'true' }}
         shell: pwsh
-        run: ./scripts/compile_lunar_headers.ps1
+        run: ./scripts/compile_gui_lunar.ps1
 
       - name: Configure CMake
         if: ${{ env.RUN == 'true' }}
