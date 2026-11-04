@@ -1074,7 +1074,7 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
             } else {
                 if (!isUsingItem) { d.lastStopUsingItem = heldItemId; d.lastStopUsingTime = now; }
                 if ((now - d.lastNoSlowTrigger) >= 1000 && d.noSlowVL > 0) {
-                    d.noSlowVL = max(0, d.noSlowVL - 1);
+                    d.noSlowVL = (std::max)(0, d.noSlowVL - 1);
                     AcLogf("noslow vl-- player=%s vl=%d sprint=%d using=%d riding=%d item=%d",
                            eName.c_str(), d.noSlowVL, isSprinting ? 1 : 0, isUsingItem ? 1 : 0,
                            isRiding ? 1 : 0, heldItemId);
@@ -1482,7 +1482,7 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
                     }
                 } else {
                     if (d.legitScaffBVL > 0 && (now - d.lastLegitScaffBInc) > kLegitScaffBDecayMs) {
-                        d.legitScaffBVL = max(0, d.legitScaffBVL - 1);
+                        d.legitScaffBVL = (std::max)(0, d.legitScaffBVL - 1);
                         AcLogf("legitscaff vl-- player=%s vl=%d pitch=%.1f speed=%.3f sneak=%d item=%d block=%d lookingDown=%d scaffolding=0",
                                eName.c_str(), d.legitScaffBVL, (double)d.lastPitch, (double)speed,
                                isSneaking ? 1 : 0, heldItemId, isBlockItem ? 1 : 0, isLookingDown ? 1 : 0);
@@ -1538,7 +1538,7 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
                         d.scaffoldBVL = 0;
                     }
                 } else if (d.scaffoldBVL > 0 && (now - d.lastScaffoldBInc) > 3000) {
-                    d.scaffoldBVL = max(0, d.scaffoldBVL - 1);
+                    d.scaffoldBVL = (std::max)(0, d.scaffoldBVL - 1);
                     AcLogf("flatscaff vl-- player=%s vl=%d pitch=%.1f speed=%.3f pitchOk=%d block=%d speedOk=%d",
                            eName.c_str(), d.scaffoldBVL, (double)pitch, (double)instantHoriz,
                            cPitch ? 1 : 0, cBlock ? 1 : 0, cSpeed ? 1 : 0);
