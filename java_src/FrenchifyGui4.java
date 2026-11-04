@@ -708,11 +708,27 @@ public class FrenchifyGui4 extends GuiScreen {
     private static final int CONTENT_INNER_GAP = 8;
     private static final int OVERLAY_FIXED_HEADER_H = 104;
 
-    private static final int CLR_ON = 0xFF55CC55;
-    private static final int CLR_OFF = 0xFFCC5555;
-    private static final int CLR_CHOICE = 0xFF5599DD;
-    private static final int CLR_ACTION = 0xFFCCAA44;
-    private static final int CLR_MUTED = 0xFF505050;
+    private static final int CLR_ON = 0xFF75D6B0;
+    private static final int CLR_OFF = 0xFFE58B86;
+    private static final int CLR_CHOICE = 0xFF8DBDE8;
+    private static final int CLR_ACTION = 0xFFE4B875;
+    private static final int CLR_MUTED = 0xFF65726D;
+    private static final int CLR_ACCENT = 0xFF9AE4C5;
+    private static final int CLR_TEXT_PRIMARY = 0xFFE7EEEA;
+    private static final int CLR_TEXT_MUTED = 0xFFA1AEA8;
+    private static final int CLR_FRAME = 0xEE151B19;
+    private static final int CLR_SIDEBAR = 0xFF111715;
+    private static final int CLR_CONTENT = 0xFF151C19;
+    private static final int CLR_HEADER = 0xFF101613;
+    private static final int CLR_FOOTER = 0xFF101613;
+    private static final int CLR_BORDER = 0xFF2D3A34;
+    private static final int CLR_CARD = 0xFF19211E;
+    private static final int CLR_CARD_EDGE = 0xFF293630;
+    private static final int CLR_CARD_BOTTOM = 0xFF111715;
+    private static final int CLR_ROW = 0xFF171E1B;
+    private static final int CLR_ROW_HOVER = 0xFF202A25;
+    private static final int CLR_ROW_SELECTED = 0xFF22332C;
+    private static final int CLR_FIELD = 0xFF101613;
 
     private FontRenderer resolveFontRenderer() {
         if (cachedFontRenderer != null) return cachedFontRenderer;
@@ -802,9 +818,9 @@ public class FrenchifyGui4 extends GuiScreen {
         if (!isRowVisible(y, h, viewportTop, viewportBottom)) return;
         int y0 = Math.max(y, viewportTop);
         int y1 = Math.min(y + h, viewportBottom);
-        Gui.drawRect(x, y0, x + w, y1, 0xFF0E0E0E);
-        if (y >= viewportTop) Gui.drawRect(x, y, x + w, y + 1, 0xFF2A2A2A);
-        if (y + h <= viewportBottom) Gui.drawRect(x, y + h - 1, x + w, y + h, 0xFF080808);
+        Gui.drawRect(x, y0, x + w, y1, CLR_CARD);
+        if (y >= viewportTop) Gui.drawRect(x, y, x + w, y + 1, CLR_CARD_EDGE);
+        if (y + h <= viewportBottom) Gui.drawRect(x, y + h - 1, x + w, y + h, CLR_CARD_BOTTOM);
     }
 
     private void drawContentViewportMask(int contentX, int maskRight, int viewportTop, int viewportBottom,
@@ -824,8 +840,8 @@ public class FrenchifyGui4 extends GuiScreen {
 
     private void drawScrollBar(int x, int y, int h, int contentHeight, int scroll) {
         if (contentHeight <= h) return;
-        int track = 0xFF121212;
-        int thumb = 0xFF5A5A5A;
+        int track = CLR_FIELD;
+        int thumb = CLR_MUTED;
         Gui.drawRect(x, y, x + SCROLLBAR_W, y + h, track);
         int thumbH = Math.max(14, (h * h) / contentHeight);
         int range = h - thumbH;
@@ -838,13 +854,13 @@ public class FrenchifyGui4 extends GuiScreen {
     }
 
     private void drawThemeItem(int x, int y, int w, int h, String label, boolean selected, int mouseX, int mouseY) {
-        int bg = selected ? 0xFF171717 : 0xFF0E0E0E;
-        if (isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = selected ? 0xFF202020 : 0xFF151515;
+        int bg = selected ? CLR_ROW_SELECTED : CLR_SIDEBAR;
+        if (isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = selected ? 0xFF294036 : CLR_ROW_HOVER;
         Gui.drawRect(x, y, x + w, y + h, bg);
         if (selected) {
-            Gui.drawRect(x + 2, y + 2, x + 4, y + h - 2, 0xFFFFFFFF);
+            Gui.drawRect(x + 2, y + 2, x + 4, y + h - 2, CLR_ON);
         }
-        drawTextLeft(label, x + 10, y + 8, selected ? 0xFFFFFFFF : 0xFFBDBDBD);
+        drawTextLeft(label, x + 10, y + 8, selected ? CLR_TEXT_PRIMARY : CLR_TEXT_MUTED);
     }
 
     private String maskValue(String value) {
@@ -856,26 +872,26 @@ public class FrenchifyGui4 extends GuiScreen {
 
     private void drawInputField(int x, int y, int w, String label, String value, boolean showValue, boolean active, int mouseX, int mouseY) {
         drawTextLeft(label, x, y - 10, 0xFFCFCFCF);
-        int bg = active ? 0xFF181818 : 0xFF101010;
-        if (isHoveredRect(x, y, w, 20, mouseX, mouseY)) bg = active ? 0xFF202020 : 0xFF171717;
+        int bg = active ? 0xFF1D2A24 : CLR_FIELD;
+        if (isHoveredRect(x, y, w, 20, mouseX, mouseY)) bg = active ? 0xFF24352D : CLR_ROW_HOVER;
         Gui.drawRect(x, y, x + w, y + 20, bg);
-        Gui.drawRect(x, y, x + 1, y + 20, active ? 0xFFFFFFFF : 0xFF444444);
+        Gui.drawRect(x, y, x + 1, y + 20, active ? CLR_ON : CLR_BORDER);
 
         String shown = showValue ? value : maskValue(value);
         if (shown == null) shown = "";
         if (shown.length() > 48) shown = shown.substring(0, 48);
         if (active && ((System.currentTimeMillis() / 400L) % 2L) == 0L) shown += "_";
-        drawTextLeft(shown, x + 6, y + 6, 0xFFF0F0F0);
+        drawTextLeft(shown, x + 6, y + 6, CLR_TEXT_PRIMARY);
     }
 
     private void drawEyeButton(int x, int y, boolean show, int mouseX, int mouseY) {
-        int bg = isHoveredRect(x, y, 20, 20, mouseX, mouseY) ? 0xFF202020 : 0xFF151515;
+        int bg = isHoveredRect(x, y, 20, 20, mouseX, mouseY) ? CLR_ROW_HOVER : CLR_CARD;
         Gui.drawRect(x, y, x + 20, y + 20, bg);
-        drawTextLeft(show ? "O" : "o", x + 7, y + 6, 0xFFF0F0F0);
+        drawTextLeft(show ? "O" : "o", x + 7, y + 6, CLR_TEXT_PRIMARY);
     }
 
     private void drawClearButton(int x, int y, int mouseX, int mouseY) {
-        int bg = isHoveredRect(x, y, 20, 20, mouseX, mouseY) ? 0xFF2A1010 : 0xFF151515;
+        int bg = isHoveredRect(x, y, 20, 20, mouseX, mouseY) ? 0xFF382321 : CLR_CARD;
         Gui.drawRect(x, y, x + 20, y + 20, bg);
         drawTextLeft("x", x + 7, y + 6, 0xFFFF5555);
     }
@@ -1045,12 +1061,12 @@ public class FrenchifyGui4 extends GuiScreen {
     private void drawCardToggleRow(int x, int y, int w, String name, boolean state, boolean enabled,
                                    int mouseX, int mouseY) {
         final int h = 22;
-        int bg = enabled ? (state ? 0xFF141A14 : 0xFF1A1414) : 0xFF0C0C0C;
-        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = state ? 0xFF1A221A : 0xFF221A1A;
+        int bg = enabled ? (state ? 0xFF19251F : 0xFF211B1A) : 0xFF131715;
+        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = state ? 0xFF22352B : 0xFF302220;
         Gui.drawRect(x, y, x + w, y + h, bg);
         int stripe = enabled ? (state ? CLR_ON : CLR_OFF) : CLR_MUTED;
         Gui.drawRect(x, y, x + 2, y + h, stripe);
-        int text = enabled ? (state ? 0xFFE8E8E8 : 0xFF909090) : 0xFF585858;
+        int text = enabled ? (state ? CLR_TEXT_PRIMARY : CLR_TEXT_MUTED) : CLR_MUTED;
         drawTextLeft(name, x + 8, y + 7, text);
         drawMiniSwitch(x + w - 34, y + 5, 28, 12, state, enabled, mouseX, mouseY);
     }
@@ -1063,7 +1079,7 @@ public class FrenchifyGui4 extends GuiScreen {
 
     private void drawPanelDivider(int x, int y, int w, int viewportTop, int viewportBottom) {
         if (isRowVisible(y, 2, viewportTop, viewportBottom)) {
-            Gui.drawRect(x, y, x + w, y + 2, 0xFF2D2D2D);
+            Gui.drawRect(x, y, x + w, y + 2, CLR_BORDER);
         }
     }
 
@@ -1122,14 +1138,14 @@ public class FrenchifyGui4 extends GuiScreen {
     private static final int SESSION_DISPLAY_CARD_H = 176;
 
     private void drawSectionCard(int x, int y, int w, int h) {
-        Gui.drawRect(x, y, x + w, y + h, 0xFF0E0E0E);
-        Gui.drawRect(x, y, x + w, y + 1, 0xFF2A2A2A);
-        Gui.drawRect(x, y + h - 1, x + w, y + h, 0xFF080808);
+        Gui.drawRect(x, y, x + w, y + h, CLR_CARD);
+        Gui.drawRect(x, y, x + w, y + 1, CLR_CARD_EDGE);
+        Gui.drawRect(x, y + h - 1, x + w, y + h, CLR_CARD_BOTTOM);
     }
 
     private void drawMiniSwitch(int x, int y, int w, int h, boolean on, boolean enabled, int mouseX, int mouseY) {
-        int track = enabled ? (on ? 0xFF1A2A1A : 0xFF2A1A1A) : 0xFF121212;
-        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) track = on ? 0xFF223322 : 0xFF332222;
+        int track = enabled ? (on ? 0xFF29483A : 0xFF482B29) : 0xFF202724;
+        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) track = on ? 0xFF35614C : 0xFF5B3531;
         Gui.drawRect(x, y, x + w, y + h, track);
         int knobW = h - 2;
         int knobX = on ? (x + w - knobW - 1) : (x + 1);
@@ -1164,8 +1180,8 @@ public class FrenchifyGui4 extends GuiScreen {
 
     private void drawChipToggle(int x, int y, int w, int h, String label,
                                 boolean state, boolean enabled, int mouseX, int mouseY, boolean showOnOff) {
-        int bg = enabled ? (state ? 0xFF141A14 : 0xFF1A1414) : 0xFF101010;
-        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = state ? 0xFF1A221A : 0xFF221A1A;
+        int bg = enabled ? (state ? 0xFF19251F : 0xFF211B1A) : 0xFF151A18;
+        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = state ? 0xFF22352B : 0xFF302220;
         Gui.drawRect(x, y, x + w, y + h, bg);
         int stripe = enabled ? (state ? CLR_ON : CLR_OFF) : CLR_MUTED;
         Gui.drawRect(x, y, x + 2, y + h, stripe);
@@ -1174,7 +1190,7 @@ public class FrenchifyGui4 extends GuiScreen {
             // Color-only toggle (e.g. Turbo): label uses state color, no ON/OFF text.
             text = enabled ? (state ? CLR_ON : CLR_OFF) : 0xFF585858;
         } else {
-            text = enabled ? (state ? 0xFFE8E8E8 : 0xFF909090) : 0xFF585858;
+            text = enabled ? (state ? CLR_TEXT_PRIMARY : CLR_TEXT_MUTED) : CLR_MUTED;
         }
         drawTextLeft(label, x + 8, y + 7, text);
         if (enabled && showOnOff) {
@@ -1184,14 +1200,14 @@ public class FrenchifyGui4 extends GuiScreen {
     }
 
     private void drawValueChip(int x, int y, int w, int h, String label, int mouseX, int mouseY) {
-        int bg = isHoveredRect(x, y, w, h, mouseX, mouseY) ? 0xFF141820 : 0xFF101418;
+        int bg = isHoveredRect(x, y, w, h, mouseX, mouseY) ? 0xFF202B32 : 0xFF182127;
         Gui.drawRect(x, y, x + w, y + h, bg);
         Gui.drawRect(x, y, x + 2, y + h, CLR_CHOICE);
         drawTextLeft(label, x + 8, y + 7, CLR_CHOICE);
     }
 
     private void drawActionChip(int x, int y, int w, int h, String label, int mouseX, int mouseY) {
-        int bg = isHoveredRect(x, y, w, h, mouseX, mouseY) ? 0xFF201C10 : 0xFF141410;
+        int bg = isHoveredRect(x, y, w, h, mouseX, mouseY) ? 0xFF352C1B : 0xFF211D15;
         Gui.drawRect(x, y, x + w, y + h, bg);
         Gui.drawRect(x, y, x + 2, y + h, CLR_ACTION);
         drawTextLeft(label, x + 7, y + 7, CLR_ACTION);
@@ -1218,8 +1234,8 @@ public class FrenchifyGui4 extends GuiScreen {
     private void drawHorizontalSlider(int x, int y, int w, int h, int min, int max, int value,
                                       boolean enabled, boolean dragging, int mouseX, int mouseY) {
         int trackY = y + (h / 2) - 1;
-        int track = enabled ? 0xFF1A1A1A : 0xFF121212;
-        if (enabled && (dragging || isHoveredRect(x, y, w, h, mouseX, mouseY))) track = 0xFF242424;
+        int track = enabled ? 0xFF43524B : 0xFF29302D;
+        if (enabled && (dragging || isHoveredRect(x, y, w, h, mouseX, mouseY))) track = 0xFF61736A;
         Gui.drawRect(x, trackY, x + w, trackY + 2, track);
 
         float t = (max > min) ? (float)(value - min) / (float)(max - min) : 0.0f;
@@ -1237,13 +1253,13 @@ public class FrenchifyGui4 extends GuiScreen {
         for (int i = 0; i < labels.length; i++) {
             int sx = x + (i * (segW + gap));
             boolean selected = i == selectedIndex;
-            int bg = enabled ? (selected ? 0xFF141820 : 0xFF101010) : 0xFF0C0C0C;
+            int bg = enabled ? (selected ? 0xFF1D3028 : CLR_FIELD) : 0xFF131715;
             if (enabled && isHoveredRect(sx, y, segW, h, mouseX, mouseY)) {
-                bg = selected ? 0xFF1A2030 : 0xFF161616;
+                bg = selected ? 0xFF294036 : CLR_ROW_HOVER;
             }
             Gui.drawRect(sx, y, sx + segW, y + h, bg);
             if (selected && enabled) Gui.drawRect(sx + 2, y + 2, sx + 4, y + h - 2, CLR_CHOICE);
-            int color = enabled ? (selected ? CLR_CHOICE : 0xFF909090) : 0xFF585858;
+            int color = enabled ? (selected ? CLR_ON : CLR_TEXT_MUTED) : CLR_MUTED;
             drawTextLeft(labels[i], sx + 6, y + 6, color);
         }
     }
@@ -2383,15 +2399,15 @@ public class FrenchifyGui4 extends GuiScreen {
             draggingHitboxSlider = false;
         }
 
-        int cfgTextPrimary = 0xFFFFFFFF;
-        int cfgTextMuted = 0xFFBFBFBF;
-        int cfgTextAccent = 0xFFFFFFFF;
-        int frameBg = 0xEE000000;
-        int sidebarBg = 0xFF070707;
-        int contentBg = 0xFF000000;
-        int footerBg = 0xFF050505;
-        int headerBg = 0xFF050505;
-        int headerLine = 0xFF2D2D2D;
+        int cfgTextPrimary = CLR_TEXT_PRIMARY;
+        int cfgTextMuted = CLR_TEXT_MUTED;
+        int cfgTextAccent = CLR_ACCENT;
+        int frameBg = CLR_FRAME;
+        int sidebarBg = CLR_SIDEBAR;
+        int contentBg = CLR_CONTENT;
+        int footerBg = CLR_FOOTER;
+        int headerBg = CLR_HEADER;
+        int headerLine = CLR_BORDER;
 
         this.drawDefaultBackground();
         Gui.drawRect(winX, winY + HEADER_H, winX + winW, winY + winH, frameBg);
@@ -2455,10 +2471,10 @@ public class FrenchifyGui4 extends GuiScreen {
                 int y = rowY + (pos * 24);
                 if (!isRowVisible(y, rowH, listTop, viewportBottom)) continue;
 
-                int rowBg = 0xFF171717;
-                if (!overlayColumnEnabled[idx]) rowBg = 0xFF101010;
-                if (overlaySelectedIndex == idx) rowBg = 0xFF1E1E1E;
-                if (isHoveredRect(contentX, y, contentW - 36, rowH, mouseX, mouseY)) rowBg = rowBg + 0x00111111;
+                int rowBg = CLR_ROW;
+                if (!overlayColumnEnabled[idx]) rowBg = CLR_FIELD;
+                if (overlaySelectedIndex == idx) rowBg = CLR_ROW_SELECTED;
+                if (isHoveredRect(contentX, y, contentW - 36, rowH, mouseX, mouseY)) rowBg = CLR_ROW_HOVER;
                 Gui.drawRect(contentX, y, contentX + contentW - 36, y + rowH, rowBg);
 
                 int textColor = overlayColumnEnabled[idx] ? CLR_ON : CLR_OFF;
@@ -2466,8 +2482,8 @@ public class FrenchifyGui4 extends GuiScreen {
 
                 int upX = contentX + contentW - 34;
                 int downX = contentX + contentW - 17;
-                int upBg = (pos == 0) ? 0xFF111111 : 0xFF1E1E1E;
-                int downBg = (pos == sorted.length - 1) ? 0xFF111111 : 0xFF1E1E1E;
+                int upBg = (pos == 0) ? CLR_FIELD : CLR_CARD_EDGE;
+                int downBg = (pos == sorted.length - 1) ? CLR_FIELD : CLR_CARD_EDGE;
                 Gui.drawRect(upX, y, upX + 14, y + rowH, upBg);
                 Gui.drawRect(downX, y, downX + 14, y + rowH, downBg);
                 drawTextLeft("^", upX + 4, y + 6, (pos == 0) ? 0xFF6F6F6F : cfgTextAccent);
@@ -2476,7 +2492,7 @@ public class FrenchifyGui4 extends GuiScreen {
 
             int sepRight = scrollbarX - SCROLLBAR_GAP;
             Gui.drawRect(contentX - 4, viewportTop, sepRight, fixedBottom, contentBg);
-            Gui.drawRect(contentX - 4, fixedBottom - 1, sepRight, fixedBottom, 0xFF2D2D2D);
+            Gui.drawRect(contentX - 4, fixedBottom - 1, sepRight, fixedBottom, CLR_BORDER);
 
             drawOverlayHeaderCard(contentX, cyFixed, contentW, viewportTop, viewportBottom, mouseX, mouseY, cfgTextAccent, cfgTextMuted);
 
@@ -2503,9 +2519,9 @@ public class FrenchifyGui4 extends GuiScreen {
 
         Gui.drawRect(winX, winY, winX + winW, winY + HEADER_H, headerBg);
         Gui.drawRect(winX, winY + HEADER_H - 1, winX + winW, winY + HEADER_H, headerLine);
-        Gui.drawRect(winX + 8, winY + 7, winX + 12, winY + 17, 0xFFFFFFFF);
-        drawTextLeft("Frenchify /config", winX + 16, winY + 8, cfgTextAccent);
-        drawTextLeft("v1.8", winX + winW - 30, winY + 8, cfgTextMuted);
+        Gui.drawRect(winX + 8, winY + 7, winX + 12, winY + 17, CLR_ON);
+        drawTextLeft("Vigil / Settings", winX + 16, winY + 8, cfgTextAccent);
+        drawTextLeft("LUNAR", winX + winW - 42, winY + 8, cfgTextMuted);
 
         super.drawScreen(mouseX, mouseY, f);
     }

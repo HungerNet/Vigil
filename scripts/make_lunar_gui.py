@@ -100,6 +100,11 @@ REPLACEMENTS = [
 
 def main() -> None:
     text = SRC.read_text(encoding="utf-8")
+    if "public class FrenchifyGui4 extends GuiScreen {" in text:
+        OUT.write_text(text, encoding="utf-8")
+        print(f"Wrote {OUT}")
+        return
+
     for old, new in REPLACEMENTS:
         if old not in text:
             raise SystemExit(f"Missing expected block: {old[:60]}...")

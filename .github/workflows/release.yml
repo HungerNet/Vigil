@@ -47,6 +47,11 @@ jobs:
           java-version: '17'
           architecture: x64
 
+      - name: Generate Lunar Java headers
+        if: ${{ env.RUN == 'true' }}
+        shell: pwsh
+        run: ./scripts/compile_lunar_headers.ps1
+
       - name: Configure CMake
         if: ${{ env.RUN == 'true' }}
         run: cmake -S . -B build -A x64
