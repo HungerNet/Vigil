@@ -1,0 +1,3013 @@
+{
+  "meta": {
+    "minecraft": "1.8.9",
+    "generated_at": "2026-06-14T10:55:54Z",
+    "scanned_src": "src",
+    "mapping_sources": [
+      "mcp/joined.srg",
+      "mcp_csv/fields.csv",
+      "mcp_csv/methods.csv"
+    ],
+    "stats": {
+      "classes": 30,
+      "fields": 67,
+      "fields_resolved": 51,
+      "methods": 106,
+      "methods_resolved": 76
+    },
+    "usage": {
+      "vanilla": "FindClass(\"obf\") + GetFieldID/GetMethodID with obf names",
+      "lunar": "LunarFindClass(\"net/minecraft/...\") + MCP names in GetFieldID/GetMethodID",
+      "regenerate": "python scripts/generate_class_deobf.py"
+    }
+  },
+  "classes": [
+    {
+      "obf": "a",
+      "mcp": "net.minecraft.util.EnumChatFormatting",
+      "jni_slash": "net/minecraft/util/EnumChatFormatting",
+      "vanilla_find": "env->FindClass(\"a\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/util/EnumChatFormatting\")",
+      "used_in": [
+        "utils.cpp"
+      ]
+    },
+    {
+      "obf": "aug",
+      "mcp": "net.minecraft.util.AxisAlignedBB",
+      "jni_slash": "net/minecraft/util/AxisAlignedBB",
+      "vanilla_find": "env->FindClass(\"aug\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/util/AxisAlignedBB\")",
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ]
+    },
+    {
+      "obf": "aul",
+      "mcp": "net.minecraft.scoreboard.ScorePlayerTeam",
+      "jni_slash": "net/minecraft/scoreboard/ScorePlayerTeam",
+      "vanilla_find": "env->FindClass(\"aul\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/scoreboard/ScorePlayerTeam\")",
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "ave",
+      "mcp": "net.minecraft.client.Minecraft",
+      "jni_slash": "net/minecraft/client/Minecraft",
+      "vanilla_find": "env->FindClass(\"ave\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/Minecraft\")",
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "avn",
+      "mcp": "net.minecraft.client.gui.FontRenderer",
+      "jni_slash": "net/minecraft/client/gui/FontRenderer",
+      "vanilla_find": "env->FindClass(\"avn\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/FontRenderer\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "avo",
+      "mcp": "net.minecraft.client.gui.GuiIngame",
+      "jni_slash": "net/minecraft/client/gui/GuiIngame",
+      "vanilla_find": "env->FindClass(\"avo\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/GuiIngame\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "avp",
+      "mcp": "net.minecraft.client.gui.Gui",
+      "jni_slash": "net/minecraft/client/gui/Gui",
+      "vanilla_find": "env->FindClass(\"avp\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/Gui\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "avr",
+      "mcp": "net.minecraft.client.gui.ScaledResolution",
+      "jni_slash": "net/minecraft/client/gui/ScaledResolution",
+      "vanilla_find": "env->FindClass(\"avr\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/ScaledResolution\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "awh",
+      "mcp": "net.minecraft.client.gui.GuiPlayerTabOverlay",
+      "jni_slash": "net/minecraft/client/gui/GuiPlayerTabOverlay",
+      "vanilla_find": "env->FindClass(\"awh\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/GuiPlayerTabOverlay\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "awv",
+      "mcp": "net.minecraft.client.gui.GuiChat",
+      "jni_slash": "net/minecraft/client/gui/GuiChat",
+      "vanilla_find": "env->FindClass(\"awv\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/GuiChat\")",
+      "used_in": [
+        "dllmain.cpp"
+      ]
+    },
+    {
+      "obf": "ayl",
+      "mcp": "net.minecraft.client.gui.inventory.GuiContainer",
+      "jni_slash": "net/minecraft/client/gui/inventory/GuiContainer",
+      "vanilla_find": "env->FindClass(\"ayl\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/inventory/GuiContainer\")",
+      "used_in": [
+        "dllmain.cpp"
+      ]
+    },
+    {
+      "obf": "ayr",
+      "mcp": "net.minecraft.client.gui.inventory.GuiChest",
+      "jni_slash": "net/minecraft/client/gui/inventory/GuiChest",
+      "vanilla_find": "env->FindClass(\"ayr\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/gui/inventory/GuiChest\")",
+      "used_in": [
+        "dllmain.cpp"
+      ]
+    },
+    {
+      "obf": "bcy",
+      "mcp": "net.minecraft.client.network.NetHandlerPlayClient",
+      "jni_slash": "net/minecraft/client/network/NetHandlerPlayClient",
+      "vanilla_find": "env->FindClass(\"bcy\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/network/NetHandlerPlayClient\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "bdc",
+      "mcp": "net.minecraft.client.network.NetworkPlayerInfo",
+      "jni_slash": "net/minecraft/client/network/NetworkPlayerInfo",
+      "vanilla_find": "env->FindClass(\"bdc\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/network/NetworkPlayerInfo\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "bet",
+      "mcp": "net.minecraft.client.entity.AbstractClientPlayer",
+      "jni_slash": "net/minecraft/client/entity/AbstractClientPlayer",
+      "vanilla_find": "env->FindClass(\"bet\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/entity/AbstractClientPlayer\")",
+      "used_in": [
+        "colored_hitboxes.cpp",
+        "denick.cpp",
+        "utils.cpp"
+      ]
+    },
+    {
+      "obf": "bew",
+      "mcp": "net.minecraft.client.entity.EntityPlayerSP",
+      "jni_slash": "net/minecraft/client/entity/EntityPlayerSP",
+      "vanilla_find": "env->FindClass(\"bew\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/entity/EntityPlayerSP\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "bex",
+      "mcp": "net.minecraft.client.entity.EntityOtherPlayerMP",
+      "jni_slash": "net/minecraft/client/entity/EntityOtherPlayerMP",
+      "vanilla_find": "env->FindClass(\"bex\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/entity/EntityOtherPlayerMP\")",
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ]
+    },
+    {
+      "obf": "biu",
+      "mcp": "net.minecraft.client.renderer.entity.RenderManager",
+      "jni_slash": "net/minecraft/client/renderer/entity/RenderManager",
+      "vanilla_find": "env->FindClass(\"biu\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/renderer/entity/RenderManager\")",
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ]
+    },
+    {
+      "obf": "bmj",
+      "mcp": "net.minecraft.client.renderer.texture.TextureManager",
+      "jni_slash": "net/minecraft/client/renderer/texture/TextureManager",
+      "vanilla_find": "env->FindClass(\"bmj\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/renderer/texture/TextureManager\")",
+      "used_in": [
+        "tab_overlay.cpp"
+      ]
+    },
+    {
+      "obf": "bnp",
+      "mcp": "net.minecraft.client.resources.SkinManager",
+      "jni_slash": "net/minecraft/client/resources/SkinManager",
+      "vanilla_find": "env->FindClass(\"bnp\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/resources/SkinManager\")",
+      "used_in": [
+        "denick.cpp"
+      ]
+    },
+    {
+      "obf": "bpf",
+      "mcp": "net.minecraft.client.audio.PositionedSoundRecord",
+      "jni_slash": "net/minecraft/client/audio/PositionedSoundRecord",
+      "vanilla_find": "env->FindClass(\"bpf\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/client/audio/PositionedSoundRecord\")",
+      "used_in": [
+        "jni_helpers.cpp"
+      ]
+    },
+    {
+      "obf": "eu",
+      "mcp": "net.minecraft.util.IChatComponent",
+      "jni_slash": "net/minecraft/util/IChatComponent",
+      "vanilla_find": "env->FindClass(\"eu\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/util/IChatComponent\")",
+      "used_in": [
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ]
+    },
+    {
+      "obf": "eu$a",
+      "mcp": "net.minecraft.util.IChatComponent$Serializer",
+      "jni_slash": "net/minecraft/util/IChatComponent$Serializer",
+      "vanilla_find": "env->FindClass(\"eu$a\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/util/IChatComponent$Serializer\")",
+      "used_in": [
+        "dllmain.cpp",
+        "jni_helpers.cpp"
+      ]
+    },
+    {
+      "obf": "ez",
+      "mcp": "net.minecraft.util.ChatStyle",
+      "jni_slash": "net/minecraft/util/ChatStyle",
+      "vanilla_find": "env->FindClass(\"ez\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/util/ChatStyle\")",
+      "used_in": [
+        "utils.cpp"
+      ]
+    },
+    {
+      "obf": "fa",
+      "mcp": "net.minecraft.util.ChatComponentText",
+      "jni_slash": "net/minecraft/util/ChatComponentText",
+      "vanilla_find": "env->FindClass(\"fa\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/util/ChatComponentText\")",
+      "used_in": [
+        "jni_helpers.cpp",
+        "utils.cpp"
+      ]
+    },
+    {
+      "obf": "jy",
+      "mcp": "net.minecraft.util.ResourceLocation",
+      "jni_slash": "net/minecraft/util/ResourceLocation",
+      "vanilla_find": "env->FindClass(\"jy\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/util/ResourceLocation\")",
+      "used_in": [
+        "jni_helpers.cpp"
+      ]
+    },
+    {
+      "obf": "pk",
+      "mcp": "net.minecraft.entity.Entity",
+      "jni_slash": "net/minecraft/entity/Entity",
+      "vanilla_find": "env->FindClass(\"pk\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/entity/Entity\")",
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "utils.cpp"
+      ]
+    },
+    {
+      "obf": "pr",
+      "mcp": "net.minecraft.entity.EntityLivingBase",
+      "jni_slash": "net/minecraft/entity/EntityLivingBase",
+      "vanilla_find": "env->FindClass(\"pr\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/entity/EntityLivingBase\")",
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ]
+    },
+    {
+      "obf": "pz",
+      "mcp": "net.minecraft.entity.DataWatcher",
+      "jni_slash": "net/minecraft/entity/DataWatcher",
+      "vanilla_find": "env->FindClass(\"pz\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/entity/DataWatcher\")",
+      "used_in": [
+        "anticheat.cpp"
+      ]
+    },
+    {
+      "obf": "wn",
+      "mcp": "net.minecraft.entity.player.EntityPlayer",
+      "jni_slash": "net/minecraft/entity/player/EntityPlayer",
+      "vanilla_find": "env->FindClass(\"wn\")",
+      "lunar_find": "LunarFindClass(env, \"net/minecraft/entity/player/EntityPlayer\")",
+      "used_in": [
+        "denick.cpp"
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "api_aurora",
+      "mcp": "api_aurora",
+      "jni_sig_obf": "Ljava/lang/String;",
+      "jni_sig_mcp": "Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"api_aurora\", \"Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"api_aurora\", \"Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "api_hypixel",
+      "mcp": "api_hypixel",
+      "jni_sig_obf": "Ljava/lang/String;",
+      "jni_sig_mcp": "Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"api_hypixel\", \"Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"api_hypixel\", \"Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "api_seraph",
+      "mcp": "api_seraph",
+      "jni_sig_obf": "Ljava/lang/String;",
+      "jni_sig_mcp": "Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"api_seraph\", \"Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"api_seraph\", \"Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "api_winstreak",
+      "mcp": "api_winstreak",
+      "jni_sig_obf": "Ljava/lang/String;",
+      "jni_sig_mcp": "Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"api_winstreak\", \"Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"api_winstreak\", \"Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "autoGL",
+      "mcp": "autoGL",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"autoGL\", \"Z\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"autoGL\", \"Z\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "autoWho",
+      "mcp": "autoWho",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"autoWho\", \"Z\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"autoWho\", \"Z\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "delegate",
+      "mcp": "delegate",
+      "jni_sig_obf": "Lavt;",
+      "jni_sig_mcp": "Lnet/minecraft/client/gui/GuiNewChat;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"delegate\", \"Lavt;\")",
+      "lunar_jni": "GetFieldID(cls, \"delegate\", \"Lnet/minecraft/client/gui/GuiNewChat;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "enabled",
+      "mcp": "enabled",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"enabled\", \"Z\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"enabled\", \"Z\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "fastBuy",
+      "mcp": "fastBuy",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"fastBuy\", \"Z\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"fastBuy\", \"Z\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "gl_message",
+      "mcp": "gl_message",
+      "jni_sig_obf": "Ljava/lang/String;",
+      "jni_sig_mcp": "Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"gl_message\", \"Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"gl_message\", \"Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "overlayGamemodeActive",
+      "mcp": "overlayGamemodeActive",
+      "jni_sig_obf": "Ljava/lang/String;",
+      "jni_sig_mcp": "Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp",
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"overlayGamemodeActive\", \"Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"overlayGamemodeActive\", \"Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "overlayGamemodeEdit",
+      "mcp": "overlayGamemodeEdit",
+      "jni_sig_obf": "Ljava/lang/String;",
+      "jni_sig_mcp": "Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp",
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"overlayGamemodeEdit\", \"Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"overlayGamemodeEdit\", \"Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "overlayOpacity",
+      "mcp": "overlayOpacity",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp",
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"overlayOpacity\", \"I\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"overlayOpacity\", \"I\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "overlayResourceHeader",
+      "mcp": "overlayResourceHeader",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"overlayResourceHeader\", \"Z\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"overlayResourceHeader\", \"Z\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "partyDetector",
+      "mcp": "partyDetector",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"partyDetector\", \"Z\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"partyDetector\", \"Z\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "tabOverlay",
+      "mcp": "tabOverlay",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticFieldID(cls, \"tabOverlay\", \"Z\")",
+      "lunar_jni": "GetStaticFieldID(cls, \"tabOverlay\", \"Z\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "m",
+      "mcp": "currentScreen",
+      "jni_sig_obf": "Laxu;",
+      "jni_sig_mcp": "Lnet/minecraft/client/gui/GuiScreen;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"m\", \"Laxu;\")",
+      "lunar_jni": "GetFieldID(cls, \"currentScreen\", \"Lnet/minecraft/client/gui/GuiScreen;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "e",
+      "mcp": "displayHeight",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"e\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"displayHeight\", \"I\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "d",
+      "mcp": "displayWidth",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"d\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"displayWidth\", \"I\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "k",
+      "mcp": "fontRendererObj",
+      "jni_sig_obf": "Lavn;",
+      "jni_sig_mcp": "Lnet/minecraft/client/gui/FontRenderer;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"k\", \"Lavn;\")",
+      "lunar_jni": "GetFieldID(cls, \"fontRendererObj\", \"Lnet/minecraft/client/gui/FontRenderer;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "q",
+      "mcp": "ingameGUI",
+      "jni_sig_obf": "Lavo;",
+      "jni_sig_mcp": "Lnet/minecraft/client/gui/GuiIngame;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "jni_helpers.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"q\", \"Lavo;\")",
+      "lunar_jni": "GetFieldID(cls, \"ingameGUI\", \"Lnet/minecraft/client/gui/GuiIngame;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "c",
+      "mcp": "playerController",
+      "jni_sig_obf": "Lbda;",
+      "jni_sig_mcp": "Lnet/minecraft/client/multiplayer/PlayerControllerMP;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"c\", \"Lbda;\")",
+      "lunar_jni": "GetFieldID(cls, \"playerController\", \"Lnet/minecraft/client/multiplayer/PlayerControllerMP;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "R",
+      "mcp": "renderEngine",
+      "jni_sig_obf": "Lbmj;",
+      "jni_sig_mcp": "Lnet/minecraft/client/renderer/texture/TextureManager;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"R\", \"Lbmj;\")",
+      "lunar_jni": "GetFieldID(cls, \"renderEngine\", \"Lnet/minecraft/client/renderer/texture/TextureManager;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "g",
+      "mcp": "renderGlobal",
+      "jni_sig_obf": "Lbfr;",
+      "jni_sig_mcp": "Lnet/minecraft/client/renderer/RenderGlobal;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"g\", \"Lbfr;\")",
+      "lunar_jni": "GetFieldID(cls, \"renderGlobal\", \"Lnet/minecraft/client/renderer/RenderGlobal;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "h",
+      "mcp": "thePlayer",
+      "jni_sig_obf": "Lbew;",
+      "jni_sig_mcp": "Lnet/minecraft/client/entity/EntityPlayerSP;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "dllmain.cpp",
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"h\", \"Lbew;\")",
+      "lunar_jni": "GetFieldID(cls, \"thePlayer\", \"Lnet/minecraft/client/entity/EntityPlayerSP;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "f",
+      "mcp": "theWorld",
+      "jni_sig_obf": "Lbdb;",
+      "jni_sig_mcp": "Lnet/minecraft/client/multiplayer/WorldClient;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "denick.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"f\", \"Lbdb;\")",
+      "lunar_jni": "GetFieldID(cls, \"theWorld\", \"Lnet/minecraft/client/multiplayer/WorldClient;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "Y",
+      "mcp": "timer",
+      "jni_sig_obf": "Lavl;",
+      "jni_sig_mcp": "Lnet/minecraft/util/Timer;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"Y\", \"Lavl;\")",
+      "lunar_jni": "GetFieldID(cls, \"timer\", \"Lnet/minecraft/util/Timer;\")"
+    },
+    {
+      "owner_obf": "bew",
+      "owner_mcp": "net.minecraft.client.entity.EntityPlayerSP",
+      "obf": "c",
+      "mcp": "mc",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"c\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"mc\", \"I\")"
+    },
+    {
+      "owner_obf": "bew",
+      "owner_mcp": "net.minecraft.client.entity.EntityPlayerSP",
+      "obf": "a",
+      "mcp": "sendQueue",
+      "jni_sig_obf": "Lbcy;",
+      "jni_sig_mcp": "Lnet/minecraft/client/network/NetHandlerPlayClient;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"a\", \"Lbcy;\")",
+      "lunar_jni": "GetFieldID(cls, \"sendQueue\", \"Lnet/minecraft/client/network/NetHandlerPlayClient;\")"
+    },
+    {
+      "owner_obf": "awv",
+      "owner_mcp": "net.minecraft.client.gui.GuiChat",
+      "obf": "a",
+      "mcp": "inputField",
+      "jni_sig_obf": "Lavw;",
+      "jni_sig_mcp": "Lnet/minecraft/client/gui/GuiTextField;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"a\", \"Lavw;\")",
+      "lunar_jni": "GetFieldID(cls, \"inputField\", \"Lnet/minecraft/client/gui/GuiTextField;\")"
+    },
+    {
+      "owner_obf": "avo",
+      "owner_mcp": "net.minecraft.client.gui.GuiIngame",
+      "obf": "v",
+      "mcp": "overlayPlayerList",
+      "jni_sig_obf": "Lawh;",
+      "jni_sig_mcp": "Lnet/minecraft/client/gui/GuiPlayerTabOverlay;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"v\", \"Lawh;\")",
+      "lunar_jni": "GetFieldID(cls, \"overlayPlayerList\", \"Lnet/minecraft/client/gui/GuiPlayerTabOverlay;\")"
+    },
+    {
+      "owner_obf": "avt",
+      "owner_mcp": "net.minecraft.client.gui.GuiNewChat",
+      "obf": "h",
+      "mcp": "chatLines",
+      "jni_sig_obf": "Ljava/util/List;",
+      "jni_sig_mcp": "Ljava/util/List;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"h\", \"Ljava/util/List;\")",
+      "lunar_jni": "GetFieldID(cls, \"chatLines\", \"Ljava/util/List;\")"
+    },
+    {
+      "owner_obf": "avt",
+      "owner_mcp": "net.minecraft.client.gui.GuiNewChat",
+      "obf": "i",
+      "mcp": "drawnChatLines",
+      "jni_sig_obf": "Ljava/util/List;",
+      "jni_sig_mcp": "Ljava/util/List;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"i\", \"Ljava/util/List;\")",
+      "lunar_jni": "GetFieldID(cls, \"drawnChatLines\", \"Ljava/util/List;\")"
+    },
+    {
+      "owner_obf": "awh",
+      "owner_mcp": "net.minecraft.client.gui.GuiPlayerTabOverlay",
+      "obf": "h",
+      "mcp": "footer",
+      "jni_sig_obf": "Leu;",
+      "jni_sig_mcp": "Lnet/minecraft/util/IChatComponent;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"h\", \"Leu;\")",
+      "lunar_jni": "GetFieldID(cls, \"footer\", \"Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "ayr",
+      "owner_mcp": "net.minecraft.client.gui.inventory.GuiChest",
+      "obf": "w",
+      "mcp": "lowerChestInventory",
+      "jni_sig_obf": "Log;",
+      "jni_sig_mcp": "Lnet/minecraft/inventory/IInventory;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"w\", \"Log;\")",
+      "lunar_jni": "GetFieldID(cls, \"lowerChestInventory\", \"Lnet/minecraft/inventory/IInventory;\")"
+    },
+    {
+      "owner_obf": "ayl",
+      "owner_mcp": "net.minecraft.client.gui.inventory.GuiContainer",
+      "obf": "h",
+      "mcp": "inventorySlots",
+      "jni_sig_obf": "Lxi;",
+      "jni_sig_mcp": "Lnet/minecraft/inventory/Container;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"h\", \"Lxi;\")",
+      "lunar_jni": "GetFieldID(cls, \"inventorySlots\", \"Lnet/minecraft/inventory/Container;\")"
+    },
+    {
+      "owner_obf": "ayl",
+      "owner_mcp": "net.minecraft.client.gui.inventory.GuiContainer",
+      "obf": "u",
+      "mcp": "theSlot",
+      "jni_sig_obf": "Lyg;",
+      "jni_sig_mcp": "Lnet/minecraft/inventory/Slot;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"u\", \"Lyg;\")",
+      "lunar_jni": "GetFieldID(cls, \"theSlot\", \"Lnet/minecraft/inventory/Slot;\")"
+    },
+    {
+      "owner_obf": "biu",
+      "owner_mcp": "net.minecraft.client.renderer.entity.RenderManager",
+      "obf": "f",
+      "mcp": "playerViewX",
+      "jni_sig_obf": "F",
+      "jni_sig_mcp": "F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"f\", \"F\")",
+      "lunar_jni": "GetFieldID(cls, \"playerViewX\", \"F\")"
+    },
+    {
+      "owner_obf": "biu",
+      "owner_mcp": "net.minecraft.client.renderer.entity.RenderManager",
+      "obf": "e",
+      "mcp": "playerViewY",
+      "jni_sig_obf": "F",
+      "jni_sig_mcp": "F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"e\", \"F\")",
+      "lunar_jni": "GetFieldID(cls, \"playerViewY\", \"F\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "ae",
+      "mcp": "chunkCoordX",
+      "jni_sig_obf": "Lpk;",
+      "jni_sig_mcp": "Lnet/minecraft/entity/Entity;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"ae\", \"Lpk;\")",
+      "lunar_jni": "GetFieldID(cls, \"chunkCoordX\", \"Lnet/minecraft/entity/Entity;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "c",
+      "mcp": "entityId",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"c\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"entityId\", \"I\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "ar",
+      "mcp": "entityRiderPitchDelta",
+      "jni_sig_obf": "Z",
+      "jni_sig_mcp": "Z",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"ar\", \"Z\")",
+      "lunar_jni": "GetFieldID(cls, \"entityRiderPitchDelta\", \"Z\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "as",
+      "mcp": "entityRiderYawDelta",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"as\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"entityRiderYawDelta\", \"I\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "Z",
+      "mcp": "hurtResistantTime",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"Z\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"hurtResistantTime\", \"I\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "P",
+      "mcp": "lastTickPosX",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"P\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"lastTickPosX\", \"D\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "Q",
+      "mcp": "lastTickPosY",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"Q\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"lastTickPosY\", \"D\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "R",
+      "mcp": "lastTickPosZ",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"R\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"lastTickPosZ\", \"D\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "s",
+      "mcp": "posX",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"s\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"posX\", \"D\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "t",
+      "mcp": "posY",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"t\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"posY\", \"D\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "u",
+      "mcp": "posZ",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"u\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"posZ\", \"D\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "l",
+      "mcp": "riddenByEntity",
+      "jni_sig_obf": "F",
+      "jni_sig_mcp": "F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"l\", \"F\")",
+      "lunar_jni": "GetFieldID(cls, \"riddenByEntity\", \"F\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "m",
+      "mcp": "ridingEntity",
+      "jni_sig_obf": "F",
+      "jni_sig_mcp": "F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"m\", \"F\")",
+      "lunar_jni": "GetFieldID(cls, \"ridingEntity\", \"F\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "z",
+      "mcp": "rotationPitch",
+      "jni_sig_obf": "F",
+      "jni_sig_mcp": "F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"z\", \"F\")",
+      "lunar_jni": "GetFieldID(cls, \"rotationPitch\", \"F\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "y",
+      "mcp": "rotationYaw",
+      "jni_sig_obf": "F",
+      "jni_sig_mcp": "F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"y\", \"F\")",
+      "lunar_jni": "GetFieldID(cls, \"rotationYaw\", \"F\")"
+    },
+    {
+      "owner_obf": "pr",
+      "owner_mcp": "net.minecraft.entity.EntityLivingBase",
+      "obf": "au",
+      "mcp": "hurtTime",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"au\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"hurtTime\", \"I\")"
+    },
+    {
+      "owner_obf": "pr",
+      "owner_mcp": "net.minecraft.entity.EntityLivingBase",
+      "obf": "aO",
+      "mcp": "recentlyHit",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"aO\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"recentlyHit\", \"I\")"
+    },
+    {
+      "owner_obf": "xi",
+      "owner_mcp": "net.minecraft.inventory.Container",
+      "obf": "d",
+      "mcp": "windowId",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"d\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"windowId\", \"I\")"
+    },
+    {
+      "owner_obf": "yg",
+      "owner_mcp": "net.minecraft.inventory.Slot",
+      "obf": "e",
+      "mcp": "slotNumber",
+      "jni_sig_obf": "I",
+      "jni_sig_mcp": "I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"e\", \"I\")",
+      "lunar_jni": "GetFieldID(cls, \"slotNumber\", \"I\")"
+    },
+    {
+      "owner_obf": "aug",
+      "owner_mcp": "net.minecraft.util.AxisAlignedBB",
+      "obf": "d",
+      "mcp": "maxX",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"d\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"maxX\", \"D\")"
+    },
+    {
+      "owner_obf": "aug",
+      "owner_mcp": "net.minecraft.util.AxisAlignedBB",
+      "obf": "e",
+      "mcp": "maxY",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"e\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"maxY\", \"D\")"
+    },
+    {
+      "owner_obf": "aug",
+      "owner_mcp": "net.minecraft.util.AxisAlignedBB",
+      "obf": "f",
+      "mcp": "maxZ",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"f\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"maxZ\", \"D\")"
+    },
+    {
+      "owner_obf": "aug",
+      "owner_mcp": "net.minecraft.util.AxisAlignedBB",
+      "obf": "a",
+      "mcp": "minX",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"a\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"minX\", \"D\")"
+    },
+    {
+      "owner_obf": "aug",
+      "owner_mcp": "net.minecraft.util.AxisAlignedBB",
+      "obf": "b",
+      "mcp": "minY",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"b\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"minY\", \"D\")"
+    },
+    {
+      "owner_obf": "aug",
+      "owner_mcp": "net.minecraft.util.AxisAlignedBB",
+      "obf": "c",
+      "mcp": "minZ",
+      "jni_sig_obf": "D",
+      "jni_sig_mcp": "D",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"c\", \"D\")",
+      "lunar_jni": "GetFieldID(cls, \"minZ\", \"D\")"
+    },
+    {
+      "owner_obf": "avl",
+      "owner_mcp": "net.minecraft.util.Timer",
+      "obf": "c",
+      "mcp": "renderPartialTicks",
+      "jni_sig_obf": "F",
+      "jni_sig_mcp": "F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"c\", \"F\")",
+      "lunar_jni": "GetFieldID(cls, \"renderPartialTicks\", \"F\")"
+    },
+    {
+      "owner_obf": "adm",
+      "owner_mcp": "net.minecraft.world.World",
+      "obf": "f",
+      "mcp": "loadedEntityList",
+      "jni_sig_obf": "Ljava/util/List;",
+      "jni_sig_mcp": "Ljava/util/List;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"f\", \"Ljava/util/List;\")",
+      "lunar_jni": "GetFieldID(cls, \"loadedEntityList\", \"Ljava/util/List;\")"
+    },
+    {
+      "owner_obf": "adm",
+      "owner_mcp": "net.minecraft.world.World",
+      "obf": "j",
+      "mcp": "playerEntities",
+      "jni_sig_obf": "Ljava/util/List;",
+      "jni_sig_mcp": "Ljava/util/List;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "denick.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetFieldID(cls, \"j\", \"Ljava/util/List;\")",
+      "lunar_jni": "GetFieldID(cls, \"playerEntities\", \"Ljava/util/List;\")"
+    }
+  ],
+  "methods": [
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "a",
+      "mcp": "drawOutlinedBoundingBox",
+      "jni_sig_obf": "(Laug;IIII)V",
+      "jni_sig_mcp": "(Lnet/minecraft/util/AxisAlignedBB;IIII)V",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"a\", \"(Laug;IIII)V\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"drawOutlinedBoundingBox\", \"(Lnet/minecraft/util/AxisAlignedBB;IIII)V\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "entries",
+      "mcp": "entries",
+      "jni_sig_obf": "()Ljava/util/Set;",
+      "jni_sig_mcp": "()Ljava/util/Set;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"entries\", \"()Ljava/util/Set;\")",
+      "lunar_jni": "GetMethodID(cls, \"entries\", \"()Ljava/util/Set;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "get",
+      "mcp": "get",
+      "jni_sig_obf": "(I)Ljava/lang/Object;",
+      "jni_sig_mcp": "(I)Ljava/lang/Object;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "denick.cpp",
+        "dllmain.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"get\", \"(I)Ljava/lang/Object;\")",
+      "lunar_jni": "GetMethodID(cls, \"get\", \"(I)Ljava/lang/Object;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "get",
+      "mcp": "get",
+      "jni_sig_obf": "(Ljava/lang/String;)Ljava/util/Collection;",
+      "jni_sig_mcp": "(Ljava/lang/String;)Ljava/util/Collection;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"get\", \"(Ljava/lang/String;)Ljava/util/Collection;\")",
+      "lunar_jni": "GetMethodID(cls, \"get\", \"(Ljava/lang/String;)Ljava/util/Collection;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "get",
+      "mcp": "get",
+      "jni_sig_obf": "(Ljava/lang/Object;)Ljava/lang/Object;",
+      "jni_sig_mcp": "(Ljava/lang/Object;)Ljava/lang/Object;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"get\", \"(Ljava/lang/Object;)Ljava/lang/Object;\")",
+      "lunar_jni": "GetMethodID(cls, \"get\", \"(Ljava/lang/Object;)Ljava/lang/Object;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getClass",
+      "mcp": "getClass",
+      "jni_sig_obf": "()Ljava/lang/Class;",
+      "jni_sig_mcp": "()Ljava/lang/Class;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "colored_hitboxes.cpp",
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"getClass\", \"()Ljava/lang/Class;\")",
+      "lunar_jni": "GetMethodID(cls, \"getClass\", \"()Ljava/lang/Class;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getClassLoader",
+      "mcp": "getClassLoader",
+      "jni_sig_obf": "()Ljava/lang/ClassLoader;",
+      "jni_sig_mcp": "()Ljava/lang/ClassLoader;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "colored_hitboxes.cpp",
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"getClassLoader\", \"()Ljava/lang/ClassLoader;\")",
+      "lunar_jni": "GetMethodID(cls, \"getClassLoader\", \"()Ljava/lang/ClassLoader;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getId",
+      "mcp": "getId",
+      "jni_sig_obf": "()Ljava/util/UUID;",
+      "jni_sig_mcp": "()Ljava/util/UUID;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"getId\", \"()Ljava/util/UUID;\")",
+      "lunar_jni": "GetMethodID(cls, \"getId\", \"()Ljava/util/UUID;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "b",
+      "mcp": "getIdFromItem",
+      "jni_sig_obf": "(Lzw;)I",
+      "jni_sig_mcp": "(Lnet/minecraft/item/Item;)I",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"b\", \"(Lzw;)I\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"getIdFromItem\", \"(Lnet/minecraft/item/Item;)I\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getKey",
+      "mcp": "getKey",
+      "jni_sig_obf": "()Ljava/lang/Object;",
+      "jni_sig_mcp": "()Ljava/lang/Object;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"getKey\", \"()Ljava/lang/Object;\")",
+      "lunar_jni": "GetMethodID(cls, \"getKey\", \"()Ljava/lang/Object;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getName",
+      "mcp": "getName",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "denick.cpp",
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"getName\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getName\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getOverlayColumnsConfig",
+      "mcp": "getOverlayColumnsConfig",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"getOverlayColumnsConfig\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"getOverlayColumnsConfig\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getValue",
+      "mcp": "getValue",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"getValue\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getValue\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "getValue",
+      "mcp": "getValue",
+      "jni_sig_obf": "()Ljava/lang/Object;",
+      "jni_sig_mcp": "()Ljava/lang/Object;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"getValue\", \"()Ljava/lang/Object;\")",
+      "lunar_jni": "GetMethodID(cls, \"getValue\", \"()Ljava/lang/Object;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "hasNext",
+      "mcp": "hasNext",
+      "jni_sig_obf": "()Z",
+      "jni_sig_mcp": "()Z",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "denick.cpp",
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"hasNext\", \"()Z\")",
+      "lunar_jni": "GetMethodID(cls, \"hasNext\", \"()Z\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "iterator",
+      "mcp": "iterator",
+      "jni_sig_obf": "()Ljava/util/Iterator;",
+      "jni_sig_mcp": "()Ljava/util/Iterator;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "denick.cpp",
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"iterator\", \"()Ljava/util/Iterator;\")",
+      "lunar_jni": "GetMethodID(cls, \"iterator\", \"()Ljava/util/Iterator;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "loadClass",
+      "mcp": "loadClass",
+      "jni_sig_obf": "(Ljava/lang/String;)Ljava/lang/Class;",
+      "jni_sig_mcp": "(Ljava/lang/String;)Ljava/lang/Class;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "colored_hitboxes.cpp",
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"loadClass\", \"(Ljava/lang/String;)Ljava/lang/Class;\")",
+      "lunar_jni": "GetMethodID(cls, \"loadClass\", \"(Ljava/lang/String;)Ljava/lang/Class;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "loadOverlayColumnsForEditMode",
+      "mcp": "loadOverlayColumnsForEditMode",
+      "jni_sig_obf": "()V",
+      "jni_sig_mcp": "()V",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"loadOverlayColumnsForEditMode\", \"()V\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"loadOverlayColumnsForEditMode\", \"()V\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "next",
+      "mcp": "next",
+      "jni_sig_obf": "()Ljava/lang/Object;",
+      "jni_sig_mcp": "()Ljava/lang/Object;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "denick.cpp",
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"next\", \"()Ljava/lang/Object;\")",
+      "lunar_jni": "GetMethodID(cls, \"next\", \"()Ljava/lang/Object;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "remove",
+      "mcp": "remove",
+      "jni_sig_obf": "(I)Ljava/lang/Object;",
+      "jni_sig_mcp": "(I)Ljava/lang/Object;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"remove\", \"(I)Ljava/lang/Object;\")",
+      "lunar_jni": "GetMethodID(cls, \"remove\", \"(I)Ljava/lang/Object;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "setOverlayGamemodeActive",
+      "mcp": "setOverlayGamemodeActive",
+      "jni_sig_obf": "(Ljava/lang/String;)V",
+      "jni_sig_mcp": "(Ljava/lang/String;)V",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"setOverlayGamemodeActive\", \"(Ljava/lang/String;)V\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"setOverlayGamemodeActive\", \"(Ljava/lang/String;)V\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "size",
+      "mcp": "size",
+      "jni_sig_obf": "()I",
+      "jni_sig_mcp": "()I",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "colored_hitboxes.cpp",
+        "denick.cpp",
+        "dllmain.cpp",
+        "jni_helpers.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"size\", \"()I\")",
+      "lunar_jni": "GetMethodID(cls, \"size\", \"()I\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "snapshotOverlayColumnsEditMode",
+      "mcp": "snapshotOverlayColumnsEditMode",
+      "jni_sig_obf": "()V",
+      "jni_sig_mcp": "()V",
+      "static": true,
+      "resolved": false,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"snapshotOverlayColumnsEditMode\", \"()V\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"snapshotOverlayColumnsEditMode\", \"()V\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "toString",
+      "mcp": "toString",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"toString\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"toString\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": null,
+      "owner_mcp": "?",
+      "obf": "values",
+      "mcp": "values",
+      "jni_sig_obf": "()Ljava/util/Collection;",
+      "jni_sig_mcp": "()Ljava/util/Collection;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"values\", \"()Ljava/util/Collection;\")",
+      "lunar_jni": "GetMethodID(cls, \"values\", \"()Ljava/util/Collection;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "a",
+      "mcp": "addScheduledTask",
+      "jni_sig_obf": "(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;",
+      "jni_sig_mcp": "(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;\")",
+      "lunar_jni": "GetMethodID(cls, \"addScheduledTask\", \"(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "a",
+      "mcp": "displayGuiScreen",
+      "jni_sig_obf": "(Laxu;)V",
+      "jni_sig_mcp": "(Lnet/minecraft/client/gui/GuiScreen;)V",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Laxu;)V\")",
+      "lunar_jni": "GetMethodID(cls, \"displayGuiScreen\", \"(Lnet/minecraft/client/gui/GuiScreen;)V\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "A",
+      "mcp": "getMinecraft",
+      "jni_sig_obf": "()Lave;",
+      "jni_sig_mcp": "()Lnet/minecraft/client/Minecraft;",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"A\", \"()Lave;\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"getMinecraft\", \"()Lnet/minecraft/client/Minecraft;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "u",
+      "mcp": "getNetHandler",
+      "jni_sig_obf": "()Lbcy;",
+      "jni_sig_mcp": "()Lnet/minecraft/client/network/NetHandlerPlayClient;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"u\", \"()Lbcy;\")",
+      "lunar_jni": "GetMethodID(cls, \"getNetHandler\", \"()Lnet/minecraft/client/network/NetHandlerPlayClient;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "af",
+      "mcp": "getRenderManager",
+      "jni_sig_obf": "()Lbiu;",
+      "jni_sig_mcp": "()Lnet/minecraft/client/renderer/entity/RenderManager;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"af\", \"()Lbiu;\")",
+      "lunar_jni": "GetMethodID(cls, \"getRenderManager\", \"()Lnet/minecraft/client/renderer/entity/RenderManager;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "ab",
+      "mcp": "getSkinManager",
+      "jni_sig_obf": "()Lbnp;",
+      "jni_sig_mcp": "()Lnet/minecraft/client/resources/SkinManager;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"ab\", \"()Lbnp;\")",
+      "lunar_jni": "GetMethodID(cls, \"getSkinManager\", \"()Lnet/minecraft/client/resources/SkinManager;\")"
+    },
+    {
+      "owner_obf": "ave",
+      "owner_mcp": "net.minecraft.client.Minecraft",
+      "obf": "W",
+      "mcp": "getSoundHandler",
+      "jni_sig_obf": "()Lbpz;",
+      "jni_sig_mcp": "()Lnet/minecraft/client/audio/SoundHandler;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"W\", \"()Lbpz;\")",
+      "lunar_jni": "GetMethodID(cls, \"getSoundHandler\", \"()Lnet/minecraft/client/audio/SoundHandler;\")"
+    },
+    {
+      "owner_obf": "bpf",
+      "owner_mcp": "net.minecraft.client.audio.PositionedSoundRecord",
+      "obf": "a",
+      "mcp": "create",
+      "jni_sig_obf": "(Ljy;F)Lbpf;",
+      "jni_sig_mcp": "(Lnet/minecraft/util/ResourceLocation;F)Lnet/minecraft/client/audio/PositionedSoundRecord;",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"a\", \"(Ljy;F)Lbpf;\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"create\", \"(Lnet/minecraft/util/ResourceLocation;F)Lnet/minecraft/client/audio/PositionedSoundRecord;\")"
+    },
+    {
+      "owner_obf": "bpf",
+      "owner_mcp": "net.minecraft.client.audio.PositionedSoundRecord",
+      "obf": "a",
+      "mcp": "create",
+      "jni_sig_obf": "(Ljy;)Lbpf;",
+      "jni_sig_mcp": "(Lnet/minecraft/util/ResourceLocation;)Lnet/minecraft/client/audio/PositionedSoundRecord;",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"a\", \"(Ljy;)Lbpf;\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"create\", \"(Lnet/minecraft/util/ResourceLocation;)Lnet/minecraft/client/audio/PositionedSoundRecord;\")"
+    },
+    {
+      "owner_obf": "bpz",
+      "owner_mcp": "net.minecraft.client.audio.SoundHandler",
+      "obf": "a",
+      "mcp": "playSound",
+      "jni_sig_obf": "(Lbpj;)V",
+      "jni_sig_mcp": "(Lnet/minecraft/client/audio/ISound;)V",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Lbpj;)V\")",
+      "lunar_jni": "GetMethodID(cls, \"playSound\", \"(Lnet/minecraft/client/audio/ISound;)V\")"
+    },
+    {
+      "owner_obf": "bet",
+      "owner_mcp": "net.minecraft.client.entity.AbstractClientPlayer",
+      "obf": "i",
+      "mcp": "getLocationSkin",
+      "jni_sig_obf": "()Ljy;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/ResourceLocation;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"i\", \"()Ljy;\")",
+      "lunar_jni": "GetMethodID(cls, \"getLocationSkin\", \"()Lnet/minecraft/util/ResourceLocation;\")"
+    },
+    {
+      "owner_obf": "bew",
+      "owner_mcp": "net.minecraft.client.entity.EntityPlayerSP",
+      "obf": "bS",
+      "mcp": "bS",
+      "jni_sig_obf": "()Z",
+      "jni_sig_mcp": "()Z",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bS\", \"()Z\")",
+      "lunar_jni": "GetMethodID(cls, \"bS\", \"()Z\")"
+    },
+    {
+      "owner_obf": "bew",
+      "owner_mcp": "net.minecraft.client.entity.EntityPlayerSP",
+      "obf": "cd",
+      "mcp": "getGameProfile",
+      "jni_sig_obf": "()Lcom/mojang/authlib/GameProfile;",
+      "jni_sig_mcp": "()Lcom/mojang/authlib/GameProfile;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"cd\", \"()Lcom/mojang/authlib/GameProfile;\")",
+      "lunar_jni": "GetMethodID(cls, \"getGameProfile\", \"()Lcom/mojang/authlib/GameProfile;\")"
+    },
+    {
+      "owner_obf": "bew",
+      "owner_mcp": "net.minecraft.client.entity.EntityPlayerSP",
+      "obf": "cp",
+      "mcp": "getWorldScoreboard",
+      "jni_sig_obf": "()Lauo;",
+      "jni_sig_mcp": "()Lnet/minecraft/scoreboard/Scoreboard;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"cp\", \"()Lauo;\")",
+      "lunar_jni": "GetMethodID(cls, \"getWorldScoreboard\", \"()Lnet/minecraft/scoreboard/Scoreboard;\")"
+    },
+    {
+      "owner_obf": "bew",
+      "owner_mcp": "net.minecraft.client.entity.EntityPlayerSP",
+      "obf": "e",
+      "mcp": "sendChatMessage",
+      "jni_sig_obf": "(Ljava/lang/String;)V",
+      "jni_sig_mcp": "(Ljava/lang/String;)V",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"e\", \"(Ljava/lang/String;)V\")",
+      "lunar_jni": "GetMethodID(cls, \"sendChatMessage\", \"(Ljava/lang/String;)V\")"
+    },
+    {
+      "owner_obf": "avn",
+      "owner_mcp": "net.minecraft.client.gui.FontRenderer",
+      "obf": "a",
+      "mcp": "drawStringWithShadow",
+      "jni_sig_obf": "(Ljava/lang/String;FFI)I",
+      "jni_sig_mcp": "(Ljava/lang/String;FFI)I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Ljava/lang/String;FFI)I\")",
+      "lunar_jni": "GetMethodID(cls, \"drawStringWithShadow\", \"(Ljava/lang/String;FFI)I\")"
+    },
+    {
+      "owner_obf": "avn",
+      "owner_mcp": "net.minecraft.client.gui.FontRenderer",
+      "obf": "a",
+      "mcp": "getStringWidth",
+      "jni_sig_obf": "(Ljava/lang/String;)I",
+      "jni_sig_mcp": "(Ljava/lang/String;)I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Ljava/lang/String;)I\")",
+      "lunar_jni": "GetMethodID(cls, \"getStringWidth\", \"(Ljava/lang/String;)I\")"
+    },
+    {
+      "owner_obf": "avp",
+      "owner_mcp": "net.minecraft.client.gui.Gui",
+      "obf": "a",
+      "mcp": "drawModalRectWithCustomSizedTexture",
+      "jni_sig_obf": "(IIFFIIFF)V",
+      "jni_sig_mcp": "(IIFFIIFF)V",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"a\", \"(IIFFIIFF)V\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"drawModalRectWithCustomSizedTexture\", \"(IIFFIIFF)V\")"
+    },
+    {
+      "owner_obf": "avo",
+      "owner_mcp": "net.minecraft.client.gui.GuiIngame",
+      "obf": "d",
+      "mcp": "getChatGUI",
+      "jni_sig_obf": "()Lavt;",
+      "jni_sig_mcp": "()Lnet/minecraft/client/gui/GuiNewChat;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"d\", \"()Lavt;\")",
+      "lunar_jni": "GetMethodID(cls, \"getChatGUI\", \"()Lnet/minecraft/client/gui/GuiNewChat;\")"
+    },
+    {
+      "owner_obf": "awd",
+      "owner_mcp": "net.minecraft.client.gui.GuiListExtended",
+      "obf": "a",
+      "mcp": "a",
+      "jni_sig_obf": "()Leu;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/IChatComponent;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"()Leu;\")",
+      "lunar_jni": "GetMethodID(cls, \"a\", \"()Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "awd",
+      "owner_mcp": "net.minecraft.client.gui.GuiListExtended",
+      "obf": "b",
+      "mcp": "b",
+      "jni_sig_obf": "()I",
+      "jni_sig_mcp": "()I",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"()I\")",
+      "lunar_jni": "GetMethodID(cls, \"b\", \"()I\")"
+    },
+    {
+      "owner_obf": "avt",
+      "owner_mcp": "net.minecraft.client.gui.GuiNewChat",
+      "obf": "a",
+      "mcp": "addToSentMessages",
+      "jni_sig_obf": "(Ljava/lang/String;)V",
+      "jni_sig_mcp": "(Ljava/lang/String;)V",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Ljava/lang/String;)V\")",
+      "lunar_jni": "GetMethodID(cls, \"addToSentMessages\", \"(Ljava/lang/String;)V\")"
+    },
+    {
+      "owner_obf": "avt",
+      "owner_mcp": "net.minecraft.client.gui.GuiNewChat",
+      "obf": "a",
+      "mcp": "printChatMessage",
+      "jni_sig_obf": "(Leu;)V",
+      "jni_sig_mcp": "(Lnet/minecraft/util/IChatComponent;)V",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Leu;)V\")",
+      "lunar_jni": "GetMethodID(cls, \"printChatMessage\", \"(Lnet/minecraft/util/IChatComponent;)V\")"
+    },
+    {
+      "owner_obf": "avw",
+      "owner_mcp": "net.minecraft.client.gui.GuiTextField",
+      "obf": "b",
+      "mcp": "getText",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getText\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "avr",
+      "owner_mcp": "net.minecraft.client.gui.ScaledResolution",
+      "obf": "b",
+      "mcp": "getScaledHeight",
+      "jni_sig_obf": "()I",
+      "jni_sig_mcp": "()I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"()I\")",
+      "lunar_jni": "GetMethodID(cls, \"getScaledHeight\", \"()I\")"
+    },
+    {
+      "owner_obf": "avr",
+      "owner_mcp": "net.minecraft.client.gui.ScaledResolution",
+      "obf": "a",
+      "mcp": "getScaledWidth",
+      "jni_sig_obf": "()I",
+      "jni_sig_mcp": "()I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"()I\")",
+      "lunar_jni": "GetMethodID(cls, \"getScaledWidth\", \"()I\")"
+    },
+    {
+      "owner_obf": "bda",
+      "owner_mcp": "net.minecraft.client.multiplayer.PlayerControllerMP",
+      "obf": "a",
+      "mcp": "windowClick",
+      "jni_sig_obf": "(IIIILwn;)Lzx;",
+      "jni_sig_mcp": "(IIIILnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(IIIILwn;)Lzx;\")",
+      "lunar_jni": "GetMethodID(cls, \"windowClick\", \"(IIIILnet/minecraft/entity/player/EntityPlayer;)Lnet/minecraft/item/ItemStack;\")"
+    },
+    {
+      "owner_obf": "bcy",
+      "owner_mcp": "net.minecraft.client.network.NetHandlerPlayClient",
+      "obf": "a",
+      "mcp": "getPlayerInfo",
+      "jni_sig_obf": "(Ljava/util/UUID;)Lbdc;",
+      "jni_sig_mcp": "(Ljava/util/UUID;)Lnet/minecraft/client/network/NetworkPlayerInfo;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Ljava/util/UUID;)Lbdc;\")",
+      "lunar_jni": "GetMethodID(cls, \"getPlayerInfo\", \"(Ljava/util/UUID;)Lnet/minecraft/client/network/NetworkPlayerInfo;\")"
+    },
+    {
+      "owner_obf": "bcy",
+      "owner_mcp": "net.minecraft.client.network.NetHandlerPlayClient",
+      "obf": "d",
+      "mcp": "getPlayerInfoMap",
+      "jni_sig_obf": "()Ljava/util/Collection;",
+      "jni_sig_mcp": "()Ljava/util/Collection;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"d\", \"()Ljava/util/Collection;\")",
+      "lunar_jni": "GetMethodID(cls, \"getPlayerInfoMap\", \"()Ljava/util/Collection;\")"
+    },
+    {
+      "owner_obf": "bdc",
+      "owner_mcp": "net.minecraft.client.network.NetworkPlayerInfo",
+      "obf": "k",
+      "mcp": "getDisplayName",
+      "jni_sig_obf": "()Leu;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/IChatComponent;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"k\", \"()Leu;\")",
+      "lunar_jni": "GetMethodID(cls, \"getDisplayName\", \"()Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "bdc",
+      "owner_mcp": "net.minecraft.client.network.NetworkPlayerInfo",
+      "obf": "a",
+      "mcp": "getGameProfile",
+      "jni_sig_obf": "()Lcom/mojang/authlib/GameProfile;",
+      "jni_sig_mcp": "()Lcom/mojang/authlib/GameProfile;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"()Lcom/mojang/authlib/GameProfile;\")",
+      "lunar_jni": "GetMethodID(cls, \"getGameProfile\", \"()Lcom/mojang/authlib/GameProfile;\")"
+    },
+    {
+      "owner_obf": "bdc",
+      "owner_mcp": "net.minecraft.client.network.NetworkPlayerInfo",
+      "obf": "g",
+      "mcp": "getLocationSkin",
+      "jni_sig_obf": "()Ljy;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/ResourceLocation;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"g\", \"()Ljy;\")",
+      "lunar_jni": "GetMethodID(cls, \"getLocationSkin\", \"()Lnet/minecraft/util/ResourceLocation;\")"
+    },
+    {
+      "owner_obf": "bdc",
+      "owner_mcp": "net.minecraft.client.network.NetworkPlayerInfo",
+      "obf": "i",
+      "mcp": "getPlayerTeam",
+      "jni_sig_obf": "()Laul;",
+      "jni_sig_mcp": "()Lnet/minecraft/scoreboard/ScorePlayerTeam;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"i\", \"()Laul;\")",
+      "lunar_jni": "GetMethodID(cls, \"getPlayerTeam\", \"()Lnet/minecraft/scoreboard/ScorePlayerTeam;\")"
+    },
+    {
+      "owner_obf": "bdc",
+      "owner_mcp": "net.minecraft.client.network.NetworkPlayerInfo",
+      "obf": "c",
+      "mcp": "getResponseTime",
+      "jni_sig_obf": "()I",
+      "jni_sig_mcp": "()I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"c\", \"()I\")",
+      "lunar_jni": "GetMethodID(cls, \"getResponseTime\", \"()I\")"
+    },
+    {
+      "owner_obf": "bdc",
+      "owner_mcp": "net.minecraft.client.network.NetworkPlayerInfo",
+      "obf": "i",
+      "mcp": "i",
+      "jni_sig_obf": "()Lauq;",
+      "jni_sig_mcp": "()Lnet/minecraft/scoreboard/Team;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"i\", \"()Lauq;\")",
+      "lunar_jni": "GetMethodID(cls, \"i\", \"()Lnet/minecraft/scoreboard/Team;\")"
+    },
+    {
+      "owner_obf": "biu",
+      "owner_mcp": "net.minecraft.client.renderer.entity.RenderManager",
+      "obf": "b",
+      "mcp": "renderDebugBoundingBox",
+      "jni_sig_obf": "(Lpk;DDDFF)V",
+      "jni_sig_mcp": "(Lnet/minecraft/entity/Entity;DDDFF)V",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"(Lpk;DDDFF)V\")",
+      "lunar_jni": "GetMethodID(cls, \"renderDebugBoundingBox\", \"(Lnet/minecraft/entity/Entity;DDDFF)V\")"
+    },
+    {
+      "owner_obf": "bmj",
+      "owner_mcp": "net.minecraft.client.renderer.texture.TextureManager",
+      "obf": "a",
+      "mcp": "bindTexture",
+      "jni_sig_obf": "(Ljy;)V",
+      "jni_sig_mcp": "(Lnet/minecraft/util/ResourceLocation;)V",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Ljy;)V\")",
+      "lunar_jni": "GetMethodID(cls, \"bindTexture\", \"(Lnet/minecraft/util/ResourceLocation;)V\")"
+    },
+    {
+      "owner_obf": "pz",
+      "owner_mcp": "net.minecraft.entity.DataWatcher",
+      "obf": "d",
+      "mcp": "getWatchableObjectFloat",
+      "jni_sig_obf": "(I)F",
+      "jni_sig_mcp": "(I)F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"d\", \"(I)F\")",
+      "lunar_jni": "GetMethodID(cls, \"getWatchableObjectFloat\", \"(I)F\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "bS",
+      "mcp": "bS",
+      "jni_sig_obf": "()Z",
+      "jni_sig_mcp": "()Z",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bS\", \"()Z\")",
+      "lunar_jni": "GetMethodID(cls, \"bS\", \"()Z\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "bW",
+      "mcp": "bW",
+      "jni_sig_obf": "()Z",
+      "jni_sig_mcp": "()Z",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bW\", \"()Z\")",
+      "lunar_jni": "GetMethodID(cls, \"bW\", \"()Z\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "S",
+      "mcp": "getCollisionBoundingBox",
+      "jni_sig_obf": "()Laug;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/AxisAlignedBB;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"S\", \"()Laug;\")",
+      "lunar_jni": "GetMethodID(cls, \"getCollisionBoundingBox\", \"()Lnet/minecraft/util/AxisAlignedBB;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "bZ",
+      "mcp": "getCurrentEquippedItem",
+      "jni_sig_obf": "()Lzx;",
+      "jni_sig_mcp": "()Lnet/minecraft/item/ItemStack;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bZ\", \"()Lzx;\")",
+      "lunar_jni": "GetMethodID(cls, \"getCurrentEquippedItem\", \"()Lnet/minecraft/item/ItemStack;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "H",
+      "mcp": "getDataWatcher",
+      "jni_sig_obf": "()Lpz;",
+      "jni_sig_mcp": "()Lnet/minecraft/entity/DataWatcher;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"H\", \"()Lpz;\")",
+      "lunar_jni": "GetMethodID(cls, \"getDataWatcher\", \"()Lnet/minecraft/entity/DataWatcher;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "f_",
+      "mcp": "getDisplayName",
+      "jni_sig_obf": "()Leu;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/IChatComponent;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"f_\", \"()Leu;\")",
+      "lunar_jni": "GetMethodID(cls, \"getDisplayName\", \"()Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "aR",
+      "mcp": "getEntityBoundingBox",
+      "jni_sig_obf": "()Laug;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/AxisAlignedBB;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"aR\", \"()Laug;\")",
+      "lunar_jni": "GetMethodID(cls, \"getEntityBoundingBox\", \"()Lnet/minecraft/util/AxisAlignedBB;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "cd",
+      "mcp": "getGameProfile",
+      "jni_sig_obf": "()Lcom/mojang/authlib/GameProfile;",
+      "jni_sig_mcp": "()Lcom/mojang/authlib/GameProfile;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"cd\", \"()Lcom/mojang/authlib/GameProfile;\")",
+      "lunar_jni": "GetMethodID(cls, \"getGameProfile\", \"()Lcom/mojang/authlib/GameProfile;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "bn",
+      "mcp": "getHealth",
+      "jni_sig_obf": "()F",
+      "jni_sig_mcp": "()F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bn\", \"()F\")",
+      "lunar_jni": "GetMethodID(cls, \"getHealth\", \"()F\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "bA",
+      "mcp": "getHeldItem",
+      "jni_sig_obf": "()Lzx;",
+      "jni_sig_mcp": "()Lnet/minecraft/item/ItemStack;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bA\", \"()Lzx;\")",
+      "lunar_jni": "GetMethodID(cls, \"getHeldItem\", \"()Lnet/minecraft/item/ItemStack;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "e_",
+      "mcp": "getName",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"e_\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getName\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "b",
+      "mcp": "getPlayerInfo",
+      "jni_sig_obf": "()Lbdc;",
+      "jni_sig_mcp": "()Lnet/minecraft/client/network/NetworkPlayerInfo;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"()Lbdc;\")",
+      "lunar_jni": "GetMethodID(cls, \"getPlayerInfo\", \"()Lnet/minecraft/client/network/NetworkPlayerInfo;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "bO",
+      "mcp": "getTeam",
+      "jni_sig_obf": "()Lauq;",
+      "jni_sig_mcp": "()Lnet/minecraft/scoreboard/Team;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bO\", \"()Lauq;\")",
+      "lunar_jni": "GetMethodID(cls, \"getTeam\", \"()Lnet/minecraft/scoreboard/Team;\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "ax",
+      "mcp": "isInvisible",
+      "jni_sig_obf": "()Z",
+      "jni_sig_mcp": "()Z",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "colored_hitboxes.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"ax\", \"()Z\")",
+      "lunar_jni": "GetMethodID(cls, \"isInvisible\", \"()Z\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "av",
+      "mcp": "isSneaking",
+      "jni_sig_obf": "()Z",
+      "jni_sig_mcp": "()Z",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"av\", \"()Z\")",
+      "lunar_jni": "GetMethodID(cls, \"isSneaking\", \"()Z\")"
+    },
+    {
+      "owner_obf": "pk",
+      "owner_mcp": "net.minecraft.entity.Entity",
+      "obf": "aw",
+      "mcp": "isSprinting",
+      "jni_sig_obf": "()Z",
+      "jni_sig_mcp": "()Z",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"aw\", \"()Z\")",
+      "lunar_jni": "GetMethodID(cls, \"isSprinting\", \"()Z\")"
+    },
+    {
+      "owner_obf": "pr",
+      "owner_mcp": "net.minecraft.entity.EntityLivingBase",
+      "obf": "bn",
+      "mcp": "getHealth",
+      "jni_sig_obf": "()F",
+      "jni_sig_mcp": "()F",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bn\", \"()F\")",
+      "lunar_jni": "GetMethodID(cls, \"getHealth\", \"()F\")"
+    },
+    {
+      "owner_obf": "pr",
+      "owner_mcp": "net.minecraft.entity.EntityLivingBase",
+      "obf": "bO",
+      "mcp": "getTeam",
+      "jni_sig_obf": "()Lauq;",
+      "jni_sig_mcp": "()Lnet/minecraft/scoreboard/Team;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"bO\", \"()Lauq;\")",
+      "lunar_jni": "GetMethodID(cls, \"getTeam\", \"()Lnet/minecraft/scoreboard/Team;\")"
+    },
+    {
+      "owner_obf": "wn",
+      "owner_mcp": "net.minecraft.entity.player.EntityPlayer",
+      "obf": "cd",
+      "mcp": "getGameProfile",
+      "jni_sig_obf": "()Lcom/mojang/authlib/GameProfile;",
+      "jni_sig_mcp": "()Lcom/mojang/authlib/GameProfile;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "denick.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"cd\", \"()Lcom/mojang/authlib/GameProfile;\")",
+      "lunar_jni": "GetMethodID(cls, \"getGameProfile\", \"()Lcom/mojang/authlib/GameProfile;\")"
+    },
+    {
+      "owner_obf": "xi",
+      "owner_mcp": "net.minecraft.inventory.Container",
+      "obf": "a",
+      "mcp": "a",
+      "jni_sig_obf": "(I)Lzx;",
+      "jni_sig_mcp": "(I)Lnet/minecraft/item/ItemStack;",
+      "static": false,
+      "resolved": false,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(I)Lzx;\")",
+      "lunar_jni": "GetMethodID(cls, \"a\", \"(I)Lnet/minecraft/item/ItemStack;\")"
+    },
+    {
+      "owner_obf": "zx",
+      "owner_mcp": "net.minecraft.item.ItemStack",
+      "obf": "q",
+      "mcp": "getDisplayName",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"q\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getDisplayName\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "zx",
+      "owner_mcp": "net.minecraft.item.ItemStack",
+      "obf": "b",
+      "mcp": "getItem",
+      "jni_sig_obf": "()Lzw;",
+      "jni_sig_mcp": "()Lnet/minecraft/item/Item;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"()Lzw;\")",
+      "lunar_jni": "GetMethodID(cls, \"getItem\", \"()Lnet/minecraft/item/Item;\")"
+    },
+    {
+      "owner_obf": "aum",
+      "owner_mcp": "net.minecraft.scoreboard.Score",
+      "obf": "e",
+      "mcp": "getPlayerName",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"e\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getPlayerName\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "aum",
+      "owner_mcp": "net.minecraft.scoreboard.Score",
+      "obf": "c",
+      "mcp": "getScorePoints",
+      "jni_sig_obf": "()I",
+      "jni_sig_mcp": "()I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"c\", \"()I\")",
+      "lunar_jni": "GetMethodID(cls, \"getScorePoints\", \"()I\")"
+    },
+    {
+      "owner_obf": "auk",
+      "owner_mcp": "net.minecraft.scoreboard.ScoreObjective",
+      "obf": "d",
+      "mcp": "getDisplayName",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"d\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getDisplayName\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "aul",
+      "owner_mcp": "net.minecraft.scoreboard.ScorePlayerTeam",
+      "obf": "a",
+      "mcp": "formatPlayerName",
+      "jni_sig_obf": "(Lauq;Ljava/lang/String;)Ljava/lang/String;",
+      "jni_sig_mcp": "(Lnet/minecraft/scoreboard/Team;Ljava/lang/String;)Ljava/lang/String;",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"a\", \"(Lauq;Ljava/lang/String;)Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"formatPlayerName\", \"(Lnet/minecraft/scoreboard/Team;Ljava/lang/String;)Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "aul",
+      "owner_mcp": "net.minecraft.scoreboard.ScorePlayerTeam",
+      "obf": "l",
+      "mcp": "getChatFormat",
+      "jni_sig_obf": "()La;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/EnumChatFormatting;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"l\", \"()La;\")",
+      "lunar_jni": "GetMethodID(cls, \"getChatFormat\", \"()Lnet/minecraft/util/EnumChatFormatting;\")"
+    },
+    {
+      "owner_obf": "aul",
+      "owner_mcp": "net.minecraft.scoreboard.ScorePlayerTeam",
+      "obf": "d",
+      "mcp": "getMembershipCollection",
+      "jni_sig_obf": "()Ljava/util/Collection;",
+      "jni_sig_mcp": "()Ljava/util/Collection;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"d\", \"()Ljava/util/Collection;\")",
+      "lunar_jni": "GetMethodID(cls, \"getMembershipCollection\", \"()Ljava/util/Collection;\")"
+    },
+    {
+      "owner_obf": "aul",
+      "owner_mcp": "net.minecraft.scoreboard.ScorePlayerTeam",
+      "obf": "b",
+      "mcp": "getRegisteredName",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getRegisteredName\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "auo",
+      "owner_mcp": "net.minecraft.scoreboard.Scoreboard",
+      "obf": "a",
+      "mcp": "getObjectiveInDisplaySlot",
+      "jni_sig_obf": "(I)Lauk;",
+      "jni_sig_mcp": "(I)Lnet/minecraft/scoreboard/ScoreObjective;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(I)Lauk;\")",
+      "lunar_jni": "GetMethodID(cls, \"getObjectiveInDisplaySlot\", \"(I)Lnet/minecraft/scoreboard/ScoreObjective;\")"
+    },
+    {
+      "owner_obf": "auo",
+      "owner_mcp": "net.minecraft.scoreboard.Scoreboard",
+      "obf": "h",
+      "mcp": "getPlayersTeam",
+      "jni_sig_obf": "(Ljava/lang/String;)Laul;",
+      "jni_sig_mcp": "(Ljava/lang/String;)Lnet/minecraft/scoreboard/ScorePlayerTeam;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"h\", \"(Ljava/lang/String;)Laul;\")",
+      "lunar_jni": "GetMethodID(cls, \"getPlayersTeam\", \"(Ljava/lang/String;)Lnet/minecraft/scoreboard/ScorePlayerTeam;\")"
+    },
+    {
+      "owner_obf": "auo",
+      "owner_mcp": "net.minecraft.scoreboard.Scoreboard",
+      "obf": "i",
+      "mcp": "getSortedScores",
+      "jni_sig_obf": "(Lauk;)Ljava/util/Collection;",
+      "jni_sig_mcp": "(Lnet/minecraft/scoreboard/ScoreObjective;)Ljava/util/Collection;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp",
+        "tab_overlay.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"i\", \"(Lauk;)Ljava/util/Collection;\")",
+      "lunar_jni": "GetMethodID(cls, \"getSortedScores\", \"(Lnet/minecraft/scoreboard/ScoreObjective;)Ljava/util/Collection;\")"
+    },
+    {
+      "owner_obf": "fa",
+      "owner_mcp": "net.minecraft.util.ChatComponentText",
+      "obf": "a",
+      "mcp": "setChatStyle",
+      "jni_sig_obf": "(Lez;)Leu;",
+      "jni_sig_mcp": "(Lnet/minecraft/util/ChatStyle;)Lnet/minecraft/util/IChatComponent;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Lez;)Leu;\")",
+      "lunar_jni": "GetMethodID(cls, \"setChatStyle\", \"(Lnet/minecraft/util/ChatStyle;)Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "ez",
+      "owner_mcp": "net.minecraft.util.ChatStyle",
+      "obf": "a",
+      "mcp": "setColor",
+      "jni_sig_obf": "(La;)Lez;",
+      "jni_sig_mcp": "(Lnet/minecraft/util/EnumChatFormatting;)Lnet/minecraft/util/ChatStyle;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(La;)Lez;\")",
+      "lunar_jni": "GetMethodID(cls, \"setColor\", \"(Lnet/minecraft/util/EnumChatFormatting;)Lnet/minecraft/util/ChatStyle;\")"
+    },
+    {
+      "owner_obf": "a",
+      "owner_mcp": "net.minecraft.util.EnumChatFormatting",
+      "obf": "b",
+      "mcp": "getColorIndex",
+      "jni_sig_obf": "()I",
+      "jni_sig_mcp": "()I",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"b\", \"()I\")",
+      "lunar_jni": "GetMethodID(cls, \"getColorIndex\", \"()I\")"
+    },
+    {
+      "owner_obf": "eu",
+      "owner_mcp": "net.minecraft.util.IChatComponent",
+      "obf": "a",
+      "mcp": "appendSibling",
+      "jni_sig_obf": "(Leu;)Leu;",
+      "jni_sig_mcp": "(Lnet/minecraft/util/IChatComponent;)Lnet/minecraft/util/IChatComponent;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"(Leu;)Leu;\")",
+      "lunar_jni": "GetMethodID(cls, \"appendSibling\", \"(Lnet/minecraft/util/IChatComponent;)Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "eu",
+      "owner_mcp": "net.minecraft.util.IChatComponent",
+      "obf": "f",
+      "mcp": "createCopy",
+      "jni_sig_obf": "()Leu;",
+      "jni_sig_mcp": "()Lnet/minecraft/util/IChatComponent;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"f\", \"()Leu;\")",
+      "lunar_jni": "GetMethodID(cls, \"createCopy\", \"()Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "eu",
+      "owner_mcp": "net.minecraft.util.IChatComponent",
+      "obf": "d",
+      "mcp": "getFormattedText",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"d\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getFormattedText\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "eu",
+      "owner_mcp": "net.minecraft.util.IChatComponent",
+      "obf": "a",
+      "mcp": "getSiblings",
+      "jni_sig_obf": "()Ljava/util/List;",
+      "jni_sig_mcp": "()Ljava/util/List;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"a\", \"()Ljava/util/List;\")",
+      "lunar_jni": "GetMethodID(cls, \"getSiblings\", \"()Ljava/util/List;\")"
+    },
+    {
+      "owner_obf": "eu",
+      "owner_mcp": "net.minecraft.util.IChatComponent",
+      "obf": "c",
+      "mcp": "getUnformattedText",
+      "jni_sig_obf": "()Ljava/lang/String;",
+      "jni_sig_mcp": "()Ljava/lang/String;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "anticheat.cpp",
+        "tab_overlay.cpp",
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"c\", \"()Ljava/lang/String;\")",
+      "lunar_jni": "GetMethodID(cls, \"getUnformattedText\", \"()Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "eu$a",
+      "owner_mcp": "net.minecraft.util.IChatComponent$Serializer",
+      "obf": "a",
+      "mcp": "componentToJson",
+      "jni_sig_obf": "(Leu;)Ljava/lang/String;",
+      "jni_sig_mcp": "(Lnet/minecraft/util/IChatComponent;)Ljava/lang/String;",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "dllmain.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"a\", \"(Leu;)Ljava/lang/String;\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"componentToJson\", \"(Lnet/minecraft/util/IChatComponent;)Ljava/lang/String;\")"
+    },
+    {
+      "owner_obf": "eu$a",
+      "owner_mcp": "net.minecraft.util.IChatComponent$Serializer",
+      "obf": "a",
+      "mcp": "jsonToComponent",
+      "jni_sig_obf": "(Ljava/lang/String;)Leu;",
+      "jni_sig_mcp": "(Ljava/lang/String;)Lnet/minecraft/util/IChatComponent;",
+      "static": true,
+      "resolved": true,
+      "used_in": [
+        "jni_helpers.cpp"
+      ],
+      "vanilla_jni": "GetStaticMethodID(cls, \"a\", \"(Ljava/lang/String;)Leu;\")",
+      "lunar_jni": "GetStaticMethodID(cls, \"jsonToComponent\", \"(Ljava/lang/String;)Lnet/minecraft/util/IChatComponent;\")"
+    },
+    {
+      "owner_obf": "adm",
+      "owner_mcp": "net.minecraft.world.World",
+      "obf": "Z",
+      "mcp": "getScoreboard",
+      "jni_sig_obf": "()Lauo;",
+      "jni_sig_mcp": "()Lnet/minecraft/scoreboard/Scoreboard;",
+      "static": false,
+      "resolved": true,
+      "used_in": [
+        "utils.cpp"
+      ],
+      "vanilla_jni": "GetMethodID(cls, \"Z\", \"()Lauo;\")",
+      "lunar_jni": "GetMethodID(cls, \"getScoreboard\", \"()Lnet/minecraft/scoreboard/Scoreboard;\")"
+    }
+  ]
+}

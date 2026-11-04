@@ -1,0 +1,67 @@
+name: Versioned Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    if: ${{ !contains(github.event.head_commit.message, 'Merge pull request') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_windows_amd64.exe `
+            -OutFile "$env:RUNNER_TEMP\yq.exe"
+
+      - name: Parse version.yaml
+        shell: pwsh
+        run: |
+          $yq = "$env:RUNNER_TEMP\yq.exe"
+          "RUN=$(& $yq -r '.run' version.yaml)" >> $env:GITHUB_ENV
+          "VERSION=$(& $yq -r '.version' version.yaml)" >> $env:GITHUB_ENV
+          "DESC<<EOF" >> $env:GITHUB_ENV
+          & $yq -r '.description' version.yaml >> $env:GITHUB_ENV
+          "EOF" >> $env:GITHUB_ENV
+
+      - name: Stop if run=false
+        if: ${{ env.RUN == 'false' }}
+        run: echo "run=false; skipping build and release."
+
+      - name: Set up Java
+        if: ${{ env.RUN == 'true' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          architecture: x64
+
+      - name: Configure CMake
+        if: ${{ env.RUN == 'true' }}
+        run: cmake -S . -B build -A x64
+
+      - name: Build native targets
+        if: ${{ env.RUN == 'true' }}
+        run: cmake --build build --config Release --parallel
+
+      - name: Create GitHub Release
+        if: ${{ env.RUN == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          body: ${{ env.DESC }}
+          files: |
+            build/Release/ChatReaderLunar.dll
+            build/Release/InjectorLunar.exe
+            build/Release/config/known-nicks.json

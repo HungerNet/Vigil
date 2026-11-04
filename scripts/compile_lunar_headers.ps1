@@ -1,0 +1,83 @@
+# Regenerate java_src/lunar_headers/*Lunar.h from *Lunar.java (MCP bytecode only)
+$ErrorActionPreference = "Stop"
+$root = Split-Path $PSScriptRoot -Parent
+$stubs = Join-Path $root "java_src\stubs_lunar"
+$headers = Join-Path $root "java_src\lunar_headers"
+
+function Write-ClassHeader($classFile, $headerPath, $arrayName, $comment) {
+    if (-not (Test-Path $classFile)) { throw "Missing class: $classFile" }
+    $bytes = [System.IO.File]::ReadAllBytes($classFile)
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.AppendLine("#pragma once")
+    [void]$sb.AppendLine("// Auto-generated Lunar bytecode ($comment)")
+    [void]$sb.AppendLine("static const unsigned char ${arrayName}[] = {")
+    for ($i = 0; $i -lt $bytes.Length; $i += 16) {
+        $chunk = @()
+        $end = [Math]::Min($i + 15, $bytes.Length - 1)
+        for ($j = $i; $j -le $end; $j++) { $chunk += ("0x{0:X2}" -f $bytes[$j]) }
+        [void]$sb.AppendLine("    " + ($chunk -join ", ") + ",")
+    }
+    [void]$sb.AppendLine("};")
+    [void]$sb.AppendLine(("static const unsigned int ${arrayName}_len = {0};" -f $bytes.Length))
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($headerPath, $sb.ToString(), $utf8NoBom)
+    Write-Host "OK: $arrayName ($($bytes.Length) bytes) -> $headerPath"
+}
+
+New-Item -ItemType Directory -Force -Path $headers | Out-Null
+
+python (Join-Path $root "scripts\generate_lunar_java.py")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+# GUI
+$guiOut = Join-Path $root "build\gui_lunar_compile"
+New-Item -ItemType Directory -Force -Path $guiOut | Out-Null
+Copy-Item (Join-Path $root "java_src\FrenchifyGui4Lunar.java") (Join-Path $guiOut "FrenchifyGui4.java") -Force
+javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $guiOut (Join-Path $guiOut "FrenchifyGui4.java")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-ClassHeader (Join-Path $guiOut "FrenchifyGui4.class") (Join-Path $headers "FrenchifyGuiLunar.h") "FrenchifyGuiLunar_class" "FrenchifyGui4 MCP"
+
+# Tab overlay
+$tabOut = Join-Path $root "build\tab_overlay_lunar_compile"
+New-Item -ItemType Directory -Force -Path $tabOut | Out-Null
+Copy-Item (Join-Path $root "java_src\FrenchifyTabOverlayNativeLunar.java") (Join-Path $tabOut "FrenchifyTabOverlayNative.java") -Force
+javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $tabOut (Join-Path $tabOut "FrenchifyTabOverlayNative.java")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-ClassHeader (Join-Path $tabOut "FrenchifyTabOverlayNative.class") (Join-Path $headers "FrenchifyTabOverlayNativeLunar.h") "FrenchifyTabOverlayNativeLunar_class" "FrenchifyTabOverlayNative MCP"
+
+# Hitboxes
+$hbOut = Join-Path $root "build\hitbox_lunar_compile"
+New-Item -ItemType Directory -Force -Path $hbOut | Out-Null
+foreach ($name in @("FrenchifyRenderGlobalLunar.java", "FrenchifyHitboxInstallerLunar.java")) {
+    $base = [System.IO.Path]::GetFileNameWithoutExtension($name) -replace "Lunar$", ""
+    Copy-Item (Join-Path $root "java_src\$name") (Join-Path $hbOut "$base.java") -Force
+    javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $hbOut (Join-Path $hbOut "$base.java")
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+Write-ClassHeader (Join-Path $hbOut "FrenchifyRenderGlobal.class") (Join-Path $headers "FrenchifyRenderGlobalLunar.h") "FrenchifyRenderGlobalLunar_class" "FrenchifyRenderGlobal MCP"
+Write-ClassHeader (Join-Path $hbOut "FrenchifyHitboxInstaller.class") (Join-Path $headers "FrenchifyHitboxInstallerLunar.h") "FrenchifyHitboxInstallerLunar_class" "FrenchifyHitboxInstaller MCP"
+
+# Client pump
+$pumpOut = Join-Path $root "build\client_pump_lunar_compile"
+New-Item -ItemType Directory -Force -Path $pumpOut | Out-Null
+Copy-Item (Join-Path $root "java_src\FrenchifyClientPumpLunar.java") (Join-Path $pumpOut "FrenchifyClientPump.java") -Force
+javac -source 1.8 -target 1.8 -encoding UTF-8 -d $pumpOut (Join-Path $pumpOut "FrenchifyClientPump.java")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-ClassHeader (Join-Path $pumpOut "FrenchifyClientPump.class") (Join-Path $headers "FrenchifyClientPumpLunar.h") "FrenchifyClientPumpLunar_class" "FrenchifyClientPump MCP"
+
+# Session HUD
+$sessionOut = Join-Path $root "build\session_lunar_compile"
+New-Item -ItemType Directory -Force -Path $sessionOut | Out-Null
+Copy-Item (Join-Path $root "java_src\FrenchifyIngameGuiLunar.java") (Join-Path $sessionOut "FrenchifyIngameGui.java") -Force
+Copy-Item (Join-Path $root "java_src\FrenchifySessionHudLunar.java") (Join-Path $sessionOut "FrenchifySessionHud.java") -Force
+Copy-Item (Join-Path $root "java_src\FrenchifySessionHudInstallerLunar.java") (Join-Path $sessionOut "FrenchifySessionHudInstaller.java") -Force
+javac -source 1.8 -target 1.8 -encoding UTF-8 -cp $stubs -d $sessionOut `
+    (Join-Path $sessionOut "FrenchifySessionHud.java") `
+    (Join-Path $sessionOut "FrenchifyIngameGui.java") `
+    (Join-Path $sessionOut "FrenchifySessionHudInstaller.java")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-ClassHeader (Join-Path $sessionOut "FrenchifyIngameGui.class") (Join-Path $headers "FrenchifyIngameGuiLunar.h") "FrenchifyIngameGuiLunar_class" "FrenchifyIngameGui MCP"
+Write-ClassHeader (Join-Path $sessionOut "FrenchifySessionHud.class") (Join-Path $headers "FrenchifySessionHudLunar.h") "FrenchifySessionHudLunar_class" "FrenchifySessionHud MCP"
+Write-ClassHeader (Join-Path $sessionOut "FrenchifySessionHudInstaller.class") (Join-Path $headers "FrenchifySessionHudInstallerLunar.h") "FrenchifySessionHudInstallerLunar_class" "FrenchifySessionHudInstaller MCP"
+
+Write-Host "All lunar headers regenerated in $headers"
