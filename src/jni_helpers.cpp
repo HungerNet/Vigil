@@ -293,6 +293,8 @@ void WriteTogglesToFile(JNIEnv* env, jclass guiClass) {
     bool ac_scaffold        = readBool("ac_scaffold");
     bool ac_scaffoldb       = readBool("ac_scaffoldb");
     bool ac_noslow          = readBool("ac_noslow");
+    bool ac_bhop            = readBool("ac_bhop");
+    bool ac_killaura        = readBool("ac_killaura");
     bool compactBlacklist   = readBool("compactBlacklist");
     bool chatOverlay        = readBool("chatOverlay");
     bool ignoreTeammates    = readBool("ignoreTeammates");

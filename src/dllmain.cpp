@@ -1833,6 +1833,8 @@ static void ApplySavedTogglesToGui(JNIEnv* env, jclass customGuiClass, const std
     setBool("ac_scaffold", ExtractJsonBool(json, "ac_scaffold", false));
     setBool("ac_scaffoldb", ExtractJsonBool(json, "ac_scaffoldb", false));
     setBool("ac_noslow", ExtractJsonBool(json, "ac_noslow", false));
+    setBool("ac_bhop", ExtractJsonBool(json, "ac_bhop", false));
+    setBool("ac_killaura", ExtractJsonBool(json, "ac_killaura", false));
     setBool("compactBlacklist", ExtractJsonBool(json, "compactBlacklist", false));
     setBool("chatOverlay", ExtractJsonBool(json, "chatOverlay", false));
     setBool("ignoreTeammates", ExtractJsonBool(json, "ignoreTeammates", false));

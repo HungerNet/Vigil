@@ -69,9 +69,9 @@ public class VigilGui4 extends GuiScreen {
     public static boolean overlayResourceEmeralds = true;
     public static String overlayResourceLocation = "tab";
     public static int overlayOpacity = 60;
-    public static String overlayThemeColor = "0F1316";
-    public static String configThemeColor = "1A2227";
-    public static String configTextColor = "D6DEE4";
+    public static String overlayThemeColor = "1A1028";
+    public static String configThemeColor = "211331";
+    public static String configTextColor = "F3E8FF";
     private static final String[] OVERLAY_GAMEMODES = {
         "bedwars", "skywars", "duel", "bedwarsduels", "murdermystery"
     };
@@ -144,6 +144,8 @@ public class VigilGui4 extends GuiScreen {
     public static boolean ac_scaffold = false;
     public static boolean ac_scaffoldb = false;
     public static boolean ac_noslow = false;
+    public static boolean ac_bhop = false;
+    public static boolean ac_killaura = false;
 
     public static String api_hypixel = "";
     public static String api_seraph = "";
@@ -708,27 +710,27 @@ public class VigilGui4 extends GuiScreen {
     private static final int CONTENT_INNER_GAP = 8;
     private static final int OVERLAY_FIXED_HEADER_H = 104;
 
-    private static final int CLR_ON = 0xFF75D6B0;
-    private static final int CLR_OFF = 0xFFE58B86;
-    private static final int CLR_CHOICE = 0xFF8DBDE8;
-    private static final int CLR_ACTION = 0xFFE4B875;
-    private static final int CLR_MUTED = 0xFF65726D;
-    private static final int CLR_ACCENT = 0xFF9AE4C5;
-    private static final int CLR_TEXT_PRIMARY = 0xFFE7EEEA;
-    private static final int CLR_TEXT_MUTED = 0xFFA1AEA8;
-    private static final int CLR_FRAME = 0xEE151B19;
-    private static final int CLR_SIDEBAR = 0xFF111715;
-    private static final int CLR_CONTENT = 0xFF151C19;
-    private static final int CLR_HEADER = 0xFF101613;
-    private static final int CLR_FOOTER = 0xFF101613;
-    private static final int CLR_BORDER = 0xFF2D3A34;
-    private static final int CLR_CARD = 0xFF19211E;
-    private static final int CLR_CARD_EDGE = 0xFF293630;
-    private static final int CLR_CARD_BOTTOM = 0xFF111715;
-    private static final int CLR_ROW = 0xFF171E1B;
-    private static final int CLR_ROW_HOVER = 0xFF202A25;
-    private static final int CLR_ROW_SELECTED = 0xFF22332C;
-    private static final int CLR_FIELD = 0xFF101613;
+    private static final int CLR_ON = 0xFFB98CFF;
+    private static final int CLR_OFF = 0xFF7B6C9B;
+    private static final int CLR_CHOICE = 0xFFC29BFF;
+    private static final int CLR_ACTION = 0xFFE5C7FF;
+    private static final int CLR_MUTED = 0xFF7C6C95;
+    private static final int CLR_ACCENT = 0xFFB98CFF;
+    private static final int CLR_TEXT_PRIMARY = 0xFFF5EEFF;
+    private static final int CLR_TEXT_MUTED = 0xFFCCBAF0;
+    private static final int CLR_FRAME = 0xD8110B1A;
+    private static final int CLR_SIDEBAR = 0xFF171121;
+    private static final int CLR_CONTENT = 0xCC140D1E;
+    private static final int CLR_HEADER = 0xFF1A1028;
+    private static final int CLR_FOOTER = 0xFF120D1B;
+    private static final int CLR_BORDER = 0xFF4A355D;
+    private static final int CLR_CARD = 0xCC1A1224;
+    private static final int CLR_CARD_EDGE = 0xFF5A3E73;
+    private static final int CLR_CARD_BOTTOM = 0xFF120D1B;
+    private static final int CLR_ROW = 0xFF1B1327;
+    private static final int CLR_ROW_HOVER = 0xFF2D1E3D;
+    private static final int CLR_ROW_SELECTED = 0xFF433259;
+    private static final int CLR_FIELD = 0xFF120D1C;
 
     private FontRenderer resolveFontRenderer() {
         if (cachedFontRenderer != null) return cachedFontRenderer;
@@ -855,10 +857,12 @@ public class VigilGui4 extends GuiScreen {
 
     private void drawThemeItem(int x, int y, int w, int h, String label, boolean selected, int mouseX, int mouseY) {
         int bg = selected ? CLR_ROW_SELECTED : CLR_SIDEBAR;
-        if (isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = selected ? 0xFF294036 : CLR_ROW_HOVER;
+        if (isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = selected ? 0xFF4A2F63 : CLR_ROW_HOVER;
         Gui.drawRect(x, y, x + w, y + h, bg);
+        Gui.drawRect(x, y, x + w, y + 1, 0x33564D77);
         if (selected) {
             Gui.drawRect(x + 2, y + 2, x + 4, y + h - 2, CLR_ON);
+            Gui.drawRect(x + w - 4, y + 4, x + w - 2, y + h - 4, 0x40F5EEFF);
         }
         drawTextLeft(label, x + 10, y + 8, selected ? CLR_TEXT_PRIMARY : CLR_TEXT_MUTED);
     }
@@ -1141,6 +1145,7 @@ public class VigilGui4 extends GuiScreen {
         Gui.drawRect(x, y, x + w, y + h, CLR_CARD);
         Gui.drawRect(x, y, x + w, y + 1, CLR_CARD_EDGE);
         Gui.drawRect(x, y + h - 1, x + w, y + h, CLR_CARD_BOTTOM);
+        Gui.drawRect(x + 1, y + 1, x + w - 1, y + 2, 0x1AFFFFFF);
     }
 
     private void drawMiniSwitch(int x, int y, int w, int h, boolean on, boolean enabled, int mouseX, int mouseY) {
@@ -1180,17 +1185,15 @@ public class VigilGui4 extends GuiScreen {
 
     private void drawChipToggle(int x, int y, int w, int h, String label,
                                 boolean state, boolean enabled, int mouseX, int mouseY, boolean showOnOff) {
-        int bg = enabled ? (state ? 0xFF19251F : 0xFF211B1A) : 0xFF151A18;
-        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = state ? 0xFF22352B : 0xFF302220;
+        int bg = enabled ? (state ? 0xFF231B31 : 0xFF1D1829) : 0xFF15151F;
+        if (enabled && isHoveredRect(x, y, w, h, mouseX, mouseY)) bg = state ? 0xFF312146 : 0xFF291E35;
         Gui.drawRect(x, y, x + w, y + h, bg);
+        Gui.drawRect(x, y, x + w, y + 1, 0x14FFFFFF);
         int stripe = enabled ? (state ? CLR_ON : CLR_OFF) : CLR_MUTED;
         Gui.drawRect(x, y, x + 2, y + h, stripe);
-        int text = enabled ? (state ? CLR_ON : CLR_OFF) : 0xFF585858;
+        int text = enabled ? (state ? CLR_TEXT_PRIMARY : CLR_TEXT_MUTED) : CLR_MUTED;
         if (!showOnOff) {
-            // Color-only toggle (e.g. Turbo): label uses state color, no ON/OFF text.
             text = enabled ? (state ? CLR_ON : CLR_OFF) : 0xFF585858;
-        } else {
-            text = enabled ? (state ? CLR_TEXT_PRIMARY : CLR_TEXT_MUTED) : CLR_MUTED;
         }
         drawTextLeft(label, x + 8, y + 7, text);
         if (enabled && showOnOff) {
@@ -1740,6 +1743,8 @@ public class VigilGui4 extends GuiScreen {
             drawChipToggle(contentX + 4, checksY + 36, chipW, chipH, "Keep-y", ac_scaffold, anticheat, mouseX, mouseY);
             drawChipToggle(contentX + 8 + chipW, checksY + 36, chipW, chipH, "FlatScaff", ac_scaffoldb, anticheat, mouseX, mouseY);
             drawChipToggle(contentX + 4, checksY + 64, chipW, chipH, "NoSlow", ac_noslow, anticheat, mouseX, mouseY);
+            drawChipToggle(contentX + 8 + chipW, checksY + 64, chipW, chipH, "BHop", ac_bhop, anticheat, mouseX, mouseY);
+            drawChipToggle(contentX + 4, checksY + 92, chipW, chipH, "KillAura", ac_killaura, anticheat, mouseX, mouseY);
         }
     }
 
@@ -1763,6 +1768,8 @@ public class VigilGui4 extends GuiScreen {
         if (hitChip(contentX + 4, checksY + 36, chipW, chipH, panelTop, panelBottom, mouseX, mouseY)) { ac_scaffold = !ac_scaffold; return true; }
         if (hitChip(contentX + 8 + chipW, checksY + 36, chipW, chipH, panelTop, panelBottom, mouseX, mouseY)) { ac_scaffoldb = !ac_scaffoldb; return true; }
         if (hitChip(contentX + 4, checksY + 64, chipW, chipH, panelTop, panelBottom, mouseX, mouseY)) { ac_noslow = !ac_noslow; return true; }
+        if (hitChip(contentX + 8 + chipW, checksY + 64, chipW, chipH, panelTop, panelBottom, mouseX, mouseY)) { ac_bhop = !ac_bhop; return true; }
+        if (hitChip(contentX + 4, checksY + 92, chipW, chipH, panelTop, panelBottom, mouseX, mouseY)) { ac_killaura = !ac_killaura; return true; }
         return false;
     }
 
@@ -2519,8 +2526,9 @@ public class VigilGui4 extends GuiScreen {
 
         Gui.drawRect(winX, winY, winX + winW, winY + HEADER_H, headerBg);
         Gui.drawRect(winX, winY + HEADER_H - 1, winX + winW, winY + HEADER_H, headerLine);
-        Gui.drawRect(winX + 8, winY + 7, winX + 12, winY + 17, CLR_ON);
-        drawTextLeft("Vigil / Settings", winX + 16, winY + 8, cfgTextAccent);
+        Gui.drawRect(winX + 10, winY + 7, winX + 14, winY + 17, CLR_ON);
+        Gui.drawRect(winX + 12, winY + 18, winX + winW - 12, winY + 19, 0x194A355D);
+        drawTextLeft("Vigil / Settings", winX + 18, winY + 8, cfgTextAccent);
         drawTextLeft("LUNAR", winX + winW - 42, winY + 8, cfgTextMuted);
 
         super.drawScreen(mouseX, mouseY, f);
@@ -2530,11 +2538,11 @@ public class VigilGui4 extends GuiScreen {
         overlayOpacity = normalizeOpacity(overlayOpacity);
         hitboxThickness = normalizeHitboxThickness(hitboxThickness);
         overlayThemeColor = sanitizeHexColor(overlayThemeColor);
-        if (overlayThemeColor.length() == 0) overlayThemeColor = "0F1316";
+        if (overlayThemeColor.length() == 0) overlayThemeColor = "1A1028";
         configThemeColor = sanitizeHexColor(configThemeColor);
-        if (configThemeColor.length() == 0) configThemeColor = "1A2227";
+        if (configThemeColor.length() == 0) configThemeColor = "211331";
         configTextColor = sanitizeHexColor(configTextColor);
-        if (configTextColor.length() == 0) configTextColor = "D6DEE4";
+        if (configTextColor.length() == 0) configTextColor = "F3E8FF";
         if (overlayResourceLocation == null || (!"scoreboard".equals(overlayResourceLocation) && !"tab".equals(overlayResourceLocation))) {
             overlayResourceLocation = "tab";
         }

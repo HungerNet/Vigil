@@ -34,11 +34,17 @@ struct ACEntityData {
     int autoblockVL = 0;
     int lastSwingProgress = 0;
     int noSlowVL = 0;
+    int bhopVL = 0;
+    int killauraVL = 0;
     int lastStopUsingItem = -1;
     ULONGLONG lastStopUsingTime = 0;
     ULONGLONG lastNoSlowTrigger = 0;
-    int scaffoldVL = 0;
+    ULONGLONG lastJumpAt = 0;
+    ULONGLONG lastAttackAt = 0;
     float lastPosY = 0;
+    float lastYaw = 0.0f;
+    bool lastOnGround = true;
+    int scaffoldVL = 0;
     ULONGLONG lastLowMoveTime = 0;
     ULONGLONG lastScaffoldVLInc = 0;
     bool scaffoldASessionActive = false;
@@ -128,10 +134,12 @@ struct PlayerAcFlagCounts {
     int autoBlock = 0;
     int legitScaff = 0;
     int scaffoldB = 0;
+    int bhop = 0;
+    int killAura = 0;
 };
 
 inline bool AcWarningThresholdMet(const PlayerAcFlagCounts& c) {
-    return c.scaffoldA >= 2 || c.noSlow >= 2 || c.autoBlock >= 3 || c.legitScaff >= 3 || c.scaffoldB >= 3;
+    return c.scaffoldA >= 2 || c.noSlow >= 2 || c.autoBlock >= 3 || c.legitScaff >= 3 || c.scaffoldB >= 3 || c.bhop >= 3 || c.killAura >= 3;
 }
 
 extern std::mutex   g_flaggedPlayersMutex;

@@ -565,6 +565,8 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
     bool ac_scaffold   = readBool("ac_scaffold");
     bool ac_scaffoldb     = readBool("ac_scaffoldb");
     bool ac_legitscaff    = readBool("ac_legitscaff");
+    bool ac_bhop       = readBool("ac_bhop");
+    bool ac_killaura   = readBool("ac_killaura");
     bool ac_ignoreTeammates = readBool("ignoreTeammates");
 
     {
@@ -572,9 +574,10 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
             s_loggedConfig = true;
             s_wasEnabled = true;
             AcLogf("=== anticheat log (rework / false-flag debug) ===");
-            AcLogf("enabled checks: AutoBlock=%d NoSlow=%d Keep-y=%d LegitScaff=%d FlatScaff=%d ignoreTeammates=%d flagSound=%d",
+            AcLogf("enabled checks: AutoBlock=%d NoSlow=%d Keep-y=%d LegitScaff=%d FlatScaff=%d BHop=%d KillAura=%d ignoreTeammates=%d flagSound=%d",
                    ac_autoblock ? 1 : 0, ac_noslow ? 1 : 0, ac_scaffold ? 1 : 0,
                    ac_legitscaff ? 1 : 0, ac_scaffoldb ? 1 : 0,
+                   ac_bhop ? 1 : 0, ac_killaura ? 1 : 0,
                    ac_ignoreTeammates ? 1 : 0, ac_flagsound ? 1 : 0);
             AcLogf("thresholds: AutoBlock vl>=5 minBlockMs=%llu | NoSlow vl>=3 stopMs>700 | Keep-y vl>=%d pitch>=%.0f placed>=%d | LegitScaff vl>=%d pitch>=%.0f speed>%.3f sneakDist=[%.1f,%.1f] | FlatScaff vl>=%d pitch>=60 speed>%.3f",
                    (unsigned long long)kAutoBlockMinBlockMs, kScaffoldAFlagVL, (double)kScaffoldAPitchThreshold,
@@ -633,6 +636,8 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
 
     int selfId = -1;
     std::string selfTeamColor;
+    double selfPosX = 0.0, selfPosY = 0.0, selfPosZ = 0.0;
+    float selfYaw = 0.0f;
     {
         if (!s_fidSelf) {
             static const char* kSelfSigs[] = {
@@ -648,6 +653,15 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
                 if (s_fidEntityId) selfId = env->GetIntField(selfPlayer, s_fidEntityId);
                 else env->ExceptionClear();
                 selfTeamColor = GetEntityTeamColorName(env, mcObj, mcClass, selfPlayer, selfClass);
+                jfieldID selfYawFid = env->GetFieldID(selfClass, "rotationYaw", "F");
+                if (selfYawFid) selfYaw = env->GetFloatField(selfPlayer, selfYawFid);
+                else env->ExceptionClear();
+                jfieldID selfPosXFid = env->GetFieldID(selfClass, "posX", "D");
+                jfieldID selfPosYFid = env->GetFieldID(selfClass, "posY", "D");
+                jfieldID selfPosZFid = env->GetFieldID(selfClass, "posZ", "D");
+                if (selfPosXFid) selfPosX = env->GetDoubleField(selfPlayer, selfPosXFid); else env->ExceptionClear();
+                if (selfPosYFid) selfPosY = env->GetDoubleField(selfPlayer, selfPosYFid); else env->ExceptionClear();
+                if (selfPosZFid) selfPosZ = env->GetDoubleField(selfPlayer, selfPosZFid); else env->ExceptionClear();
                 if (selfId != -1) {
                     std::string selfUuid = GetEntityUUIDString(env, selfPlayer, selfClass);
                     std::string selfName = GetEntityPlayerName(env, mcObj, mcClass, selfPlayer, selfClass);
@@ -795,6 +809,8 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
                 else if (checkName == "AutoBlock") counts.autoBlock++;
                 else if (checkName == "LegitScaff") counts.legitScaff++;
                 else if (checkName == "FlatScaff" || checkName == "ScaffoldB")  counts.scaffoldB++;
+                else if (checkName == "BHop") counts.bhop++;
+                else if (checkName == "KillAura") counts.killAura++;
             };
             {
                 std::lock_guard<std::mutex> lock(g_flaggedPlayersMutex);
@@ -908,6 +924,72 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
         }
 
         int heldItemId = GetHeldItemId(env, entity, entityClass);
+
+        bool onGround = false;
+        {
+            jfieldID fidOnGround = env->GetFieldID(entityClass, "onGround", "Z");
+            if (!fidOnGround) fidOnGround = env->GetFieldID(entityClass, "isOnGround", "Z");
+            if (fidOnGround) onGround = env->GetBooleanField(entity, fidOnGround);
+            else env->ExceptionClear();
+        }
+
+        if (ac_bhop && d.posInitialized) {
+            const double moveDX = posX - d.lastPosX;
+            const double moveDZ = posZ - d.lastPosZ;
+            const float moveDist = std::sqrt((float)(moveDX * moveDX + moveDZ * moveDZ));
+            const bool jumpStarted = d.lastOnGround && !onGround && (posY > d.lastPosY + 0.15f);
+            const bool movingFastEnough = moveDist > 0.18f;
+            const bool fastCycle = d.lastJumpAt != 0 && (now - d.lastJumpAt) < 350ULL;
+            if (jumpStarted && movingFastEnough && fastCycle) {
+                d.bhopVL++;
+                char detail[256];
+                std::snprintf(detail, sizeof(detail),
+                    "dist=%.2f lastJumpGapMs=%llu yDelta=%.2f lastGround=%d onGround=%d",
+                    (double)moveDist, (unsigned long long)(now - d.lastJumpAt), (double)(posY - d.lastPosY),
+                    d.lastOnGround ? 1 : 0, onGround ? 1 : 0);
+                AcLogf("bhop vl++ player=%s %s", eName.c_str(), detail);
+                if (d.bhopVL >= 3) {
+                    flagPlayer("BHop", detail);
+                    d.bhopVL = 0;
+                }
+            } else if (d.bhopVL > 0 && (!movingFastEnough || (now - d.lastJumpAt) > 600ULL)) {
+                d.bhopVL = std::max(0, d.bhopVL - 1);
+            }
+            if (jumpStarted) d.lastJumpAt = now;
+            d.lastOnGround = onGround;
+        } else {
+            d.lastOnGround = onGround;
+        }
+
+        if (ac_killaura && selfId != -1 && isSwinging && swingProgress > 0 && swingProgress != d.lastSwingProgress) {
+            const double dx = posX - selfPosX;
+            const double dy = posY - selfPosY;
+            const double dz = posZ - selfPosZ;
+            const double dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist > 0.0 && dist <= 3.2) {
+                const float targetYaw = (float)(std::atan2(dx, dz) * 57.2957795f);
+                const float yawDelta = std::fabs(std::fmod(std::fabs(selfYaw - targetYaw) + 180.0f, 360.0f) - 180.0f);
+                const bool rapidSwing = (now - d.lastAttackAt) < 260ULL;
+                if (rapidSwing && yawDelta <= 24.0f) {
+                    d.killauraVL++;
+                    char detail[256];
+                    std::snprintf(detail, sizeof(detail),
+                        "dist=%.2f yawDelta=%.1f attackGapMs=%llu swing=%d selfYaw=%.1f targetYaw=%.1f",
+                        dist, (double)yawDelta, (unsigned long long)(now - d.lastAttackAt),
+                        swingProgress, (double)selfYaw, (double)targetYaw);
+                    AcLogf("killaura vl++ player=%s %s", eName.c_str(), detail);
+                    if (d.killauraVL >= 3) {
+                        flagPlayer("KillAura", detail);
+                        d.killauraVL = 0;
+                    }
+                } else {
+                    d.killauraVL = std::max(0, d.killauraVL - 1);
+                }
+                d.lastAttackAt = now;
+            } else {
+                d.killauraVL = std::max(0, d.killauraVL - 1);
+            }
+        }
 
         // AutoBlock
         if (ac_autoblock) {
