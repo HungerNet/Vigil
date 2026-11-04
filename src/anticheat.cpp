@@ -953,7 +953,7 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
                     d.bhopVL = 0;
                 }
             } else if (d.bhopVL > 0 && (!movingFastEnough || (now - d.lastJumpAt) > 600ULL)) {
-                d.bhopVL = std::max(0, d.bhopVL - 1);
+                d.bhopVL = (std::max)(0, d.bhopVL - 1);
             }
             if (jumpStarted) d.lastJumpAt = now;
             d.lastOnGround = onGround;
@@ -983,11 +983,11 @@ void RunAnticheatChecks(JNIEnv* env, jobject mcObj, jclass mcClass, jclass custo
                         d.killauraVL = 0;
                     }
                 } else {
-                    d.killauraVL = std::max(0, d.killauraVL - 1);
+                    d.killauraVL = (std::max)(0, d.killauraVL - 1);
                 }
                 d.lastAttackAt = now;
             } else {
-                d.killauraVL = std::max(0, d.killauraVL - 1);
+                d.killauraVL = (std::max)(0, d.killauraVL - 1);
             }
         }
 
