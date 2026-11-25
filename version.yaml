@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.3'
+version: '1.0-dev.4'
 description: |
   Dev 1:
   - Initial release
@@ -8,3 +8,7 @@ description: |
   Dev 3:
   - Overhauled UI
   - Added checks for BHop and KillAura
+  Dev 4:
+  - Overhauled UI (again)
+  - Fixed and added checks
+  - Removed Frenchify-native overlay features

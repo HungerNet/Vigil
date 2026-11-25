@@ -1,84 +1,97 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.20)
+project(Vigil VERSION 2.0.0 LANGUAGES CXX RC)
 
-project(VigilLunar)
+option(VIGIL_BUILD_DLL "Build Vigil.dll (requires JNI headers from a JDK)" ON)
+option(VIGIL_BUILD_LAUNCHER "Build VigilLauncher.exe" ON)
+option(VIGIL_BUILD_PREVIEW "Build the standalone UI preview harness" ON)
+option(VIGIL_BUILD_TESTS "Build the detection test suite" ON)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 if(MSVC)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    add_compile_options(/W4 /permissive- /utf-8 /MP /wd4100 /wd4505)
+    add_compile_definitions(NOMINMAX _CRT_SECURE_NO_WARNINGS)
 endif()
 
-find_package(JNI REQUIRED)
-include_directories(${JNI_INCLUDE_DIRS})
-set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-include(FetchContent)
-set(FETCHCONTENT_QUIET OFF)
-
-FetchContent_Declare(
-    curl
-    URL https://github.com/curl/curl/releases/download/curl-8_12_1/curl-8.12.1.tar.xz
-    URL_HASH SHA256=0341f1ed97a26c811abaebd37d62b833956792b7607ea3f15d001613c76de202
+# ── Core + detection framework (no JNI, no OpenGL) ───────────────────────────────────────────
+add_library(vigil_core STATIC
+    src/core/json.cpp
+    src/core/log.cpp
+    src/core/settings.cpp
+    src/detection/check.cpp
+    src/detection/combat.cpp
+    src/detection/confidence.cpp
+    src/detection/engine.cpp
+    src/detection/session.cpp
+    src/detection/track.cpp
+    src/detection/checks/autoblock.cpp
+    src/detection/checks/autoclicker.cpp
+    src/detection/checks/bhop.cpp
+    src/detection/checks/killaura.cpp
+    src/detection/checks/noslow.cpp
+    src/detection/checks/reach.cpp
+    src/detection/checks/registry.cpp
+    src/detection/checks/scaffold.cpp
+    src/detection/checks/speed.cpp
+    src/detection/checks/velocity.cpp
 )
+target_include_directories(vigil_core PUBLIC src)
 
-set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(CURL_STATICLIB ON CACHE BOOL "" FORCE)
-set(HTTP_ONLY ON CACHE BOOL "" FORCE)
-set(CURL_ENABLE_SSL ON CACHE BOOL "" FORCE)
-set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
-set(CMAKE_USE_SCHANNEL ON CACHE BOOL "" FORCE)
-set(CMAKE_USE_OPENSSL OFF CACHE BOOL "" FORCE)
-set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
-set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_TELNET ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_DICT ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_FILE ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_TFTP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_FTP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_RTSP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_POP3 ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_IMAP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_SMTP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_GOPHER ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_MQTT ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_WEBSOCKETS ON CACHE BOOL "" FORCE)
-set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
-set(CURL_ZLIB OFF CACHE BOOL "" FORCE)
-set(CURL_BROTLI OFF CACHE BOOL "" FORCE)
-set(CURL_ZSTD OFF CACHE BOOL "" FORCE)
-set(CURL_USE_NGHTTP2 OFF CACHE BOOL "" FORCE)
-set(CURL_USE_LIBSSH2 OFF CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(curl)
-
-add_library(ChatReaderLunar SHARED
-    src/dllmain.cpp
-    src/utils.cpp
-    src/jni_helpers.cpp
-    src/class_finder.cpp
-    src/class_finder_log.cpp
-    src/anticheat.cpp
-    src/colored_hitboxes.cpp
-    src/tab_overlay.cpp
-    src/player_api.cpp
-    src/denick.cpp
-    src/number_denicker.cpp
-    src/session_stats.cpp
-    src/party_queue_detector.cpp
-    src/trade_indicator.cpp
-    src/hud_edit.cpp
-    src/lunar_runtime.cpp
+# ── User interface (OpenGL fixed function + GDI typography) ──────────────────────────────────
+add_library(vigil_ui STATIC
+    src/ui/app.cpp
+    src/ui/font.cpp
+    src/ui/gfx.cpp
+    src/ui/icons.cpp
+    src/ui/page_checks.cpp
+    src/ui/page_common.cpp
+    src/ui/page_evidence.cpp
+    src/ui/page_overview.cpp
+    src/ui/page_players.cpp
+    src/ui/page_settings.cpp
+    src/ui/theme.cpp
+    src/ui/widgets.cpp
 )
+target_link_libraries(vigil_ui PUBLIC vigil_core opengl32 gdi32 user32)
 
-target_compile_definitions(ChatReaderLunar PRIVATE CURL_STATICLIB VIGIL_LUNAR)
-target_link_libraries(ChatReaderLunar PRIVATE ${JNI_LIBRARIES} CURL::libcurl opengl32)
-target_include_directories(ChatReaderLunar PRIVATE ${curl_SOURCE_DIR}/include)
+# ── Vigil.dll ────────────────────────────────────────────────────────────────────────────────
+if(VIGIL_BUILD_DLL)
+    find_package(JNI REQUIRED)
+    add_library(Vigil SHARED
+        src/platform/dllmain.cpp
+        src/platform/hooks.cpp
+        src/game/alerts.cpp
+        src/game/class_finder.cpp
+        src/game/context.cpp
+        src/game/jvm.cpp
+        src/game/mc.cpp
+        src/game/minecraft_util.cpp
+        src/game/runtime.cpp
+        src/game/sampler.cpp
+        src/game/world_render.cpp
+        assets/vigil.rc
+    )
+    target_include_directories(Vigil PRIVATE ${JNI_INCLUDE_DIRS})
+    target_link_libraries(Vigil PRIVATE vigil_ui shell32)
+endif()
 
-add_custom_command(TARGET ChatReaderLunar POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:ChatReaderLunar>/config"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_SOURCE_DIR}/config/known-nicks.json"
-        "$<TARGET_FILE_DIR:ChatReaderLunar>/config/known-nicks.json"
-    COMMENT "Copy known-nicks.json beside ChatReaderLunar.dll"
-)
+# ── VigilLauncher.exe ────────────────────────────────────────────────────────────────────────
+if(VIGIL_BUILD_LAUNCHER)
+    add_executable(VigilLauncher WIN32 src/platform/launcher.cpp assets/launcher.rc)
+endif()
 
-add_executable(InjectorLunar src/injector.cpp)
-target_compile_definitions(InjectorLunar PRIVATE VIGIL_LUNAR_INJECTOR)
+# ── Preview harness ──────────────────────────────────────────────────────────────────────────
+if(VIGIL_BUILD_PREVIEW)
+    add_executable(VigilPreview tools/preview/preview.cpp assets/vigil.rc)
+    target_link_libraries(VigilPreview PRIVATE vigil_ui)
+endif()
+
+# ── Tests ────────────────────────────────────────────────────────────────────────────────────
+if(VIGIL_BUILD_TESTS)
+    enable_testing()
+    add_executable(detection_tests tests/detection_tests.cpp)
+    target_link_libraries(detection_tests PRIVATE vigil_core)
+    add_test(NAME detection COMMAND detection_tests)
+endif()

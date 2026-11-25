@@ -1,0 +1,26 @@
+// VigilLauncher — application icon and version information.
+#include "../src/ui/resources.h"
+
+VIGIL_RES_APP_ICON ICON "brand/vigil.ico"
+
+1 VERSIONINFO
+FILEVERSION 2,0,0,0
+PRODUCTVERSION 2,0,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "CompanyName", "Vigil"
+      VALUE "FileDescription", "Vigil Launcher"
+      VALUE "FileVersion", "2.0.0"
+      VALUE "ProductName", "Vigil"
+      VALUE "ProductVersion", "2.0.0"
+      VALUE "OriginalFilename", "VigilLauncher.exe"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

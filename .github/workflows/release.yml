@@ -1,97 +1,81 @@
-name: Versioned Release
+name: Build and release
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
+  pull_request:
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
-    if: ${{ !contains(github.event.head_commit.message, 'Merge pull request') }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install yq
-        shell: pwsh
-        run: |
-          Invoke-WebRequest `
-            -Uri https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_windows_amd64.exe `
-            -OutFile "$env:RUNNER_TEMP\yq.exe"
-
-      - name: Parse version.yaml
-        shell: pwsh
-        run: |
-          $yq = "$env:RUNNER_TEMP\yq.exe"
-          "RUN=$(& $yq -r '.run' version.yaml)" >> $env:GITHUB_ENV
-          "VERSION=$(& $yq -r '.version' version.yaml)" >> $env:GITHUB_ENV
-          "DESC<<EOF" >> $env:GITHUB_ENV
-          & $yq -r '.description' version.yaml >> $env:GITHUB_ENV
-          "EOF" >> $env:GITHUB_ENV
-
-      - name: Stop if run=false
-        if: ${{ env.RUN == 'false' }}
-        run: echo "run=false; skipping build and release."
-
-      - name: Set up Java
-        if: ${{ env.RUN == 'true' }}
+      - name: Set up JDK (JNI headers only)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          architecture: x64
 
-      - name: Set up Python
-        if: ${{ env.RUN == 'true' }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Generate Lunar Java headers
-        if: ${{ env.RUN == 'true' }}
-        shell: pwsh
-        run: ./scripts/compile_gui_lunar.ps1
-
-      - name: Rename embedded Java classes
-        if: ${{ env.RUN == 'true' }}
-        run: python scripts/rename_embedded_java.py
-
-      - name: Configure CMake
-        if: ${{ env.RUN == 'true' }}
+      - name: Configure
         run: cmake -S . -B build -A x64
 
-      - name: Build native targets
-        if: ${{ env.RUN == 'true' }}
+      - name: Build
         run: cmake --build build --config Release --parallel
 
-      - name: Package launch bundle
-        if: ${{ env.RUN == 'true' }}
+      - name: Detection tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Verify embedded Java shims are reproducible
+        # Informational: javac output can differ across JDK patch releases.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python tools/build_java.py --javac "$env:JAVA_HOME\bin\javac.exe"
+          git diff --exit-code -- src/game/bytecode
+
+      - name: Read version
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $yaml = Get-Content version.yaml -Raw
+          $run = if ($yaml -match '(?m)^run:\s*(\w+)') { $Matches[1] } else { 'false' }
+          $version = if ($yaml -match "(?m)^version:\s*'?([^'\r\n]+)'?") { $Matches[1] } else { '0.0.0' }
+          "RUN=$run" >> $env:GITHUB_ENV
+          "VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Package
+        if: github.event_name == 'push' && env.RUN == 'true'
         shell: pwsh
         run: |
           $package = "Vigil-$env:VERSION-win-x64"
           $stage = Join-Path $env:RUNNER_TEMP $package
-          New-Item -ItemType Directory -Force -Path "$stage\config" | Out-Null
-          Copy-Item build/Release/InjectorLunar.exe $stage
-          Copy-Item build/Release/ChatReaderLunar.dll $stage
-          Copy-Item build/Release/config/known-nicks.json "$stage\config"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item build/Release/Vigil.dll $stage
+          Copy-Item build/Release/VigilLauncher.exe $stage
+          Copy-Item assets/fonts/LICENSE-Inter.txt $stage
           @(
-            "Start Lunar Client and Minecraft, then run InjectorLunar.exe."
-            "Keep the EXE, DLL, and config folder together."
+            "Vigil $env:VERSION - cheat detection and player analysis for Lunar Client 1.8.9"
+            ""
+            "1. Start Minecraft 1.8.9 in Lunar Client."
+            "2. Run VigilLauncher.exe (keep it next to Vigil.dll)."
+            "3. Press Right Shift in game, or type /vigil in chat."
+            ""
+            "Vigil stores its settings and session data in the 'vigil' folder next to Vigil.dll."
+            "It makes no network requests."
           ) | Set-Content -Encoding utf8 "$stage\README.txt"
           Compress-Archive -Path "$stage\*" -DestinationPath "$package.zip" -Force
           "PACKAGE_FILE=$package.zip" >> $env:GITHUB_ENV
 
-      - name: Create GitHub Release
-        if: ${{ env.RUN == 'true' }}
+      - name: Publish release
+        if: github.event_name == 'push' && env.RUN == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.VERSION }}
-          name: ${{ env.VERSION }}
-          body: ${{ env.DESC }}
+          name: Vigil ${{ env.VERSION }}
+          body_path: docs/RELEASE_NOTES.md
           files: ${{ env.PACKAGE_FILE }}
