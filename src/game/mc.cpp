@@ -1,7 +1,81 @@
 #include "mc.h"
 
+#include "../core/log.h"
+#include "bytecode/VigilMenuScreen.h"
 #include "class_finder.h"
 #include "jvm.h"
+
+namespace {
+
+jclass g_vigilMenuScreenClass = nullptr;
+
+void logJavaException(JNIEnv* env, const char* stage) {
+    jthrowable exception = env->ExceptionOccurred();
+    env->ExceptionClear();
+    std::string detail;
+    if (exception) {
+        jclass exceptionClass = env->GetObjectClass(exception);
+        jmethodID toString = exceptionClass ? env->GetMethodID(exceptionClass, "toString", "()Ljava/lang/String;") : nullptr;
+        if (toString && !env->ExceptionCheck()) {
+            jstring text = static_cast<jstring>(env->CallObjectMethod(exception, toString));
+            if (text && !env->ExceptionCheck()) detail = vigil::game::jstringToUtf8(env, text);
+            if (text) env->DeleteLocalRef(text);
+        }
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        if (exceptionClass) env->DeleteLocalRef(exceptionClass);
+        env->DeleteLocalRef(exception);
+    }
+    vigil::log::writef("runtime", "%s failed%s%s", stage, detail.empty() ? "" : ": ", detail.c_str());
+}
+
+jclass loadVigilMenuScreenClass(JNIEnv* env) {
+    if (!g_injectClassLoaderGlobal) {
+        vigil::log::write("runtime", "menu screen load failed: Minecraft class loader is unavailable");
+        return nullptr;
+    }
+    vigil::log::writef("runtime", "defining VigilMenuScreen with loader=%p",
+                       static_cast<void*>(g_injectClassLoaderGlobal));
+    jclass cls = env->DefineClass("VigilMenuScreen", g_injectClassLoaderGlobal,
+                                  reinterpret_cast<const jbyte*>(kVigilMenuScreenBytes),
+                                  static_cast<jsize>(kVigilMenuScreenSize));
+    if (env->ExceptionCheck() || !cls) {
+        if (env->ExceptionCheck()) logJavaException(env, "DefineClass(VigilMenuScreen)");
+        vigil::log::write("runtime", "trying ClassLoader.loadClass(VigilMenuScreen) fallback");
+        jclass loaderClass = env->GetObjectClass(g_injectClassLoaderGlobal);
+        jmethodID loadClass = loaderClass
+                                  ? env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;")
+                                  : nullptr;
+        if (env->ExceptionCheck()) {
+            logJavaException(env, "ClassLoader.loadClass lookup");
+            loadClass = nullptr;
+        }
+        jstring name = env->NewStringUTF("VigilMenuScreen");
+        if (loadClass && name) {
+            cls = static_cast<jclass>(env->CallObjectMethod(g_injectClassLoaderGlobal, loadClass, name));
+            if (env->ExceptionCheck()) {
+                logJavaException(env, "ClassLoader.loadClass(VigilMenuScreen)");
+                cls = nullptr;
+            }
+        }
+        if (name) env->DeleteLocalRef(name);
+        if (loaderClass) env->DeleteLocalRef(loaderClass);
+    }
+    if (!cls) {
+        vigil::log::write("runtime", "menu screen load failed: VigilMenuScreen was not defined or found");
+        return nullptr;
+    }
+    g_vigilMenuScreenClass = static_cast<jclass>(env->NewGlobalRef(cls));
+    env->DeleteLocalRef(cls);
+    if (!g_vigilMenuScreenClass || env->ExceptionCheck()) {
+        if (env->ExceptionCheck()) logJavaException(env, "NewGlobalRef(VigilMenuScreen)");
+        else vigil::log::write("runtime", "menu screen load failed: NewGlobalRef returned null");
+        return nullptr;
+    }
+    vigil::log::write("runtime", "VigilMenuScreen class loaded and retained");
+    return g_vigilMenuScreenClass;
+}
+
+}  // namespace
 
 jmethodID JniResolveInstanceMethod(JNIEnv* env, jclass cls, const char* signature, const char* mcpName, const char* obfName) {
     if (!env || !cls || !signature) return nullptr;
@@ -242,26 +316,47 @@ jobject currentScreen(JNIEnv* env, jobject mc) {
 }
 
 bool displayScreen(JNIEnv* env, jobject mc, jobject screen) {
-    if (!env || !mc) return false;
+    if (!env || !mc) {
+        vigil::log::write("runtime", "displayGuiScreen failed: JNIEnv or Minecraft instance is null");
+        return false;
+    }
     static jmethodID mid = nullptr;
     if (!mid) {
         jclass mcClass = env->GetObjectClass(mc);
         mid = JniResolveInstanceMethod(env, mcClass, "(Lnet/minecraft/client/gui/GuiScreen;)V", "displayGuiScreen", "a");
         env->DeleteLocalRef(mcClass);
-        if (!mid) return false;
+        if (!mid) {
+            vigil::log::write("runtime", "displayGuiScreen failed: method was not found");
+            return false;
+        }
     }
     env->CallVoidMethod(mc, mid, screen);
-    return !jniFailed(env);
+    if (env->ExceptionCheck()) {
+        logJavaException(env, screen ? "displayGuiScreen(open)" : "displayGuiScreen(close)");
+        return false;
+    }
+    vigil::log::writef("runtime", "displayGuiScreen(%s) completed", screen ? "host screen" : "null");
+    return true;
 }
 
 jobject newBlankScreen(JNIEnv* env) {
-    jclass cls = McFindClass(env, "net/minecraft/client/gui/GuiScreen");
+    if (!env) return nullptr;
+    jclass cls = g_vigilMenuScreenClass ? g_vigilMenuScreenClass : loadVigilMenuScreenClass(env);
     if (!cls) return nullptr;
     jmethodID ctor = env->GetMethodID(cls, "<init>", "()V");
-    jobject s = (ctor && !jniFailed(env)) ? env->NewObject(cls, ctor) : nullptr;
-    if (jniFailed(env)) s = nullptr;
-    env->DeleteLocalRef(cls);
-    return s;
+    if (!ctor || env->ExceptionCheck()) {
+        if (env->ExceptionCheck()) logJavaException(env, "VigilMenuScreen constructor lookup");
+        else vigil::log::write("runtime", "VigilMenuScreen constructor lookup returned null");
+        return nullptr;
+    }
+    vigil::log::write("runtime", "VigilMenuScreen constructor resolved");
+    jobject screen = env->NewObject(cls, ctor);
+    if (env->ExceptionCheck()) {
+        logJavaException(env, "VigilMenuScreen construction");
+        return nullptr;
+    }
+    if (!screen) vigil::log::write("runtime", "VigilMenuScreen construction returned null");
+    return screen;
 }
 
 bool isChatScreen(JNIEnv* env, jobject screen) {

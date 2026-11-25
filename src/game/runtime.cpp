@@ -237,32 +237,47 @@ void Runtime::handleMenu(JNIEnv* env, jobject mc) {
         sendChatMessage(env, mc, "/wdr " + name);
     }
 
-    if (requestOpen_.exchange(false) && !menuOnScreen_) {
+    const unsigned openReason = openRequest_.exchange(0);
+    if (openReason != 0 && !menuOnScreen_) {
+        log::write("runtime", openReason == 1 ? "menu open request: key binding" : "menu open request: chat command");
         jobject blank = newBlankScreen(env);
         if (!blank) {
             log::write("runtime", "menu open failed: could not create the host screen");
+            printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not open its menu. See vigil/logs/runtime.log.");
         } else if (displayScreen(env, mc, blank)) {
-            if (menuScreen_) env->DeleteGlobalRef(menuScreen_);
-            menuScreen_ = env->NewGlobalRef(blank);
-            menuOnScreen_ = true;
-            app.open();
-            log::write("runtime", "menu opened");
-            if (!focusRequest_.empty()) {
-                app.focusPlayer(focusRequest_);
-                focusRequest_.clear();
+            jobject retainedScreen = env->NewGlobalRef(blank);
+            if (!retainedScreen || env->ExceptionCheck()) {
+                if (env->ExceptionCheck()) jniFailed(env);
+                log::write("runtime", "menu open failed: NewGlobalRef(host screen) returned null");
+                displayScreen(env, mc, nullptr);
+                printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not retain its menu screen. See vigil/logs/runtime.log.");
+            } else {
+                if (menuScreen_) env->DeleteGlobalRef(menuScreen_);
+                menuScreen_ = retainedScreen;
+                menuOnScreen_ = true;
+                app.open();
+                log::write("runtime", "menu opened successfully");
+                if (!focusRequest_.empty()) {
+                    app.focusPlayer(focusRequest_);
+                    focusRequest_.clear();
+                }
             }
         } else {
             log::write("runtime", "menu open failed: host rejected the screen");
+            printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not open its menu. See vigil/logs/runtime.log.");
         }
         if (blank) env->DeleteLocalRef(blank);
     }
 
     if (app.isOpen() && !menuOnScreen_ && menuScreen_) {
         // Something else (inventory, server GUI, ESC handled by the game) replaced the menu.
+        log::write("runtime", "menu host screen is no longer current; closing Vigil UI");
         app.forceClose();
     }
     if (app.closeFinished()) {
-        if (menuOnScreen_) displayScreen(env, mc, nullptr);
+        if (menuOnScreen_ && !displayScreen(env, mc, nullptr)) {
+            log::write("runtime", "menu close failed: Minecraft did not accept a null screen");
+        }
         app.acknowledgeClosed();
         if (menuScreen_) { env->DeleteGlobalRef(menuScreen_); menuScreen_ = nullptr; }
         menuOnScreen_ = false;
@@ -275,7 +290,7 @@ void Runtime::runCommand(JNIEnv* env, jobject mc, const std::string& raw) {
     std::string args = Trim(raw.size() > 6 ? raw.substr(6) : "");
     const std::string lower = LowerAscii(args);
     if (lower.empty()) {
-        requestOpen_ = true;
+        openRequest_ = 2;
     } else if (lower == "help") {
         printChat(env, mc, chatPrefix() + "\xC2\xA7" "f/vigil \xC2\xA7" "7open Vigil  \xC2\xA7" "f/vigil <player> \xC2\xA7"
                            "7investigate a player  \xC2\xA7" "f/vigil reset \xC2\xA7" "7start a new session");
@@ -289,7 +304,7 @@ void Runtime::runCommand(JNIEnv* env, jobject mc, const std::string& raw) {
         if (focusRequest_.empty()) {
             printChat(env, mc, chatPrefix() + "\xC2\xA7" "7Vigil has not observed \xC2\xA7" "f" + args + "\xC2\xA7" "7 this session.");
         } else {
-            requestOpen_ = true;
+            openRequest_ = 2;
         }
     }
 }
@@ -333,7 +348,14 @@ void Runtime::onSwapBuffers(HDC hdc) {
         log::writef("runtime", "UI render path active (window=%p, size=%dx%d)", renderWindow, w, h);
     }
     ui::App::instance().render(w, h, nowMs(), alertToast_->b());
-    menuVisible_ = ui::App::instance().isOpen();
+    const bool visible = ui::App::instance().isOpen();
+    static bool lastRenderedMenuState = false;
+    if (visible != lastRenderedMenuState) {
+        log::writef("runtime", "menu render state changed: %s (%dx%d)",
+                    visible ? "visible" : "hidden", w, h);
+        lastRenderedMenuState = visible;
+    }
+    menuVisible_ = visible;
 }
 
 static int resolveVirtualKey(WPARAM wParam, LPARAM lParam) {
@@ -377,7 +399,7 @@ bool Runtime::onWindowMessage(HWND, UINT msg, WPARAM wParam, LPARAM lParam, LRES
                     jniFailed(env);
                 }
                 if (!screenOpen) {
-                    requestOpen_ = true;
+                    openRequest_ = 1;
                     log::write("runtime", "menu key received");
                     return true;
                 }

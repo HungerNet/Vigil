@@ -70,9 +70,9 @@ private:
     bool inPump_ = false;
 
     // Menu / input state (Minecraft thread).
-    jobject menuScreen_ = nullptr;   // global ref to the blank GuiScreen hosting the menu
+    jobject menuScreen_ = nullptr;   // global ref to VigilMenuScreen hosting the menu
     bool menuOnScreen_ = false;
-    std::atomic<bool> requestOpen_{false};
+    std::atomic<unsigned> openRequest_{0};  // 1 = menu key, 2 = chat command
     std::atomic<bool> menuVisible_{false};
     std::atomic<bool> screenOpen_{false};
     std::atomic<bool> chatOpen_{false};

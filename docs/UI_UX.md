@@ -5,9 +5,9 @@
 ## Architecture
 
 The interface is drawn natively with OpenGL inside Minecraft's frame (SwapBuffers hook), not
-with Minecraft's GUI system. When the menu opens, Vigil displays a blank vanilla `GuiScreen` so
-the game releases the mouse and stops player input; window input is routed to the UI through
-the window-procedure hook.
+with Minecraft's GUI system. When the menu opens, Vigil displays its embedded `VigilMenuScreen`
+subclass so the game releases the mouse and stops player input; window input is routed to the UI
+through the window-procedure hook.
 
 | Layer | File | Notes |
 |---|---|---|

@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.5'
+version: '1.0-dev.6'
 description: |
   Dev 1:
   - Initial release
@@ -12,5 +12,5 @@ description: |
   - Overhauled UI (again)
   - Fixed and added checks
   - Removed Frenchify-native overlay features
-  Dev 5:
+  Dev 5-6:
   - Fix GUI bug
