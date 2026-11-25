@@ -80,6 +80,19 @@ void activeTexture(unsigned int unit) { if (pActiveTexture) pActiveTexture(unit)
 void bindBuffer(unsigned int target, unsigned int buf) { if (pBindBuffer) pBindBuffer(target, buf); }
 bool hasFramebuffers() { return pBindFramebuffer && pGenFramebuffers && pFramebufferTexture2D; }
 
+unsigned int createTextureRGBA(int w, int h, const unsigned char* pixels) {
+    GLuint tex = 0;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    return tex;
+}
+
 unsigned int createFramebuffer(int w, int h, unsigned int& colorTex) {
     load();
     if (!hasFramebuffers()) return 0;
@@ -600,6 +613,24 @@ void Renderer::areaUnder(const std::vector<Point>& pts, float baseline, Color to
 
 void Renderer::diamond(float cx, float cy, float radius, Color c) {
     polygon({{cx, cy - radius}, {cx + radius, cy}, {cx, cy + radius}, {cx - radius, cy}}, c);
+}
+
+void Renderer::image(unsigned int texture, const Rect& r, float u0, float v0, float u1, float v1, Color tint) {
+    if (!texture) return;
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    color(tint);
+    glBegin(GL_QUADS);
+    glTexCoord2f(u0, v0);
+    vertex(r.x, r.y);
+    glTexCoord2f(u1, v0);
+    vertex(r.r(), r.y);
+    glTexCoord2f(u1, v1);
+    vertex(r.r(), r.b());
+    glTexCoord2f(u0, v1);
+    vertex(r.x, r.b());
+    glEnd();
+    glDisable(GL_TEXTURE_2D);
 }
 
 void Renderer::beginGlyphs(unsigned int texture, Color c) {

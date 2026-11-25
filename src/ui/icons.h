@@ -9,20 +9,28 @@
 namespace vigil::ui {
 
 enum class Icon {
-    Overview, Checks, Evidence, Players, Settings,
+    // Navigation.
+    Overview, Players, Checks, Utilities, Settings, Status, Evidence, Identity,
+    // Check categories and checks.
     Combat, Movement, World,
     KillAura, Reach, AutoClicker, Velocity, AutoBlock, Speed, BHop, NoSlow, KeepY, FlatScaffold, LegitScaff,
-    Search, Info, Reset, ChevronRight, ChevronDown, ChevronLeft, Close, Check, Warning, Clock, Pin, Export, Folder,
-    Bell, Palette, Database, Pulse, Target, Filter, Plus, Minus, Dot, Bolt, Spark, Report, Layers,
+    // Utilities.
+    Chat, Shop, Party, Queue,
+    // General.
+    Search, Info, Reset, ChevronRight, ChevronDown, ChevronLeft, Back, ArrowRight, Close, Check, Warning, Clock, Pin, Export,
+    Folder, Bell, Palette, Database, Pulse, Target, Filter, Plus, Minus, Dot, Bolt, Spark, Report, Layers, Keyboard, Copy,
+    Eye, TrendUp, TrendDown, Globe, Play, Plug, Chip, Mask,
 };
 
 void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, float stroke = 1.6f);
 
-// The Vigil mark: a geometric V whose inner notch is a gentle arc cradling a point of focus.
-// `size` is the height of the mark's bounding square.
+// The Vigil mark: a geometric V of constant arm width whose inner notch is an arc concentric with
+// a point of light — the lower lid of an attentive eye cradling the vigil flame.
+// `size` is the edge of the mark's bounding square.
 void drawLogo(Renderer& r, float x, float y, float size, Color body, Color dot);
-// Outline geometry of the mark in a unit square (used by the renderer and the SVG generator).
-std::vector<Point> logoOutline(int curveSegments = 24);
+// Geometry of the mark in a unit square (shared by the renderer and tools/make_brand_assets.py,
+// which implements the same construction).
+std::vector<Point> logoOutline(int arcSegments = 28);
 Point logoDotCenter();
 float logoDotRadius();
 

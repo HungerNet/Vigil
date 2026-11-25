@@ -37,6 +37,7 @@ struct Sim {
     PlayerFrame f;
     Vec3 motion;
     double groundY = 64.0;
+    double ceilingY = 0.0;     // bottom of a ceiling block (0 = open sky)
     double moveYaw = 0.0;      // movement direction (degrees, MC convention)
     int swingTicks = -1;
 
@@ -76,6 +77,10 @@ struct Sim {
             motion.z *= mc::kAirFriction;
         }
         f.pos.y += motion.y;
+        if (ceilingY > 0.0 && f.pos.y + mc::kPlayerHeight > ceilingY) {
+            f.pos.y = ceilingY - mc::kPlayerHeight;   // head hits the ceiling
+            motion.y = 0.0;
+        }
         if (f.pos.y <= groundY) {
             f.pos.y = groundY;
             motion.y = 0.0;
@@ -250,6 +255,67 @@ static void testSpeedPotionLegit() {
     }
     EXPECT(w.detections(runner, "speed") == 0, "speed detections with Speed II=%d", w.detections(runner, "speed"));
     EXPECT(w.detections(runner, "bhop") == 0, "bhop detections with Speed II=%d", w.detections(runner, "bhop"));
+}
+
+// Speed II drunk while already in view: the effect list is stale (vanilla only sends effects when
+// tracking starts), but the movement attribute and potion particles are current.
+static int runStaleSpeedPotion(bool attribute, bool particles, const char* checkId) {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim runner(2, "StalePotion");
+    runner.f.potions.speed = -1;   // what the client believes
+    runner.f.potionParticles = particles;
+    if (attribute) {
+        runner.f.moveSpeedAttribute = 0.1 * 1.3 * 1.4;   // sprinting with Speed II
+        runner.f.sprintModifier = true;
+    }
+    w.add(local);
+    w.add(runner);
+    // Ground sprinting: Speed II raises it from 0.28 to ~0.39 b/tick, well past the 0.31 ground
+    // limit, so this is where a stale effect list produces false positives.
+    for (int i = 0; i < 20 * 60; ++i) {
+        const double rad = runner.moveYaw * 3.14159265358979323846 / 180.0;
+        const Vec3 fwd{-std::sin(rad), 0.0, std::cos(rad)};
+        if (runner.f.onGround) runner.motion = runner.motion + fwd * (0.13 * 0.4);
+        runner.step(1.0, false);
+        w.frame();
+    }
+    return w.evidence(runner, checkId);
+}
+
+static void testStalePotionUsesAttribute() {
+    EXPECT(runStaleSpeedPotion(false, false, "speed") > 0,
+           "sanity: Speed II movement with no modifier data should exceed the unmodified limit");
+    EXPECT(runStaleSpeedPotion(true, false, "speed") == 0, "speed evidence with the movement attribute present");
+    EXPECT(runStaleSpeedPotion(false, true, "speed") == 0, "speed evidence with potion particles but a stale effect list");
+}
+
+// Sprint-jumping under a two-block ceiling: each jump is ~4 ticks and adds the sprint-jump boost.
+static void runHeadHitter(bool ceilingVisible, int& speedEvidence, int& bhopEvidence) {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim runner(2, "HeadHitter");
+    runner.ceilingY = runner.groundY + 2.0;
+    runner.f.blockAboveHead = ceilingVisible ? 1 : 0;
+    w.add(local);
+    w.add(runner);
+    for (int i = 0; i < 20 * 60; ++i) {
+        runner.step(1.0, true);
+        w.frame();
+    }
+    speedEvidence = w.evidence(runner, "speed");
+    bhopEvidence = w.evidence(runner, "bhop");
+}
+
+static void testHeadHitterIsQuiet() {
+    int speed = 0, bhop = 0;
+    runHeadHitter(false, speed, bhop);
+    EXPECT(speed > 0, "sanity: head-hitter speed without a visible ceiling should look like speed (evidence=%d)", speed);
+    runHeadHitter(true, speed, bhop);
+    EXPECT(speed == 0, "speed evidence under a ceiling=%d", speed);
+    EXPECT(bhop == 0, "bhop evidence under a ceiling=%d", bhop);
 }
 
 static void testCheatBhop() {
@@ -609,6 +675,8 @@ int main() {
         {"presets keep defaults", testPresetsKeepDefaults},
         {"legit movement is quiet", testLegitMovementIsQuiet},
         {"speed potion legit", testSpeedPotionLegit},
+        {"stale potion uses movement attribute", testStalePotionUsesAttribute},
+        {"head-hitter jumping is quiet", testHeadHitterIsQuiet},
         {"cheat bhop / lowhop", testCheatBhop},
         {"air strafe", testAirStrafe},
         {"old KillAura bug regression", testOldKillAuraBugRegression},

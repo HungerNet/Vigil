@@ -175,6 +175,10 @@ bool printComponent(JNIEnv* env, jobject mc, jobject component) {
 
 }  // namespace
 
+jobject chatGuiObject(JNIEnv* env, jobject mc) { return chatGui(env, mc); }
+
+bool menuHostReady() { return g_vigilMenuScreenClass != nullptr; }
+
 bool printChat(JNIEnv* env, jobject mc, const std::string& legacyFormatted) {
     if (!env || !mc || legacyFormatted.empty()) return false;
     jclass cct = McFindClass(env, "net/minecraft/util/ChatComponentText");

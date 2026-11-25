@@ -1,13 +1,11 @@
-// Evidence Explorer — the investigation workspace.
-//   players → timeline (suspicion curve, per-check evidence lanes, detections) → evidence list
-//   → inspector (reasoning, measured values against limits, contribution, debug output)
+// Evidence tab of a player profile — the investigation workspace:
+//   timeline (suspicion curve, per-check evidence lanes, detections) → observations
+//   → inspector (reasoning, how confidence formed, measured values against limits, debug output)
 
 #include "pages.h"
 
 #include <algorithm>
 #include <cmath>
-#include <map>
-#include <set>
 
 namespace vigil::ui {
 namespace {
@@ -24,93 +22,6 @@ const Evidence* findEvidence(const PlayerRecord& r, std::uint64_t id) {
 const Detection* findDetection(const PlayerRecord& r, std::uint64_t id) {
     for (const auto& d : r.detections) if (d.id == id) return &d;
     return nullptr;
-}
-
-void playerList(PageContext& ctx, const Rect& rc) {
-    Ui& ui = ctx.ui;
-    const Theme& t = ui.th();
-    card(ui, rc);
-    textField(ui, hashId("ev-search"), {rc.x + 14.f, rc.y + 14.f, rc.w - 28.f, 34.f}, ctx.state.playerSearch, "Find a player");
-    auto players = sortedPlayers(ctx.engine.session(), 0, ctx.state.playerSearch, true);
-    const Rect view{rc.x + 6.f, rc.y + 58.f, rc.w - 12.f, rc.h - 64.f};
-    if (players.empty()) {
-        emptyState(ui, view, Icon::Players, "Nobody yet", "Players appear once Vigil observes them in a game or replay.");
-        return;
-    }
-    const Id sid = hashId("ev-players");
-    const float off = beginScroll(ui, sid, view);
-    float y = view.y + off + 2.f;
-    for (const PlayerRecord* p : players) {
-        const Rect row{view.x, y, view.w, 52.f};
-        const Id rid = hashId(p->key, 7331);
-        const bool sel = ctx.state.selectedPlayer == p->key;
-        bool h = false;
-        if (ui.pressable(rid, row, &h)) {
-            ctx.state.selectedPlayer = p->key;
-            ctx.state.selectedEvidence = 0;
-            ctx.state.selectedDetection = 0;
-        }
-        const float hv = ui.anim(mixId(rid, 1), sel ? 1.f : (h ? 0.5f : 0.f), 16.f);
-        if (hv > 0.01f) ui.r.roundRect(row.inset(4.f, 2.f), 10.f, (sel ? t.accentSoft() : t.surfaceHover).alpha(sel ? 1.f : hv * 1.6f));
-        confidenceRing(ui, mixId(rid, 2), row.x + 28.f, row.cy(), 14.f, p->suspicion, 3.f, false);
-        if (p->present) ui.r.circle(row.x + 38.f, row.cy() + 10.f, 3.2f, t.sevClear);
-        const float nx = row.x + 52.f;
-        std::string name = p->name + (p->local ? " (you)" : "");
-        ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 9.f, name, p->present ? t.text : t.textMuted, Align::Left, row.w - 110.f);
-        const std::string sub = p->detections.empty() ? std::to_string(p->evidence.size()) + " observations"
-                                                      : std::to_string(p->detections.size()) + " detections";
-        ui.fonts.draw(ui.r, type::Caption, nx, row.y + 29.f, sub, t.textFaint, Align::Left, row.w - 110.f);
-        ui.fonts.draw(ui.r, type::SmallStrong, row.r() - 14.f, row.y + 17.f, formatNumber(p->suspicion, 0) + "%",
-                      t.severity(p->suspicion), Align::Right);
-        y += 54.f;
-    }
-    endScroll(ui, sid, view, y - (view.y + off) + 6.f);
-}
-
-void header(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
-    Ui& ui = ctx.ui;
-    const Theme& t = ui.th();
-    card(ui, rc);
-    confidenceRing(ui, hashId("ev-head-ring", hashId(p.key)), rc.x + 46.f, rc.cy(), 26.f, p.suspicion, 5.f, true);
-    const float nx = rc.x + 88.f;
-    const float nw = ui.fonts.draw(ui.r, type::Heading, nx, rc.y + 16.f, p.name, t.text, Align::Left, rc.w - 380.f);
-    float cx = nx + nw + 12.f;
-    auto addChip = [&](const std::string& s, Color c) {
-        const float cw = chipWidth(ui, s);
-        chip(ui, {cx, rc.y + 22.f, cw, 20.f}, s, c);
-        cx += cw + 6.f;
-    };
-    addChip(p.present ? "In view" : "Left view", p.present ? t.sevClear : t.textMuted);
-    if (p.local) addChip("You", t.accent);
-    if (p.teammate) addChip("Teammate", t.textMuted);
-    const double observed = p.stats.ticksObserved * 0.05;
-    std::string sub = "Observed " + formatDuration(observed) + " \xC2\xB7 " + std::to_string(p.evidence.size()) + " evidence \xC2\xB7 " +
-                      std::to_string(p.detections.size()) + " detections \xC2\xB7 peak " + formatNumber(p.peakSuspicion, 0) + "%";
-    if (p.priorSessions > 0) {
-        sub += " \xC2\xB7 seen in " + std::to_string(p.priorSessions) + " earlier session" + (p.priorSessions == 1 ? "" : "s");
-        if (p.priorDetections > 0) sub += " (" + std::to_string(p.priorDetections) + " detections)";
-    }
-    ui.fonts.draw(ui.r, type::Small, nx, rc.y + 52.f, sub, t.textMuted, Align::Left, rc.w - 240.f);
-
-    // Report with confirmation.
-    if (!p.local && ctx.host) {
-        float& armedAt = ui.value(hashId("report-armed", hashId(p.key)), -100.f);
-        const bool armed = ui.time - armedAt < 3.0;
-        const std::string label = armed ? "Confirm /wdr" : "Report";
-        const Icon ic = Icon::Report;
-        const float bw = buttonWidth(ui, label, true);
-        if (button(ui, hashId("report", hashId(p.key)), {rc.r() - bw - 18.f, rc.cy() - 17.f, bw, 34.f}, label,
-                   armed ? ButtonKind::Danger : ButtonKind::Secondary, &ic)) {
-            if (armed) {
-                ctx.host->reportPlayer(p.name);
-                armedAt = -100.f;
-            } else {
-                armedAt = static_cast<float>(ui.time);
-            }
-        }
-        ui.tooltip(hashId("report-tip", hashId(p.key)), {rc.r() - bw - 18.f, rc.cy() - 17.f, bw, 34.f},
-                   "Sends /wdr " + p.name + " to Hypixel. Click twice to confirm.");
-    }
 }
 
 void timeline(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
@@ -140,7 +51,6 @@ void timeline(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     const float laneH = lanes.empty() ? 0.f : std::min(26.f, (plot.h - chartH - 8.f) / lanes.size());
     const Rect chart{plot.x, plot.y, plot.w, chartH};
 
-    // Grid + axis.
     const int ticks = 5;
     for (int i = 0; i <= ticks; ++i) {
         const float x = plot.x + plot.w * i / ticks;
@@ -157,15 +67,17 @@ void timeline(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     sparkline(ui, chart, p.suspicionHistory, t0, t1, t.severity(std::max(p.suspicion, p.peakSuspicion * 0.7f)), true);
     ui.r.popClip();
 
-    // Hover detection.
     struct Hit { float x, y; std::uint64_t ev = 0, det = 0; std::string tip; };
     std::vector<Hit> hits;
     for (const auto& d : p.detections) {
         if (d.timeMs < t0) continue;
         const float x = xOf(d.timeMs);
         ui.r.rect({x - 0.5f, plot.y, 1.f, plot.h}, t.sevAlert.withAlpha(0.35f));
+        const bool sel = ctx.state.selectedDetection == d.id;
+        if (sel) ui.r.ring(x, chart.y + 6.f, 9.f, 1.5f, t.accent);
         ui.r.diamond(x, chart.y + 6.f, 5.5f, t.sevAlert);
-        hits.push_back({x, chart.y + 6.f, 0, d.id, d.summary});
+        hits.push_back({x, chart.y + 6.f, 0, d.id, "Detection \xC2\xB7 " + checks[static_cast<std::size_t>(d.check)]->name() + " " +
+                                                     formatNumber(d.confidence, 0) + "%"});
     }
     for (std::size_t li = 0; li < lanes.size(); ++li) {
         const int ci = lanes[li];
@@ -188,7 +100,6 @@ void timeline(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     if (lanes.empty()) {
         ui.fonts.draw(ui.r, type::Small, plot.cx(), chart.b() + 18.f, "No evidence for this player yet", t.textFaint, Align::Center);
     }
-    // Nearest marker under the cursor.
     const float mx = ui.in.mx - ui.r.offsetX(), my = ui.in.my - ui.r.offsetY();
     if (ui.hover(plot.inset(-6.f))) {
         const Hit* best = nullptr;
@@ -206,8 +117,16 @@ void timeline(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
                 ctx.state.inspectorTab = 0;
             }
         } else {
-            // Scrub line.
+            // Scrub line with the suspicion at that moment.
             ui.r.rect({mx, plot.y, 1.f, plot.h}, t.textFaint.alpha(0.5f));
+            const double tm = t0 + (mx - plot.x) / plot.w * (t1 - t0);
+            float v = 0.f;
+            for (const auto& pt : p.suspicionHistory) { if (pt.timeMs > tm) break; v = pt.value; }
+            const std::string lbl = formatNumber(v, 0) + "% \xC2\xB7 -" + formatClock((t1 - tm) / 1000.0);
+            const float lw = ui.fonts.width(type::Caption, lbl) + 12.f;
+            const Rect tag{std::min(mx + 6.f, plot.r() - lw), plot.y - 2.f, lw, 18.f};
+            ui.r.roundRect(tag, 5.f, t.surfaceRaised);
+            ui.fonts.draw(ui.r, type::Caption, tag.x + 6.f, tag.y + 2.f, lbl, t.text);
         }
     }
 }
@@ -218,7 +137,6 @@ void evidenceList(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     const auto& checks = ctx.engine.checks();
     card(ui, rc);
     sectionHeader(ui, rc.x + 22.f, rc.y + 18.f, "OBSERVATIONS");
-    // Filter chips.
     std::vector<int> present;
     for (std::size_t i = 0; i < p.checks.size(); ++i) if (p.checks[i].evidence > 0) present.push_back(static_cast<int>(i));
     float cx = rc.x + 22.f + ui.fonts.width(type::Overline, "OBSERVATIONS") + 16.f;
@@ -260,7 +178,7 @@ void evidenceList(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
                 ctx.state.selectedDetection = 0;
                 ctx.state.inspectorTab = 0;
             }
-            const float hv = ui.anim(mixId(rid, 1), sel ? 1.f : (h ? 0.5f : 0.f), 16.f);
+            const float hv = ui.anim(mixId(rid, 1), sel ? 1.f : (h ? 0.5f : 0.f), motion::kHover);
             if (hv > 0.01f) ui.r.roundRect(row.inset(4.f, 2.f), 9.f, (sel ? t.accentSoft() : t.surfaceHover).alpha(sel ? 1.f : hv * 1.6f));
             const Color c = t.severity(e->confidenceAfter);
             ui.r.circle(row.x + 20.f, row.cy(), 4.f, c);
@@ -281,11 +199,10 @@ float valueTable(Ui& ui, const Evidence& e, float x, float y, float w) {
     for (const auto& v : e.values) {
         ui.fonts.draw(ui.r, type::Small, x, y, v.name, t.textMuted, Align::Left, w * 0.55f);
         std::string val = formatNumber(v.value, std::fabs(v.value) >= 100 ? 0 : std::fabs(v.value) >= 10 ? 1 : 2);
-        if (!v.unit.empty()) val += (v.unit == "%" || v.unit == "°" || v.unit == "x") ? v.unit : " " + v.unit;
+        if (!v.unit.empty()) val += (v.unit == "%" || v.unit == "\xC2\xB0" || v.unit == "x") ? v.unit : " " + v.unit;
         ui.fonts.draw(ui.r, type::SmallStrong, x + w, y, val, t.text, Align::Right);
         y += 18.f;
         if (v.hasLimit && v.limit != 0.0) {
-            // Bar showing value relative to the limit (limit marked at 2/3 of the bar).
             const float frac = static_cast<float>(std::clamp(v.value / (v.limit * 1.5), 0.0, 1.0));
             const bool over = v.value > v.limit;
             const Rect bar{x, y + 1.f, w, 5.f};
@@ -301,13 +218,59 @@ float valueTable(Ui& ui, const Evidence& e, float x, float y, float w) {
     return y;
 }
 
+// How one observation moved confidence: strength, headroom, gain → points.
+float formation(PageContext& ctx, const Evidence& ev, float x, float y, float w) {
+    Ui& ui = ctx.ui;
+    const Theme& t = ui.th();
+    const auto& chk = *ctx.engine.checks()[static_cast<std::size_t>(ev.check)];
+    const auto params = chk.confidenceParams();
+    const float before = std::max(0.f, ev.confidenceAfter - ev.contribution);
+    const float strength = ev.weight * ev.severity;
+    const float headroom = 100.f - before;
+    const float fraction = headroom > 0.01f ? ev.contribution / headroom : 0.f;
+    ui.fonts.draw(ui.r, type::Overline, x, y, "HOW CONFIDENCE FORMED", t.textFaint);
+    y += 20.f;
+    // Stacked bar: before | added | headroom left.
+    const Rect bar{x, y, w, 10.f};
+    ui.r.roundRect(bar, 5.f, t.inset);
+    ui.r.pushClip(bar);
+    ui.r.rect({bar.x, bar.y, bar.w * before / 100.f, bar.h}, t.severity(before).alpha(0.55f));
+    ui.r.rect({bar.x + bar.w * before / 100.f, bar.y, bar.w * ev.contribution / 100.f, bar.h}, t.severity(ev.confidenceAfter));
+    ui.r.popClip();
+    y += 18.f;
+    ui.fonts.draw(ui.r, type::Caption, x, y, formatNumber(before, 1) + "% before", t.textFaint);
+    ui.fonts.draw(ui.r, type::Caption, x + w, y, formatNumber(ev.confidenceAfter, 1) + "% after", t.text, Align::Right);
+    y += 22.f;
+    struct Line { std::string label, value; };
+    const Line lines[] = {
+        {"Strength = weight \xC3\x97 severity", formatNumber(ev.weight, 2) + " \xC3\x97 " + formatNumber(ev.severity, 2) + " = " + formatNumber(strength, 2)},
+        {"Headroom = 100 \xE2\x88\x92 before", formatNumber(headroom, 1)},
+        {"Share of headroom (gain " + formatNumber(params.gain, 2) + ")", formatNumber(fraction * 100.f, 1) + "%"},
+        {"Added", "+" + formatNumber(ev.contribution, 1) + " points"},
+    };
+    for (const Line& l : lines) {
+        ui.fonts.draw(ui.r, type::Small, x, y, l.label, t.textMuted, Align::Left, w * 0.62f);
+        ui.fonts.draw(ui.r, type::SmallStrong, x + w, y, l.value, t.text, Align::Right);
+        y += 19.f;
+    }
+    y += 4.f;
+    y += ui.fonts.drawWrapped(ui.r, type::Caption, x, y, w,
+                              "Each observation adds a share of the remaining headroom, so repeated evidence approaches 100% "
+                              "without reaching it, and confidence halves every " + formatNumber(params.halfLifeSec, 0) +
+                                  " s without new evidence. A detection needs " + formatNumber(params.alertThreshold, 0) +
+                                  "% and at least " + std::to_string(params.minEvidence) + " observations within " +
+                                  formatNumber(params.windowSec, 0) + " s.",
+                              t.textFaint, 3.f) + 12.f;
+    return y;
+}
+
 void inspector(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     Ui& ui = ctx.ui;
     const Theme& t = ui.th();
     const auto& checks = ctx.engine.checks();
     card(ui, rc, true);
-    static const std::vector<std::string> tabs = {"Reasoning", "Debug"};
-    segmented(ui, hashId("insp-tabs"), {rc.x + 16.f, rc.y + 14.f, 180.f, 28.f}, tabs, ctx.state.inspectorTab);
+    static const std::vector<std::string> tabsL = {"Reasoning", "Debug"};
+    segmented(ui, hashId("insp-tabs"), {rc.x + 16.f, rc.y + 14.f, 180.f, 28.f}, tabsL, ctx.state.inspectorTab);
     const Rect view{rc.x + 4.f, rc.y + 52.f, rc.w - 8.f, rc.h - 56.f};
     const Id sid = hashId("insp-scroll");
     const float off = beginScroll(ui, sid, view);
@@ -375,28 +338,15 @@ void inspector(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
         ui.fonts.draw(ui.r, type::Caption, x, y, "Session " + formatClock((ev->timeMs - start) / 1000.0) + "  \xC2\xB7  " +
                                                      agoLabel(ctx.nowMs, ev->timeMs) + (ev->target.empty() ? "" : "  \xC2\xB7  vs " + ev->target),
                       t.textFaint);
-        y += 24.f;
-        // Contribution.
-        const Rect cb{x, y, w, 50.f};
-        ui.r.roundRect(cb, 10.f, t.inset);
-        ui.fonts.draw(ui.r, type::Caption, cb.x + 12.f, cb.y + 9.f, "CONFIDENCE", t.textFaint);
-        ui.fonts.draw(ui.r, type::SmallStrong, cb.r() - 12.f, cb.y + 8.f,
-                      "+" + formatNumber(ev->contribution, 1) + "  \xE2\x86\x92  " + formatNumber(ev->confidenceAfter, 0) + "%", sev, Align::Right);
-        meter(ui, {cb.x + 12.f, cb.y + 32.f, cb.w - 24.f, 6.f}, ev->confidenceAfter / 100.f, sev);
-        const float before = std::max(0.f, ev->confidenceAfter - ev->contribution);
-        ui.r.rect({cb.x + 12.f + (cb.w - 24.f) * before / 100.f, cb.y + 29.f, 1.5f, 12.f}, t.text.alpha(0.5f));
-        y += 62.f;
+        y += 26.f;
         ui.fonts.draw(ui.r, type::Overline, x, y, "WHY IT MATTERS", t.textFaint);
         y += 18.f;
         y += ui.fonts.drawWrapped(ui.r, type::Small, x, y, w, ev->detail, t.textMuted, 3.f) + 14.f;
+        y = formation(ctx, *ev, x, y, w);
         ui.fonts.draw(ui.r, type::Overline, x, y, "MEASURED", t.textFaint);
         y += 20.f;
         y = valueTable(ui, *ev, x, y, w);
         y += 4.f;
-        ui.fonts.draw(ui.r, type::Caption, x, y,
-                      "Severity " + formatNumber(ev->severity, 2) + "  \xC2\xB7  indicator weight " + formatNumber(ev->weight, 2) + "x",
-                      t.textFaint);
-        y += 20.f;
     } else {
         emptyState(ui, view, Icon::Layers, "Select an observation", "Choose a marker on the timeline or a row in the list.");
     }
@@ -405,40 +355,16 @@ void inspector(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
 
 }  // namespace
 
-void drawEvidence(PageContext& ctx, const Rect& area) {
-    Ui& ui = ctx.ui;
-    pageHeader(ctx, area, "Evidence", "Investigate what Vigil observed, when it happened and why it counts.");
-    const float top = area.y + 70.f;
-    const Rect list{area.x, top, 250.f, area.b() - top};
-    playerList(ctx, list);
-    const Rect main{list.r() + 14.f, top, area.r() - list.r() - 14.f, area.b() - top};
-
-    const detection::PlayerRecord* p = ctx.state.selectedPlayer.empty() ? nullptr : ctx.engine.session().find(ctx.state.selectedPlayer);
-    if (!p) {
-        auto players = sortedPlayers(ctx.engine.session(), 0, {}, false);
-        if (!players.empty() && !players.front()->evidence.empty()) {
-            p = players.front();
-            ctx.state.selectedPlayer = p->key;
-        }
-    }
-    if (!p) {
-        card(ui, main);
-        emptyState(ui, main, Icon::Evidence, "Nothing to investigate yet",
-                   "When Vigil records an observation, the player appears on the left. Select them to see the "
-                   "timeline, each piece of evidence and the reasoning behind it.");
-        return;
-    }
-    const Rect head{main.x, main.y, main.w, 84.f};
-    header(ctx, *p, head);
-    const float tlH = std::min(250.f, std::max(190.f, main.h * 0.36f));
-    const Rect tl{main.x, head.b() + 12.f, main.w, tlH};
-    timeline(ctx, *p, tl);
+void drawEvidenceTab(PageContext& ctx, const PlayerRecord& p, const Rect& area) {
+    const float tlH = std::min(250.f, std::max(190.f, area.h * 0.40f));
+    const Rect tl{area.x, area.y, area.w, tlH};
+    timeline(ctx, p, tl);
     const float bottomY = tl.b() + 12.f;
-    const float inspW = std::min(360.f, main.w * 0.44f);
-    const Rect listR{main.x, bottomY, main.w - inspW - 12.f, main.b() - bottomY};
-    const Rect insp{listR.r() + 12.f, bottomY, inspW, main.b() - bottomY};
-    evidenceList(ctx, *p, listR);
-    inspector(ctx, *p, insp);
+    const float inspW = std::min(380.f, area.w * 0.46f);
+    const Rect listR{area.x, bottomY, area.w - inspW - 12.f, area.b() - bottomY};
+    const Rect insp{listR.r() + 12.f, bottomY, inspW, area.b() - bottomY};
+    evidenceList(ctx, p, listR);
+    inspector(ctx, p, insp);
 }
 
 }  // namespace vigil::ui

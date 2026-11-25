@@ -7,6 +7,7 @@
 //    client thread even when no frames are presented (menus, minimized).
 
 #include "../core/log.h"
+#include "../core/paths.h"
 #include "../game/bytecode/VigilClientPump.h"
 #include "../game/class_finder.h"
 #include "../game/jvm.h"
@@ -26,9 +27,24 @@ std::atomic<bool> g_pumpInflight{false};
 jclass g_pumpClass = nullptr;
 std::string g_dllDir;
 
+// Reports a startup failure. When Vigil.exe is waiting, it shows the reason in its own window;
+// otherwise (manual injection) a message box is the only way to tell the user.
+void reportFailure(const char* logLine, const char* userMessage) {
+    vigil::log::write("vigil", logLine);
+    wchar_t name[64];
+    swprintf_s(name, L"Local\\Vigil.Failed.%lu", GetCurrentProcessId());
+    if (HANDLE e = OpenEventW(EVENT_MODIFY_STATE, FALSE, name)) {
+        SetEvent(e);
+        CloseHandle(e);
+        return;
+    }
+    MessageBoxA(nullptr, userMessage, "Vigil", MB_ICONERROR | MB_TOPMOST);
+}
+
 extern "C" void JNICALL nativeClientPump(JNIEnv* env, jclass) {
     struct Guard { ~Guard() { g_pumpInflight.store(false); } } guard;
     if (jobject mc = vigil::game::minecraft(env)) {
+        vigil::game::Runtime::instance().notePumpSource(true);
         vigil::game::Runtime::instance().pump(env, mc);
         env->DeleteLocalRef(mc);
     }
@@ -112,12 +128,11 @@ DWORD WINAPI mainThread(LPVOID module) {
     GetModuleFileNameA(static_cast<HMODULE>(module), path, MAX_PATH);
     g_dllDir = path;
     g_dllDir = g_dllDir.substr(0, g_dllDir.find_last_of("\\/"));
-    vigil::log::init(g_dllDir + "\\vigil\\logs");
+    vigil::log::init(vigil::paths::dataDirectory(g_dllDir) + "\\logs");
 
     JNIEnv* env = attachJvm();
     if (!env) {
-        vigil::log::write("vigil", "startup failed: could not attach to the JVM");
-        MessageBoxA(nullptr, "Vigil could not attach to the game's Java runtime.", "Vigil", MB_ICONERROR | MB_TOPMOST);
+        reportFailure("startup failed: could not attach to the JVM", "Vigil could not attach to the game's Java runtime.");
         FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
     }
 
@@ -132,28 +147,27 @@ DWORD WINAPI mainThread(LPVOID module) {
         }
     }
     if (!mcClass) {
-        vigil::log::write("vigil", "startup failed: Minecraft class was not found after retries");
         g_jvm->DetachCurrentThread();
-        MessageBoxA(nullptr, "Vigil could not find Minecraft after waiting for startup.\nSee vigil\\logs\\runtime.log.",
-                    "Vigil", MB_ICONERROR | MB_TOPMOST);
+        reportFailure("startup failed: Minecraft class was not found after retries",
+                      "Vigil could not find Minecraft after waiting for startup. Logs are in %LOCALAPPDATA%\\Vigil\\logs.");
         FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
     }
     g_mcClassGlobal = static_cast<jclass>(env->NewGlobalRef(mcClass));
     if (!g_mcClassGlobal || env->ExceptionCheck()) {
         env->ExceptionClear();
         env->DeleteLocalRef(mcClass);
-        vigil::log::write("vigil", "startup failed: could not retain the Minecraft class");
         g_jvm->DetachCurrentThread();
+        reportFailure("startup failed: could not retain the Minecraft class", "Vigil could not start inside Minecraft.");
         FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
     }
     g_midGetMinecraftStatic = env->GetStaticMethodID(g_mcClassGlobal, "getMinecraft", "()Lnet/minecraft/client/Minecraft;");
     if (env->ExceptionCheck() || !g_midGetMinecraftStatic) {
         env->ExceptionClear();
         env->DeleteLocalRef(mcClass);
-        vigil::log::write("vigil", "startup failed: Minecraft#getMinecraft was not found");
         env->DeleteGlobalRef(g_mcClassGlobal);
         g_mcClassGlobal = nullptr;
         g_jvm->DetachCurrentThread();
+        reportFailure("startup failed: Minecraft#getMinecraft was not found", "Vigil does not support this Minecraft version.");
         FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
     }
     {
@@ -178,10 +192,9 @@ DWORD WINAPI mainThread(LPVOID module) {
         Sleep(100);
     }
     if (!hwnd) {
-        vigil::log::write("vigil", "startup failed: game window was not found after retries");
         g_jvm->DetachCurrentThread();
-        MessageBoxA(nullptr, "Vigil could not find the game window after waiting for startup.\nSee vigil\\logs\\runtime.log.",
-                    "Vigil", MB_ICONERROR | MB_TOPMOST);
+        reportFailure("startup failed: game window was not found after retries",
+                      "Vigil could not find the game window. Logs are in %LOCALAPPDATA%\\Vigil\\logs.");
         FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
     }
     vigil::game::Runtime::instance().initialize(g_dllDir, hwnd);

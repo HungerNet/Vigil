@@ -70,6 +70,10 @@ public:
     Tick lastClimbTick() const { return lastClimbTick_; }
     Tick lastWebTick() const { return lastWebTick_; }
     Tick lastRideTick() const { return lastRideTick_; }
+    // A solid block two blocks above the feet (head-hitter jumps are short and fast).
+    Tick lastCeilingTick() const { return lastCeilingTick_; }
+    // A jump that landed at least 0.4 blocks higher than it took off (stairs, slabs, climbing).
+    Tick lastStepUpTick() const { return lastStepUpTick_; }
     Tick lastBlockStartTick() const { return blockStartTick_; }
     Tick lastUseStartTick() const { return useStartTick_; }
 
@@ -102,6 +106,7 @@ private:
     Tick firstTick_ = 0;
     Tick lastIceTick_ = -1000, lastSlimeTick_ = -1000, lastLiquidTick_ = -1000, lastClimbTick_ = -1000;
     Tick lastWebTick_ = -1000, lastRideTick_ = -1000;
+    Tick lastCeilingTick_ = -1000, lastStepUpTick_ = -1000;
     Tick blockStartTick_ = -1000, useStartTick_ = -1000;
 };
 

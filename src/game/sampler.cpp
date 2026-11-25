@@ -1,6 +1,7 @@
 #include "sampler.h"
 
 #include "../core/log.h"
+#include "../identity/identity.h"
 #include "class_finder.h"
 #include "jvm.h"
 #include "mc.h"
@@ -134,8 +135,91 @@ bool Sampler::resolve(JNIEnv* env, jobject mc) {
         env->DeleteLocalRef(uuid);
     }
 
+    // Movement-speed attribute: synced by the server whenever it changes (potions, abilities,
+    // sprinting), so it is the authoritative movement modifier for other players.
+    if (jclass attrs = McFindClass(env, "net/minecraft/entity/SharedMonsterAttributes")) {
+        for (const char* n : {"movementSpeed"}) {
+            jfieldID sf = env->GetStaticFieldID(attrs, n, "Lnet/minecraft/entity/ai/attributes/IAttribute;");
+            if (!sf || jniFailed(env)) continue;
+            jobject a = env->GetStaticObjectField(attrs, sf);
+            if (a && !jniFailed(env)) moveSpeedAttr_ = env->NewGlobalRef(a);
+            if (a) env->DeleteLocalRef(a);
+            break;
+        }
+        env->DeleteLocalRef(attrs);
+    }
+    mGetAttribute_ = method(env, clsLiving_, "getEntityAttribute",
+                            "(Lnet/minecraft/entity/ai/attributes/IAttribute;)Lnet/minecraft/entity/ai/attributes/IAttributeInstance;");
+    if (jclass inst = McFindClass(env, "net/minecraft/entity/ai/attributes/IAttributeInstance")) {
+        mAttrValue_ = method(env, inst, "getAttributeValue", "()D");
+        mAttrModifier_ = method(env, inst, "getModifier", "(Ljava/util/UUID;)Lnet/minecraft/entity/ai/attributes/AttributeModifier;");
+        env->DeleteLocalRef(inst);
+    }
+    if (jclass uuid = env->FindClass("java/util/UUID")) {
+        jmethodID from = env->GetStaticMethodID(uuid, "fromString", "(Ljava/lang/String;)Ljava/util/UUID;");
+        jstring s = env->NewStringUTF("662A6B8D-DA3E-4C1C-8813-96EA6097278D");
+        jobject u = (from && s) ? env->CallStaticObjectMethod(uuid, from, s) : nullptr;
+        if (u && !jniFailed(env)) sprintUuid_ = env->NewGlobalRef(u);
+        if (u) env->DeleteLocalRef(u);
+        if (s) env->DeleteLocalRef(s);
+        env->DeleteLocalRef(uuid);
+    }
+    jniFailed(env);
+    mDataWatcher_ = method(env, clsEntity_, "getDataWatcher", "()Lnet/minecraft/entity/DataWatcher;", "H");
+    if (jclass dw = McFindClass(env, "net/minecraft/entity/DataWatcher")) {
+        mWatchInt_ = method(env, dw, "getWatchableObjectInt", "(I)I");
+        env->DeleteLocalRef(dw);
+    }
+    // Profile textures (identity tools) and skins (faces).
+    if (jclass gp = env->FindClass("com/mojang/authlib/GameProfile")) {
+        mProfileProps_ = env->GetMethodID(gp, "getProperties", "()Lcom/mojang/authlib/properties/PropertyMap;");
+        jniFailed(env);
+        env->DeleteLocalRef(gp);
+    } else {
+        jniFailed(env);
+    }
+    if (jclass pm = env->FindClass("com/mojang/authlib/properties/PropertyMap")) {
+        mPropMapGet_ = env->GetMethodID(pm, "get", "(Ljava/lang/Object;)Ljava/util/Collection;");
+        jniFailed(env);
+        env->DeleteLocalRef(pm);
+    } else {
+        jniFailed(env);
+    }
+    if (jclass prop = env->FindClass("com/mojang/authlib/properties/Property")) {
+        mPropValue_ = env->GetMethodID(prop, "getValue", "()Ljava/lang/String;");
+        jniFailed(env);
+        env->DeleteLocalRef(prop);
+    } else {
+        jniFailed(env);
+    }
+    if (jstring k = env->NewStringUTF("textures")) {
+        texturesKey_ = env->NewGlobalRef(k);
+        env->DeleteLocalRef(k);
+    }
+    clsAbstractClient_ = globalClass(env, "net/minecraft/client/entity/AbstractClientPlayer");
+    if (clsAbstractClient_) mLocationSkin_ = method(env, clsAbstractClient_, "getLocationSkin", "()Lnet/minecraft/util/ResourceLocation;", "i");
+    {
+        jclass mcc = env->GetObjectClass(mc);
+        mTextureManager_ = method(env, mcc, "getTextureManager", "()Lnet/minecraft/client/renderer/texture/TextureManager;");
+        env->DeleteLocalRef(mcc);
+    }
+    if (jclass tm = McFindClass(env, "net/minecraft/client/renderer/texture/TextureManager")) {
+        mGetTexture_ = method(env, tm, "getTexture",
+                              "(Lnet/minecraft/util/ResourceLocation;)Lnet/minecraft/client/renderer/texture/ITextureObject;");
+        env->DeleteLocalRef(tm);
+    }
+    if (jclass to = McFindClass(env, "net/minecraft/client/renderer/texture/ITextureObject")) {
+        mGlTextureId_ = method(env, to, "getGlTextureId", "()I");
+        env->DeleteLocalRef(to);
+    }
+    jniFailed(env);
+
     signals_.serverPositions = fServerX_ && fServerY_ && fServerZ_;
     signals_.headRotation = fHeadYaw_ != nullptr;
+    signals_.moveAttribute = moveSpeedAttr_ && mGetAttribute_ && mAttrValue_;
+    signals_.potionParticles = mDataWatcher_ && mWatchInt_;
+    signals_.profiles = mProfileProps_ && mPropMapGet_ && mPropValue_ && texturesKey_;
+    signals_.skins = clsAbstractClient_ && mLocationSkin_ && mTextureManager_ && mGetTexture_ && mGlTextureId_;
     signals_.potions = mPotions_ && mPotionId_ && mPotionAmp_ && mToArray_;
     signals_.blocks = mBlockPosCtor_ && mGetBlockState_ && mStateBlock_ && mBlockId_;
     signals_.heldItem = mHeld_ && mStackItem_ && mItemId_;
@@ -143,9 +227,12 @@ bool Sampler::resolve(JNIEnv* env, jobject mc) {
     signals_.hurt = fHurtTime_ != nullptr;
 
     resolved_ = fWorld_ && fSelf_ && fPlayerEntities_ && fEntityId_ && fPosX_ && fTicksExisted_ && mListGet_;
-    log::writef("runtime", "sampler: resolved=%d serverPos=%d head=%d potions=%d blocks=%d item=%d swing=%d hurt=%d",
-                resolved_, signals_.serverPositions, signals_.headRotation, signals_.potions, signals_.blocks,
-                signals_.heldItem, signals_.swing, signals_.hurt);
+    log::writef("runtime",
+                "sampler: resolved=%d serverPos=%d head=%d attribute=%d potions=%d particles=%d blocks=%d item=%d swing=%d "
+                "hurt=%d profiles=%d skins=%d",
+                resolved_, signals_.serverPositions, signals_.headRotation, signals_.moveAttribute, signals_.potions,
+                signals_.potionParticles, signals_.blocks, signals_.heldItem, signals_.swing, signals_.hurt, signals_.profiles,
+                signals_.skins);
     return resolved_;
 }
 
@@ -157,6 +244,68 @@ void Sampler::reset(JNIEnv* env) {
     lastWorld_ = lastSelf_ = nullptr;
     lastTicksExisted_ = -1;
     identities_.clear();
+    faces_.clear();      // texture ids may be reused after a world change
+    seenIds_.clear();
+    spawns_.clear();
+}
+
+bool Sampler::faceTexture(const std::string& playerKey, unsigned int& texture) const {
+    auto it = faces_.find(playerKey);
+    if (it == faces_.end() || it->second == 0) return false;
+    texture = it->second;
+    return true;
+}
+
+void Sampler::readProfileExtras(JNIEnv* env, jobject mc, jobject entity, jobject profile, Identity& id, bool isLocal) {
+    const std::string key = !id.uuid.empty() ? id.uuid : "name:" + id.name;
+    // Signed textures (identity tools). Read once per entity; nicked players are recognised by
+    // their UUID version inside the identity service.
+    if (!id.texturesRead && signals_.profiles && profile && !isLocal) {
+        id.texturesRead = true;
+        std::string textures;
+        jobject props = env->CallObjectMethod(profile, mProfileProps_);
+        if (props && !jniFailed(env)) {
+            jobject coll = env->CallObjectMethod(props, mPropMapGet_, texturesKey_);
+            if (coll && !jniFailed(env) && mToArray_) {
+                jobjectArray arr = static_cast<jobjectArray>(env->CallObjectMethod(coll, mToArray_));
+                if (arr && !jniFailed(env)) {
+                    if (env->GetArrayLength(arr) > 0) {
+                        jobject prop = env->GetObjectArrayElement(arr, 0);
+                        if (prop) {
+                            jstring v = static_cast<jstring>(env->CallObjectMethod(prop, mPropValue_));
+                            if (v && !jniFailed(env)) textures = jstringToUtf8(env, v);
+                            if (v) env->DeleteLocalRef(v);
+                            env->DeleteLocalRef(prop);
+                        }
+                    }
+                    env->DeleteLocalRef(arr);
+                }
+            }
+            if (coll) env->DeleteLocalRef(coll);
+            env->DeleteLocalRef(props);
+        }
+        jniFailed(env);
+        identity::Service::instance().observe(key, id.name, id.uuid, textures);
+    }
+    // Skin texture for faces: retried until Minecraft has loaded the skin, then refreshed slowly.
+    const detection::Tick interval = id.skinTexture ? 400 : 40;
+    if (signals_.skins && tick_ - id.skinAt >= interval && env->IsInstanceOf(entity, clsAbstractClient_)) {
+        id.skinAt = tick_;
+        jobject rl = env->CallObjectMethod(entity, mLocationSkin_);
+        jobject tm = (rl && !jniFailed(env)) ? env->CallObjectMethod(mc, mTextureManager_) : nullptr;
+        jobject tex = (tm && !jniFailed(env)) ? env->CallObjectMethod(tm, mGetTexture_, rl) : nullptr;
+        if (tex && !jniFailed(env)) {
+            const int glId = env->CallIntMethod(tex, mGlTextureId_);
+            if (!jniFailed(env) && glId > 0) {
+                id.skinTexture = static_cast<unsigned int>(glId);
+                faces_[key] = id.skinTexture;
+            }
+        }
+        jniFailed(env);
+        if (tex) env->DeleteLocalRef(tex);
+        if (tm) env->DeleteLocalRef(tm);
+        if (rl) env->DeleteLocalRef(rl);
+    }
 }
 
 int Sampler::blockAt(JNIEnv* env, jobject world, double x, double y, double z) {
@@ -196,8 +345,11 @@ void Sampler::refreshIdentity(JNIEnv* env, jobject mc, jobject entity, Identity&
                 if (ju) env->DeleteLocalRef(ju);
             }
             if (uuid) env->DeleteLocalRef(uuid);
+            readProfileExtras(env, mc, entity, profile, id, isLocal);
             env->DeleteLocalRef(profile);
         }
+    } else {
+        readProfileExtras(env, mc, entity, nullptr, id, isLocal);
     }
     if (!isLocal && tick_ - id.teamAt >= 40) {
         id.teamAt = tick_;
@@ -291,6 +443,7 @@ void Sampler::readPlayer(JNIEnv* env, jobject mc, jobject world, jobject e, bool
                     const int pid = env->CallIntMethod(pe, mPotionId_);
                     const int amp = env->CallIntMethod(pe, mPotionAmp_);
                     if (!jniFailed(env)) {
+                        ++f.potions.count;
                         if (pid == 1) f.potions.speed = amp;
                         else if (pid == 2) f.potions.slowness = amp;
                         else if (pid == 8) f.potions.jumpBoost = amp;
@@ -302,6 +455,32 @@ void Sampler::readPlayer(JNIEnv* env, jobject mc, jobject world, jobject e, bool
             env->DeleteLocalRef(coll);
         } else {
             f.potionsKnown = !jniFailed(env);
+        }
+    }
+
+    // Potion particle color (DataWatcher 7) is synced continuously, unlike the effect list.
+    if (signals_.potionParticles) {
+        jobject dw = env->CallObjectMethod(e, mDataWatcher_);
+        if (dw && !jniFailed(env)) {
+            const int color = env->CallIntMethod(dw, mWatchInt_, 7);
+            if (!jniFailed(env)) f.potionParticles = color != 0;
+            env->DeleteLocalRef(dw);
+        }
+    }
+    // Movement-speed attribute and whether it currently carries the sprint boost.
+    if (signals_.moveAttribute) {
+        jobject inst = env->CallObjectMethod(e, mGetAttribute_, moveSpeedAttr_);
+        if (inst && !jniFailed(env)) {
+            const double v = env->CallDoubleMethod(inst, mAttrValue_);
+            if (!jniFailed(env) && v > 0.0 && v < 10.0) f.moveSpeedAttribute = v;
+            if (mAttrModifier_ && sprintUuid_) {
+                jobject mod = env->CallObjectMethod(inst, mAttrModifier_, sprintUuid_);
+                if (!jniFailed(env)) f.sprintModifier = mod != nullptr;
+                if (mod) env->DeleteLocalRef(mod);
+            } else {
+                f.sprintModifier = f.sprinting;
+            }
+            env->DeleteLocalRef(inst);
         }
     }
 
@@ -376,12 +555,13 @@ bool Sampler::sample(JNIEnv* env, jobject mc, detection::WorldFrame& out, bool& 
         if (!jniFailed(env)) {
             out.players.reserve(static_cast<std::size_t>(n));
             for (int i = 0; i < n && i < 256; ++i) {
-                if (env->PushLocalFrame(48) != 0) { jniFailed(env); break; }
+                if (env->PushLocalFrame(64) != 0) { jniFailed(env); break; }
                 jobject e = env->CallObjectMethod(list, mListGet_, i);
                 if (e && !jniFailed(env)) {
                     detection::PlayerFrame f;
                     readPlayer(env, mc, world, e, env->IsSameObject(e, self) == JNI_TRUE, f);
                     jniFailed(env);
+                    if (!f.isLocal && seenIds_.emplace(f.entityId, true).second) spawns_.push_back(f.entityId);
                     out.players.push_back(std::move(f));
                 }
                 env->PopLocalFrame(nullptr);

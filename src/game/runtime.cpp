@@ -1,7 +1,11 @@
 #include "runtime.h"
 
 #include "../core/log.h"
+#include "../core/paths.h"
 #include "../core/settings.h"
+#include "../identity/identity.h"
+#include "../platform/hooks.h"
+#include "../ui/widgets.h"
 #include "alerts.h"
 #include "jvm.h"
 #include "mc.h"
@@ -34,8 +38,6 @@ void Runtime::registerSettings() {
     auto& S = Settings::instance();
     auto grp = [](Setting& s, const char* g, bool adv = false) -> Setting& { s.group = g; s.advanced = adv; return s; };
 
-    menuKey_ = &grp(S.addKey("ui.menuKey", "Menu key", VK_RSHIFT, "Opens Vigil while no other screen is open. You can also type /vigil in chat."),
-                    "Menu");
     alertChat_ = &grp(S.addBool("alerts.chat", "Chat alerts", true,
                                 "Print a line in chat when a detection fires. Hover it to read the evidence."), "Alerts");
     alertClick_ = &grp(S.addBool("alerts.clickReport", "Click to report", true,
@@ -43,7 +45,8 @@ void Runtime::registerSettings() {
                        "Alerts");
     alertSound_ = &grp(S.addBool("alerts.sound", "Alert sound", true, "Play a soft chime when a detection fires."), "Alerts");
     alertToast_ = &grp(S.addBool("alerts.toast", "On-screen notifications", true,
-                                 "Show a notification card in the corner of the screen when a detection fires."), "Alerts");
+                                 "Show a notification card when a detection fires. Pressing the menu key while it is "
+                                 "visible opens that player."), "Alerts");
     highlight_ = &grp(S.addBool("highlight.enabled", "Suspect Highlight", true,
                                 "Outline players whose overall suspicion is above the threshold, colored by severity."),
                       "Suspect Highlight");
@@ -65,16 +68,22 @@ void Runtime::initialize(const std::string& dllDirectory, HWND gameWindow) {
     if (initialized_) return;
     dllDir_ = dllDirectory;
     hwnd_ = gameWindow;
-    dataDir_ = (std::filesystem::path(dllDir_) / "vigil").string();
+    startedMs_ = nowMs();
+    dataDir_ = paths::dataDirectory(dllDir_);
     std::error_code ec;
     std::filesystem::create_directories(std::filesystem::path(dataDir_) / "logs", ec);
     log::init((std::filesystem::path(dataDir_) / "logs").string());
     log::write("vigil", "Vigil starting");
+    // 2.0 kept its data next to the DLL; carry it over once.
+    if (paths::migrateLegacyData((std::filesystem::path(dllDir_) / "vigil").string(), dataDir_)) {
+        log::write("vigil", "migrated settings and history from the previous data folder");
+    }
 
     engine_.initialize();
     registerSettings();
-    // UI settings are registered by the UI on initialize; do it before loading.
+    // UI, utility and identity settings are registered by the UI; do it before loading.
     ui::App::instance().initialize(this, &engine_);
+    menuKey_ = Settings::instance().find("ui.menuKey");
 
     auto& S = Settings::instance();
     const std::string cfg = (std::filesystem::path(dataDir_) / "config.json").string();
@@ -93,6 +102,9 @@ void Runtime::initialize(const std::string& dllDirectory, HWND gameWindow) {
             {"ac_scaffold", "checks.keepy.enabled"},
             {"ac_scaffoldb", "checks.flatscaff.enabled"},
             {"ac_legitscaff", "checks.legitscaff.enabled"},
+            {"autoWho", "utilities.autoWho"},
+            {"fastBuy", "utilities.fastBuy"},
+            {"partyDetector", "utilities.partyChat"},
         });
         if (n > 0) log::writef("vigil", "migrated %d legacy settings", n);
         S.save();
@@ -116,12 +128,57 @@ std::string Runtime::signalSummary() const {
     };
     add(s.serverPositions, "server positions");
     add(s.headRotation, "head rotation");
+    add(s.moveAttribute, "movement attribute");
     add(s.potions, "potion effects");
     add(s.blocks, "block probes");
     add(s.heldItem, "held items");
     add(s.swing, "arm swings");
     add(s.hurt, "hurt animations");
     return missing.empty() ? "All signals available" : "Unavailable: " + missing;
+}
+
+ui::RuntimeStatus Runtime::runtimeStatus() const {
+    ui::RuntimeStatus st;
+    st.hosted = true;
+    st.uptimeSec = (nowMs() - startedMs_) / 1000.0;
+    st.jvmAttached = g_jvm != nullptr;
+    st.clientPump = scheduledRate_ > 0.5;
+    st.pumpsPerSecond = pumpRate_;
+    st.presentSlots = platform::presentHookSlots();
+    st.presentHook = st.presentSlots > 0;
+    st.framesPerSecond = frameRate_;
+    st.inputHook = platform::windowHookActive();
+    st.menuHost = menuHostReady();
+    st.worldHookWanted = highlight_ && highlight_->b();
+    st.worldHook = IsRenderGlobalHookInstalled();
+    st.samplerResolved = sampler_.resolved();
+    if (sampler_.resolved()) {
+        const SignalStatus& s = sampler_.signals();
+        st.signals = {
+            {"Server positions", s.serverPositions, "Speed, BHop, Reach, KillAura"},
+            {"Head rotation", s.headRotation, "KillAura"},
+            {"Movement attribute", s.moveAttribute, "Speed, BHop, NoSlow"},
+            {"Potion effects", s.potions, "Speed, BHop"},
+            {"Block probes", s.blocks, "Speed, BHop, Velocity, Scaffold"},
+            {"Held items", s.heldItem, "AutoBlock, NoSlow, Scaffold"},
+            {"Arm swings", s.swing, "AutoClicker, KillAura, Reach"},
+            {"Hurt animations", s.hurt, "Velocity, hit attribution"},
+            {"Player skins", s.skins, "player faces"},
+        };
+    }
+    st.hypixel = hypixel_;
+    st.server = serverHost_;
+    st.chatReader = chat_.available();
+    st.chatLines = chat_.linesRead();
+    st.dataDir = dataDir_;
+    return st;
+}
+
+bool Runtime::playerFace(const std::string& playerKey, ui::FaceTexture& out) {
+    unsigned int tex = 0;
+    if (!sampler_.faceTexture(playerKey, tex)) return false;
+    out.texture = tex;
+    return true;
 }
 
 void Runtime::reportPlayer(const std::string& name) {
@@ -145,30 +202,76 @@ void Runtime::ensureHooks(JNIEnv* env, jobject mc) {
     TryInstallRenderGlobalHook(env, mc, g_injectClassLoaderGlobal);
 }
 
+void Runtime::updateRates(double now) {
+    if (rateWindowStart_ <= 0.0) rateWindowStart_ = now;
+    const double span = now - rateWindowStart_;
+    if (span >= 1000.0) {
+        pumpRate_ = pumpsInWindow_ * 1000.0 / span;
+        frameRate_ = framesInWindow_ * 1000.0 / span;
+        const int scheduled = scheduledPumps_.load();
+        scheduledRate_ = (scheduled - scheduledAtWindowStart_) * 1000.0 / span;
+        scheduledAtWindowStart_ = scheduled;
+        pumpsInWindow_ = framesInWindow_ = 0;
+        rateWindowStart_ = now;
+    }
+}
+
+void Runtime::readChat(JNIEnv* env, jobject mc, double now) {
+    if (now - lastChatMs_ < 50.0) return;
+    lastChatMs_ = now;
+    for (const std::string& line : chat_.poll(env, mc)) {
+        utilities_.onChat(line, context_.bedwarsPregame(), hypixel_, now);
+        identity::Service::instance().onChatLine(line);
+    }
+}
+
 void Runtime::pump(JNIEnv* env, jobject mc) {
     if (!initialized_ || !env || !mc || inPump_) return;
     const double now = nowMs();
     if (now - lastPumpMs_ < 15.0) return;
     lastPumpMs_ = now;
     inPump_ = true;
+    ++pumpsInWindow_;
+    updateRates(now);
 
     jclass mcClass = env->GetObjectClass(mc);
     VigilUpdateHypixelServerWhitelist(env, mc, mcClass);
+    static double lastHostRead = 0.0;
+    if (now - lastHostRead > 2000.0) {
+        lastHostRead = now;
+        std::string host;
+        serverHost_ = ReadMinecraftServerHost(env, mc, mcClass, host) ? host : std::string();
+    }
     env->DeleteLocalRef(mcClass);
     jniFailed(env);
+    hypixel_ = VigilIsHypixelServerActive();
 
-    const bool allowed = VigilIsHypixelServerActive() || anyServer_->b();
+    const bool allowed = hypixel_ || anyServer_->b();
     if (allowed) context_.poll(env, mc, now);
 
     detection::WorldFrame frame;
     bool worldChanged = false;
     const bool sampled = sampler_.sample(env, mc, frame, worldChanged);
-    if (worldChanged) engine_.onWorldChanged();
+    if (worldChanged) {
+        engine_.onWorldChanged();
+        utilities_.onWorldChanged();
+        identity::Service::instance().resetGame();
+    }
     if (sampled) {
         frame.timeMs = now;
         frame.context = allowed ? context_.context() : detection::GameContext::Unknown;
         frame.contextDetail = allowed ? context_.detail() : std::string();
         engine_.onFrame(frame);
+        utilities_.onSpawns(sampler_.takeSpawns(), now);
+    }
+
+    readChat(env, mc, now);
+    utilities_.update(env, mc, context_, hypixel_, chat_.available(), now);
+    for (const std::string& a : identity::Service::instance().takeAnnouncements()) {
+        const auto bar = a.find('|');
+        if (bar == std::string::npos) continue;
+        printChat(env, mc, chatPrefix() + "\xC2\xA7" "f" + a.substr(0, bar) + " \xC2\xA7" "8\xE2\x86\x92 \xC2\xA7" "a" + a.substr(bar + 1) +
+                               " \xC2\xA7" "7(likely; see /vigil " + a.substr(0, bar) + ")");
     }
 
     {
@@ -182,6 +285,11 @@ void Runtime::pump(JNIEnv* env, jobject mc) {
             alertSeq_ = engine_.alertSeq();
             printChat(env, mc, chatPrefix() + "\xC2\xA7" "7Started a new session.");
         }
+    }
+    if (activationChatPending_.exchange(false)) {
+        const std::string key = menuKey_ ? ui::keyName(menuKey_->i()) : std::string("Right Shift");
+        printChat(env, mc, chatPrefix() + "\xC2\xA7" "aActive. \xC2\xA7" "7Press \xC2\xA7" "f" + key +
+                               "\xC2\xA7" "7 or type \xC2\xA7" "f/vigil\xC2\xA7" "7 to open Vigil.");
     }
 
     dispatchAlerts(env, mc);
@@ -243,14 +351,14 @@ void Runtime::handleMenu(JNIEnv* env, jobject mc) {
         jobject blank = newBlankScreen(env);
         if (!blank) {
             log::write("runtime", "menu open failed: could not create the host screen");
-            printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not open its menu. See vigil/logs/runtime.log.");
+            printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not open its menu. Open Status with /vigil status after reopening.");
         } else if (displayScreen(env, mc, blank)) {
             jobject retainedScreen = env->NewGlobalRef(blank);
             if (!retainedScreen || env->ExceptionCheck()) {
                 if (env->ExceptionCheck()) jniFailed(env);
                 log::write("runtime", "menu open failed: NewGlobalRef(host screen) returned null");
                 displayScreen(env, mc, nullptr);
-                printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not retain its menu screen. See vigil/logs/runtime.log.");
+                printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not retain its menu screen. See the runtime log.");
             } else {
                 if (menuScreen_) env->DeleteGlobalRef(menuScreen_);
                 menuScreen_ = retainedScreen;
@@ -261,10 +369,19 @@ void Runtime::handleMenu(JNIEnv* env, jobject mc) {
                     app.focusPlayer(focusRequest_);
                     focusRequest_.clear();
                 }
+                if (!openPage_.empty()) {
+                    app.openTo(openPage_);
+                    openPage_.clear();
+                }
+                if (searchRequested_) {
+                    app.openSearch(searchRequest_);
+                    searchRequested_ = false;
+                    searchRequest_.clear();
+                }
             }
         } else {
             log::write("runtime", "menu open failed: host rejected the screen");
-            printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not open its menu. See vigil/logs/runtime.log.");
+            printChat(env, mc, chatPrefix() + "\xC2\xA7" "cVigil could not open its menu. See the runtime log.");
         }
         if (blank) env->DeleteLocalRef(blank);
     }
@@ -289,24 +406,43 @@ void Runtime::handleMenu(JNIEnv* env, jobject mc) {
 void Runtime::runCommand(JNIEnv* env, jobject mc, const std::string& raw) {
     std::string args = Trim(raw.size() > 6 ? raw.substr(6) : "");
     const std::string lower = LowerAscii(args);
+    static const char* kPages[] = {"overview", "players", "checks", "utilities", "settings", "status"};
     if (lower.empty()) {
         openRequest_ = 2;
-    } else if (lower == "help") {
-        printChat(env, mc, chatPrefix() + "\xC2\xA7" "f/vigil \xC2\xA7" "7open Vigil  \xC2\xA7" "f/vigil <player> \xC2\xA7"
-                           "7investigate a player  \xC2\xA7" "f/vigil reset \xC2\xA7" "7start a new session");
-    } else if (lower == "reset") {
+        return;
+    }
+    if (lower == "help") {
+        printChat(env, mc, chatPrefix() + "\xC2\xA7" "f/vigil \xC2\xA7" "7open  \xC2\xA7" "f/vigil <player> \xC2\xA7" "7investigate  \xC2\xA7"
+                           "f/vigil search <text>  \xC2\xA7" "f/vigil status  \xC2\xA7" "f/vigil reset \xC2\xA7" "7new session");
+        return;
+    }
+    if (lower == "reset") {
         newSession();
-    } else {
-        focusRequest_.clear();
-        for (const auto& r : engine_.session().players()) {
-            if (LowerAscii(r.name) == lower) { focusRequest_ = r.key; break; }
-        }
-        if (focusRequest_.empty()) {
-            printChat(env, mc, chatPrefix() + "\xC2\xA7" "7Vigil has not observed \xC2\xA7" "f" + args + "\xC2\xA7" "7 this session.");
-        } else {
+        return;
+    }
+    for (const char* p : kPages) {
+        if (lower == p) {
+            openPage_ = p;
             openRequest_ = 2;
+            return;
         }
     }
+    if (lower.rfind("search", 0) == 0) {
+        searchRequest_ = Trim(args.substr(6));
+        searchRequested_ = true;
+        openRequest_ = 2;
+        return;
+    }
+    focusRequest_.clear();
+    for (const auto& r : engine_.session().players()) {
+        if (LowerAscii(r.name) == lower) { focusRequest_ = r.key; break; }
+    }
+    if (focusRequest_.empty()) {
+        // Not observed this session: search for it (it may be a nick's real name or an old player).
+        searchRequest_ = args;
+        searchRequested_ = true;
+    }
+    openRequest_ = 2;
 }
 
 void Runtime::onRenderEntities(JNIEnv* env, jobject mc, jclass /*mcClass*/) {
@@ -333,6 +469,16 @@ void Runtime::onRenderEntities(JNIEnv* env, jobject mc, jclass /*mcClass*/) {
     });
 }
 
+void Runtime::signalLauncher() {
+    // Vigil.exe waits on this event so it can report success only once Vigil is really running.
+    wchar_t name[64];
+    swprintf_s(name, L"Local\\Vigil.Ready.%lu", GetCurrentProcessId());
+    if (HANDLE e = OpenEventW(EVENT_MODIFY_STATE, FALSE, name)) {
+        SetEvent(e);
+        CloseHandle(e);
+    }
+}
+
 void Runtime::onSwapBuffers(HDC hdc) {
     if (!initialized_ || !hdc) return;
     HWND wnd = WindowFromDC(hdc);
@@ -343,16 +489,21 @@ void Runtime::onSwapBuffers(HDC hdc) {
     if (!GetClientRect(renderWindow, &rc)) return;
     const int w = rc.right - rc.left, h = rc.bottom - rc.top;
     if (w <= 0 || h <= 0) return;
-    static std::atomic<bool> loggedFirstPresent{false};
-    if (!loggedFirstPresent.exchange(true)) {
+    ++framesInWindow_;
+    if (!launcherSignaled_) {
+        // The first frame proves the render path works: confirm in game and to the launcher.
+        launcherSignaled_ = true;
         log::writef("runtime", "UI render path active (window=%p, size=%dx%d)", renderWindow, w, h);
+        log::write("vigil", "Vigil ready");
+        ui::App::instance().showActivation();
+        activationChatPending_ = true;
+        signalLauncher();
     }
     ui::App::instance().render(w, h, nowMs(), alertToast_->b());
     const bool visible = ui::App::instance().isOpen();
     static bool lastRenderedMenuState = false;
     if (visible != lastRenderedMenuState) {
-        log::writef("runtime", "menu render state changed: %s (%dx%d)",
-                    visible ? "visible" : "hidden", w, h);
+        log::writef("runtime", "menu render state changed: %s (%dx%d)", visible ? "visible" : "hidden", w, h);
         lastRenderedMenuState = visible;
     }
     menuVisible_ = visible;
@@ -384,8 +535,10 @@ bool Runtime::onWindowMessage(HWND, UINT msg, WPARAM wParam, LPARAM lParam, LRES
                 app.onKey(vk, true, (GetKeyState(VK_CONTROL) & 0x8000) != 0, (GetKeyState(VK_SHIFT) & 0x8000) != 0);
                 return true;
             }
+            bool screenOpen = screenOpen_.load();
+            const bool repeat = (lParam & (1 << 30)) != 0;
             if (menuKey_ && vk == menuKey_->i()) {
-                bool screenOpen = screenOpen_.load();
+                // Re-check the screen right now: the cached state can be one pump old.
                 if (JNIEnv* env = currentEnv()) {
                     if (jobject mc = minecraft(env)) {
                         if (jobject screen = currentScreen(env, mc)) {
@@ -398,9 +551,22 @@ bool Runtime::onWindowMessage(HWND, UINT msg, WPARAM wParam, LPARAM lParam, LRES
                     }
                     jniFailed(env);
                 }
-                if (!screenOpen) {
-                    openRequest_ = 1;
-                    log::write("runtime", "menu key received");
+            }
+            if (menuKey_ && vk == menuKey_->i() && !screenOpen) {
+                openRequest_ = 1;
+                log::write("runtime", "menu key received");
+                return true;
+            }
+            // Utility shortcuts (only while playing, never while typing in a screen).
+            if (!screenOpen && !repeat) {
+                if (Setting* toggled = utilities_.onHotkey(vk)) {
+                    const auto& us = utilities::settings();
+                    const utilities::Kind kind = toggled == us.autoWho ? utilities::Kind::AutoWho
+                                               : toggled == us.fastBuy ? utilities::Kind::FastBuy
+                                               : toggled == us.partyChat ? utilities::Kind::PartyChat : utilities::Kind::PartyQueue;
+                    app.notify(toggled->label + (toggled->b() ? " on" : " off"), ui::keyName(vk));
+                    utilities::Activity::instance().add(kind, toggled->label + (toggled->b() ? " turned on" : " turned off") +
+                                                                  " with its shortcut");
                     return true;
                 }
             }
@@ -455,7 +621,7 @@ bool Runtime::onWindowMessage(HWND, UINT msg, WPARAM wParam, LPARAM lParam, LRES
                 app.onMouseButton(button, down, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
                 return true;
             }
-            return false;
+            return utilities_.onMouse(msg);
         case WM_MOUSEWHEEL:
             if (visible) {
                 app.onMouseWheel(static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA);
@@ -485,11 +651,13 @@ void Runtime::shutdown(JNIEnv* env) {
     if (!initialized_) return;
     engine_.flushHistory();
     Settings::instance().save();
+    identity::Service::instance().stop();
     if (env && menuScreen_) {
         env->DeleteGlobalRef(menuScreen_);
         menuScreen_ = nullptr;
     }
     sampler_.reset(env);
+    chat_.reset(env);
     log::write("vigil", "Vigil stopped");
 }
 

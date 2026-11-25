@@ -209,6 +209,12 @@ void ensurePresentHook() {
     installPresentHook();
 }
 
+int presentHookSlots() { return static_cast<int>(g_swapSlots.size()); }
+
+bool windowHookActive() {
+    return g_hwnd && reinterpret_cast<WNDPROC>(GetWindowLongPtrA(g_hwnd, GWLP_WNDPROC)) == &hookedWndProc;
+}
+
 void removePresentHook() {
     for (void** slot : g_swapSlots) {
         DWORD old = 0;

@@ -16,10 +16,14 @@
 #include "../../src/core/log.h"
 #include "../../src/core/settings.h"
 #include "../../src/detection/engine.h"
+#include "../../src/identity/identity.h"
 #include "../../src/ui/app.h"
 #include "../../src/ui/gfx.h"
+#include "../../src/utilities/utilities.h"
 
+#include <algorithm>
 #include <cmath>
+#include <unordered_map>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -123,6 +127,8 @@ public:
         add(12, "Harrow", -20, 17.4);
         add(13, "Ashen", -20, 20);
         add(14, "Wren", 60, -30);
+        // A nicked player: Hypixel nicks carry version-1 UUIDs.
+        add(15, "Disguised", 64, -26).f.uuid = "0b4f2ba3-6c5d-1e8f-9a0b-1c2d3e4f5a6b";
     }
 
     void step(Tick tick) {
@@ -249,14 +255,74 @@ private:
 
 // ── Host ─────────────────────────────────────────────────────────────────────────────────────
 
+// Deterministic pixel-art faces (8×8, Minecraft skin layout) so the preview shows real avatars.
+unsigned int makeFaceTexture(const std::string& name) {
+    std::uint32_t h = 2166136261u;
+    for (char c : name) { h ^= static_cast<unsigned char>(c); h *= 16777619u; }
+    auto pick = [&](int shift, int n) { return static_cast<int>((h >> shift) % static_cast<std::uint32_t>(n)); };
+    static const unsigned char skins[5][3] = {{236, 188, 156}, {214, 160, 120}, {170, 120, 84}, {120, 82, 58}, {246, 210, 182}};
+    static const unsigned char hairs[6][3] = {{40, 28, 20}, {92, 60, 36}, {196, 152, 82}, {20, 20, 24}, {150, 62, 40}, {210, 210, 200}};
+    static const unsigned char eyes[4][3] = {{60, 90, 160}, {60, 120, 70}, {90, 60, 40}, {40, 40, 40}};
+    const auto* sk = skins[pick(0, 5)];
+    const auto* hr = hairs[pick(3, 6)];
+    const auto* ey = eyes[pick(7, 4)];
+    const int fringe = 1 + pick(10, 2);
+    std::vector<unsigned char> px(64 * 64 * 4, 0);
+    auto put = [&](int x, int y, const unsigned char* c, unsigned char a = 255) {
+        unsigned char* p = &px[static_cast<std::size_t>((y * 64 + x) * 4)];
+        p[0] = c[0]; p[1] = c[1]; p[2] = c[2]; p[3] = a;
+    };
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            const bool hair = y < fringe || ((x == 0 || x == 7) && y < 4);
+            unsigned char c[3] = {sk[0], sk[1], sk[2]};
+            if (hair) { c[0] = hr[0]; c[1] = hr[1]; c[2] = hr[2]; }
+            const int shade = ((x * 7 + y * 3 + static_cast<int>(h)) % 5) - 2;
+            for (unsigned char& v : c) v = static_cast<unsigned char>(std::clamp(v + shade * 4, 0, 255));
+            put(8 + x, 8 + y, c);
+        }
+    }
+    const unsigned char white[3] = {240, 240, 240};
+    put(9, 12, white); put(10, 12, ey); put(13, 12, ey); put(14, 12, white);
+    const unsigned char mouth[3] = {static_cast<unsigned char>(sk[0] * 0.6), static_cast<unsigned char>(sk[1] * 0.45), static_cast<unsigned char>(sk[2] * 0.45)};
+    put(11, 14, mouth); put(12, 14, mouth);
+    return ui::glx::createTextureRGBA(64, 64, px.data());
+}
+
 class PreviewHost final : public ui::Host {
 public:
+    detection::Engine* engine = nullptr;
     void reportPlayer(const std::string& name) override { std::printf("[preview] report %s\n", name.c_str()); }
     void openFolder(const std::string& path) override { std::printf("[preview] open %s\n", path.c_str()); }
-    std::string dataDirectory() const override { return "vigil"; }
+    std::string dataDirectory() const override { return "C:\\Users\\you\\AppData\\Local\\Vigil"; }
     bool connectedToHypixel() const override { return true; }
     std::string signalSummary() const override { return "All signals available (simulated arena)"; }
     void newSession() override {}
+    ui::RuntimeStatus runtimeStatus() const override {
+        ui::RuntimeStatus s;
+        s.hosted = false;
+        s.hypixel = true;
+        s.server = "mc.hypixel.net";
+        s.samplerResolved = true;
+        for (const char* n : {"Server positions", "Head rotation", "Movement attribute", "Potion effects", "Block probes", "Held items",
+                              "Arm swings", "Hurt animations"}) {
+            s.signals.push_back({n, true, ""});
+        }
+        s.dataDir = dataDirectory();
+        return s;
+    }
+    bool playerFace(const std::string& key, ui::FaceTexture& out) override {
+        if (!engine) return false;
+        const auto* r = engine->session().find(key);
+        if (!r) return false;
+        auto it = faces_.find(key);
+        if (it == faces_.end()) it = faces_.emplace(key, makeFaceTexture(r->name)).first;
+        out.texture = it->second;
+        return true;
+    }
+
+private:
+    std::unordered_map<std::string, unsigned int> faces_;
 };
 
 double qpcMs() {
@@ -381,11 +447,17 @@ bool writePng(const std::string& path, int w, int h, const std::vector<unsigned 
 struct Options {
     std::string shot;
     std::string page = "overview";
-    std::string check;
+    std::string tab;            // profile tab: summary, evidence, behavior, identity
+    std::string player;         // player to open on the Players page
+    std::string search;         // open the search palette with this query
+    std::string section;        // settings section name
     int theme = 0, accent = 0;
     int w = 1600, h = 1000;
     int mx = -1, my = -1;
     bool hud = false;
+    bool activation = false;
+    bool onboarding = false;
+    int onboardingStep = 0;
     int frames = 150;
     bool clickAt = false;
 };
@@ -401,7 +473,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_CHAR: app.onChar(static_cast<unsigned int>(wp)); return 0;
         case WM_KEYDOWN:
             if (wp == VK_ESCAPE && !app.textInputActive()) { if (app.isOpen()) app.requestClose(); else app.open(); return 0; }
-            app.onKey(static_cast<int>(wp), true, (GetKeyState(VK_CONTROL) & 0x8000) != 0, false);
+            app.onKey(static_cast<int>(wp), true, (GetKeyState(VK_CONTROL) & 0x8000) != 0, (GetKeyState(VK_SHIFT) & 0x8000) != 0);
             return 0;
         case WM_SETCURSOR:
             if (LOWORD(lp) == HTCLIENT) {
@@ -417,6 +489,37 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     return DefWindowProcA(hwnd, msg, wp, lp);
 }
 
+// Demo data for the identity tools and utilities so their screens show real states.
+void seedDemoServices(const Arena&) {
+    using namespace identity;
+    Service& s = Service::instance();
+    s.setFetcher([](const std::string& url, int& status, std::string& body, std::string&) {
+        status = 200;
+        if (url.find("sessionserver") != std::string::npos) body = R"({"id":"7d3c2e1f0a9b48c7b6d5e4f3a2b1c0d9","name":"Halcyon"})";
+        else body = R"({"success":true,"data":[{"name":"Halcyon","distance":0}]})";
+        return true;
+    });
+    // {"profileId":"7d3c2e1f0a9b48c7b6d5e4f3a2b1c0d9","profileName":"Halcyon","textures":{"SKIN":{"url":"http://textures.minecraft.net/texture/9f2e"}}}
+    const std::string textures =
+        "eyJwcm9maWxlSWQiOiI3ZDNjMmUxZjBhOWI0OGM3YjZkNWU0ZjNhMmIxYzBkOSIsInByb2ZpbGVOYW1lIjoiSGFsY3lvbiIsInRleHR1cmVzIjp7"
+        "IlNLSU4iOnsidXJsIjoiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS85ZjJlIn19fQ==";
+    s.observe("0b4f2ba3-6c5d-1e8f-9a0b-1c2d3e4f5a6b", "Disguised", "0b4f2ba3-6c5d-1e8f-9a0b-1c2d3e4f5a6b", textures);
+
+    using utilities::Activity;
+    using utilities::Kind;
+    Activity::instance().add(Kind::AutoWho, "Sent /who as the game started");
+    Activity::instance().add(Kind::PartyChat, "Party of 3 joined: Kestrel, Nimbus, Vale", true);
+    Activity::instance().add(Kind::PartyQueue, "Queue party of 2 (ids 4601\xE2\x80\x93" "4602)", true);
+    Activity::instance().add(Kind::FastBuy, "Bought from Quick Buy slot 19");
+    utilities::LiveState live;
+    live.hypixel = true;
+    live.chatReader = true;
+    live.bedwarsPregame = true;
+    live.mode = "Doubles";
+    live.queueMaxParty = 2;
+    utilities::setLiveState(live);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -426,13 +529,18 @@ int main(int argc, char** argv) {
         auto next = [&]() -> std::string { return i + 1 < argc ? argv[++i] : ""; };
         if (a == "--shot") o.shot = next();
         else if (a == "--page") o.page = next();
+        else if (a == "--tab") o.tab = next();
+        else if (a == "--player") o.player = next();
+        else if (a == "--search") o.search = next();
+        else if (a == "--section") o.section = next();
         else if (a == "--theme") o.theme = std::atoi(next().c_str());
         else if (a == "--accent") o.accent = std::atoi(next().c_str());
         else if (a == "--size") std::sscanf(next().c_str(), "%dx%d", &o.w, &o.h);
         else if (a == "--mouse") std::sscanf(next().c_str(), "%d,%d", &o.mx, &o.my);
         else if (a == "--click") o.clickAt = true;
         else if (a == "--hud") o.hud = true;
-        else if (a == "--check") o.check = next();
+        else if (a == "--activation") o.activation = true;
+        else if (a == "--onboarding") { o.onboarding = true; o.onboardingStep = std::atoi(next().c_str()); }
         else if (a == "--frames") o.frames = std::atoi(next().c_str());
     }
 
@@ -440,13 +548,19 @@ int main(int argc, char** argv) {
     const std::string tmp = (std::filesystem::temp_directory_path() / "vigil-preview").string();
     std::filesystem::create_directories(tmp);
     log::init(tmp);
+    log::write("vigil", "Vigil preview starting");
+    log::write("runtime", "sampler: resolved=1 serverPos=1 head=1 potions=1 attribute=1 blocks=1 item=1 swing=1 hurt=1");
+    log::write("runtime", "present hook: 1 import slots patched");
+    log::write("runtime", "window procedure hooked");
     Engine engine;
     engine.initialize();
     PreviewHost host;
+    host.engine = &engine;
     ui::App& app = ui::App::instance();
     app.initialize(&host, &engine);
     Settings::instance().find("ui.theme")->set(o.theme);
     Settings::instance().find("ui.accent")->set(o.accent);
+    Settings::instance().find("ui.onboarded")->set(o.onboarding ? 0.0 : 1.0);
 
     // Window + GL context.
     WNDCLASSA wc{};
@@ -475,6 +589,7 @@ int main(int argc, char** argv) {
 
     // Fast-forward the arena so the session has history.
     Arena arena;
+    seedDemoServices(arena);
     const int warmTicks = 20 * 240;
     const double start = qpcMs() - warmTicks * 50.0;
     engine.resetSession(start);
@@ -484,49 +599,53 @@ int main(int argc, char** argv) {
         engine.onFrame(arena.frame(tick, start + tick * 50.0));
     }
 
-    app.open();
-    // Page selection goes through focusPlayer for evidence; other pages use keyboard shortcuts.
-    auto selectPage = [&](const std::string& p) {
-        int idx = p == "checks" ? 1 : p == "evidence" ? 2 : p == "players" ? 3 : p == "settings" ? 4 : 0;
-        app.onKey('1' + idx, true, true, false);
-    };
-    selectPage(o.page);
+    if (!o.hud && !o.activation) app.open();
+    auto key = [&](int vk, bool ctrl) { app.onKey(vk, true, ctrl, false); };
+    auto selectPage = [&](const std::string& p) { app.openTo(p); };
 
     if (!o.shot.empty()) {
         ui::setPreviewMode(true);
         unsigned int colorTex = 0;
         const unsigned int fbo = ui::glx::createFramebuffer(o.w, o.h, colorTex);
         double now = qpcMs();
-        if (o.hud) app.forceClose();
+        if (o.activation) app.showActivation();
         for (int f = 0; f < o.frames; ++f) {
             // Keep the simulation running in real time during the capture.
             arena.step(tick);
             engine.onFrame(arena.frame(tick, start + tick * 50.0));
             ++tick;
             now += 1000.0 / 60.0;
+            if (f == 1 && !o.hud && !o.activation) {
+                std::string playerKey;
+                if (!o.player.empty()) {
+                    for (const auto& pr : engine.session().players()) if (pr.name == o.player) playerKey = pr.key;
+                }
+                app.openTo(o.page, playerKey, o.tab, o.section);
+                if (!o.search.empty()) app.openSearch(o.search == "-" ? "" : o.search);
+            }
             if (o.mx >= 0) app.onMouseMove(o.mx, o.my);
             if (o.clickAt && f == o.frames / 2) { app.onMouseButton(0, true, o.mx, o.my); }
             if (o.clickAt && f == o.frames / 2 + 1) { app.onMouseButton(0, false, o.mx, o.my); }
-            if (o.hud && f == 5) {
-                // Force a toast by synthesizing a fresh detection stream view.
-            }
+            if (o.onboarding && o.onboardingStep > 0 && f > 2 && f <= 2 + o.onboardingStep) key(VK_RIGHT, false);
             drawWorld(o.w, o.h, now / 1000.0);
-            app.render(o.w, o.h, now, o.hud);
+            app.render(o.w, o.h, now, true);
         }
         std::vector<unsigned char> px(static_cast<std::size_t>(o.w) * o.h * 4);
         glReadPixels(0, 0, o.w, o.h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
         const bool ok = writePng(o.shot, o.w, o.h, px);
         std::printf("%s %s (%dx%d)\n", ok ? "wrote" : "FAILED", o.shot.c_str(), o.w, o.h);
         ui::glx::deleteFramebuffer(fbo, colorTex);
+        identity::Service::instance().stop();
         return ok ? 0 : 1;
     }
 
+    selectPage(o.page);
     ShowWindow(hwnd, SW_SHOW);
     MSG msg;
     double nextTick = qpcMs();
     for (;;) {
         while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            if (msg.message == WM_QUIT) return 0;
+            if (msg.message == WM_QUIT) { identity::Service::instance().stop(); return 0; }
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
         }

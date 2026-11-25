@@ -1,5 +1,7 @@
 # Feature removal report
 
+> **Update (1.0-dev.7):** Auto Who, Fast Buy, the Party Detector, the Party Queue Detector and the denickers were restored in the polish pass, redesigned for the new runtime. See [`POLISH_REPORT.md`](POLISH_REPORT.md) §8–9. The rest of this report still applies.
+
 Vigil 2.0 removes every feature that does not serve detection, analysis, evidence,
 investigation, debugging, visualization or configuration. Roughly 38,500 lines were deleted.
 

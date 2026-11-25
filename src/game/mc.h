@@ -24,6 +24,11 @@ void addToSentHistory(JNIEnv* env, jobject mc, const std::string& text);
 
 void playSound(JNIEnv* env, jobject mc, const char* soundName, float pitch);
 
+// GuiNewChat instance (local ref or null).
+jobject chatGuiObject(JNIEnv* env, jobject mc);
+// The class that hosts the menu (VigilMenuScreen) has been defined.
+bool menuHostReady();
+
 // Screens.
 jobject currentScreen(JNIEnv* env, jobject mc);  // local ref or null
 bool displayScreen(JNIEnv* env, jobject mc, jobject screen);

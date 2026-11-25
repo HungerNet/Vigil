@@ -1,4 +1,13 @@
 // Speed — horizontal movement faster than the vanilla envelope.
+//
+// Limits are scaled by every movement modifier Vigil can observe (see speedMultiplier in
+// types.h): the server-synced movement-speed attribute, Speed effects, and a conservative
+// allowance when effect data is missing or stale. Movement states that legitimately exceed the
+// flat-ground envelope are exempt or tolerated:
+//   * knockback, teleports, riding, liquids, ladders, cobwebs, flight  (shared exemptions)
+//   * ice and slime                                                   (momentum surfaces)
+//   * head-hitter jumping under a two-block ceiling                   (short, fast jumps)
+//   * repeated step-up jumps on stairs, slabs and climbs              (shorter air time)
 
 #include "../check.h"
 
@@ -14,20 +23,29 @@ struct SpeedState : PlayerCheckState {
     Tick lastBurst = -10000;
 };
 
+// Head-hitter sprint-jumping reaches ~0.5 b/tick; step-up jumping ~0.42.
+constexpr int kCeilingGraceTicks = 20;
+constexpr int kStepUpGraceTicks = 20;
+constexpr double kStepUpTolerance = 1.12;
+
 class Speed final : public Check {
 public:
     Speed()
         : Check("speed", "Speed", CheckCategory::Movement, "Movement faster than vanilla allows",
                 "Measures horizontal speed from the server-relayed positions over windows long enough to cancel packet "
                 "bunching, and compares it with the vanilla envelope: about 0.28 blocks per tick sprinting on the "
-                "ground and 0.36 sprint-jumping, scaled by Speed potions. Players are ignored after knockback, "
-                "teleports, on ice or slime, in liquids, on ladders, in cobwebs, while riding and while flying.") {
+                "ground and 0.36 sprint-jumping. Limits scale with the player's movement-speed attribute and Speed "
+                "effects. Players are ignored after knockback and teleports, on ice or slime, in liquids, on ladders, "
+                "in cobwebs, while riding or flying, and while jumping under a low ceiling; stair and slab climbing is "
+                "tolerated.") {
         defAlert_ = 72.f;
         defHalfLife_ = 25.f;
         defMinEvidence_ = 3;
     }
     std::unique_ptr<PlayerCheckState> createState() const override { return std::make_unique<SpeedState>(); }
-    std::vector<std::string> requirements() const override { return {"Server positions", "Potion effects", "Surface blocks"}; }
+    std::vector<std::string> requirements() const override {
+        return {"Server positions", "Movement attribute or potion effects", "Surface blocks"};
+    }
 
 protected:
     void registerSettings() override {
@@ -38,7 +56,7 @@ protected:
 
         airLimit_ = &addFloat("limit", "Sprint-jump limit", 0.40, {0.36, 0.7, 0.005, 3, "b/tick"},
                               "One-second average speed above which movement counts as evidence. Vanilla sprint-jumping "
-                              "averages 0.356 b/tick. Speed potions raise this limit automatically.");
+                              "averages 0.356 b/tick. Movement modifiers raise this limit automatically.");
         preset(*airLimit_, 0.43, 0.40, 0.385);
         groundLimit_ = &addFloat("groundLimit", "Ground limit", 0.31, {0.28, 0.6, 0.005, 3, "b/tick"},
                                  "Average speed while on the ground above which movement counts as evidence. Vanilla "
@@ -56,29 +74,31 @@ public:
         if (ex.movement() || ex.ice || ex.slime) return;
         if (t.size() < 24) return;
         const PlayerFrame& f = t.cur();
-        const double mult = speedMultiplier(f);
         const Tick now = ctx.tick();
+        const double mult = speedMultiplier(f);
+        const bool underCeiling = now - t.lastCeilingTick() <= kCeilingGraceTicks;
+        const bool steppingUp = now - t.lastStepUpTick() <= kStepUpGraceTicks;
+        const double terrain = steppingUp ? kStepUpTolerance : 1.0;
+        const std::string modifier = speedMultiplierSource(f);
 
-        // Sustained (20 ticks).
+        // Sustained (20 ticks). Head-hitter jumping legitimately exceeds the envelope.
         const double avg = t.horizontalSpeed(20);
-        const double limit = airLimit_->value * mult;
-        if (avg > limit && now - st->lastSustained >= 20) {
+        const double limit = airLimit_->value * mult * terrain;
+        if (!underCeiling && avg > limit && now - st->lastSustained >= 20) {
             st->lastSustained = now;
             const float sev = static_cast<float>(std::clamp((avg / limit - 1.0) / 0.25 + 0.3, 0.3, 1.0));
             ctx.emit(t, iSustained_, sev, fmt("Averaged %.2f b/tick for one second", avg),
-                     fmt("%s covered %.1f blocks in one second (%.1f m/s). Vanilla sprint-jumping averages 7.1 m/s%s; "
-                         "the limit in effect was %.2f b/tick.",
-                         t.name().c_str(), avg * 20.0, avg * 20.0,
-                         f.potionsKnown ? (f.potions.speed >= 0 ? fmt(", Speed %d active", f.potions.speed + 1).c_str() : "")
-                                        : " (potion data unavailable; conservative limit)",
-                         limit),
+                     fmt("%s covered %.1f blocks in one second (%.1f m/s). Vanilla sprint-jumping averages 7.1 m/s; with "
+                         "a movement multiplier of %.2fx (%s)%s the limit in effect was %.2f b/tick.",
+                         t.name().c_str(), avg * 20.0, avg * 20.0, mult, modifier.c_str(),
+                         steppingUp ? " and stair tolerance" : "", limit),
                      {{"Average speed", avg, "b/tick", limit, true},
-                      {"Potion multiplier", mult, "x"},
+                      {"Movement multiplier", mult, "x"},
                       {"On ground", f.onGround ? 1.0 : 0.0, ""}});
         }
 
         // Ground (12 ticks continuously on ground, not sneaking).
-        if (t.groundTicks() >= 12 && !f.sneaking) {
+        if (!underCeiling && t.groundTicks() >= 12 && !f.sneaking) {
             const double g = t.horizontalSpeed(12);
             const double glimit = groundLimit_->value * mult;
             if (g > glimit && now - st->lastGround >= 20) {
@@ -86,20 +106,21 @@ public:
                 const float sev = static_cast<float>(std::clamp((g / glimit - 1.0) / 0.25 + 0.35, 0.35, 1.0));
                 ctx.emit(t, iGround_, sev, fmt("%.2f b/tick without leaving the ground", g),
                          fmt("For 12 ticks %s stayed on the ground and moved %.2f blocks per tick. Sprinting on flat "
-                             "ground tops out at 0.28; the limit in effect was %.2f.",
-                             t.name().c_str(), g, glimit),
-                         {{"Ground speed", g, "b/tick", glimit, true}, {"Potion multiplier", mult, "x"}});
+                             "ground tops out at 0.28; with a movement multiplier of %.2fx (%s) the limit in effect was %.2f.",
+                             t.name().c_str(), g, mult, modifier.c_str(), glimit),
+                         {{"Ground speed", g, "b/tick", glimit, true}, {"Movement multiplier", mult, "x"}});
             }
         }
 
         // Burst (4 ticks).
         const double b = t.horizontalSpeed(4);
-        if (b > burstLimit_->value * mult && b < 4.0 && now - st->lastBurst >= 40) {
+        const double blimit = burstLimit_->value * mult;
+        if (b > blimit && b < 4.0 && now - st->lastBurst >= 40) {
             st->lastBurst = now;
-            ctx.emit(t, iBurst_, static_cast<float>(std::clamp(b / (burstLimit_->value * mult * 2.0), 0.3, 1.0)),
+            ctx.emit(t, iBurst_, static_cast<float>(std::clamp(b / (blimit * 2.0), 0.3, 1.0)),
                      fmt("Moved %.2f b/tick for 4 ticks", b),
                      "A short burst beyond any vanilla movement speed that was not large enough to be a teleport.",
-                     {{"Burst speed", b, "b/tick", burstLimit_->value * mult, true}});
+                     {{"Burst speed", b, "b/tick", blimit, true}, {"Movement multiplier", mult, "x"}});
         }
     }
 

@@ -83,6 +83,7 @@ void PlayerTrack::push(const PlayerFrame& f, Tick tick, double /*timeMs*/) {
     if (f.onLadder) lastClimbTick_ = tick;
     if (f.inWeb) lastWebTick_ = tick;
     if (f.riding) lastRideTick_ = tick;
+    if (mc::isSolidish(f.blockAboveHead)) lastCeilingTick_ = tick;
     if (f.blocking && (!prev || !prev->blocking)) blockStartTick_ = tick;
     if (f.usingItem && (!prev || !prev->usingItem)) useStartTick_ = tick;
 
@@ -115,6 +116,7 @@ void PlayerTrack::updateAir(const PlayerFrame& f, const PlayerFrame* prev, Tick 
         if (!positionUpdated_) ++currentAir_.dataGaps;
         if (currentAir_.airTicks == 3) currentAir_.startVelocity = velocity(0, 2).horizontal();
         if (f.potions.jumpBoost > currentAir_.jumpBoost) currentAir_.jumpBoost = f.potions.jumpBoost;
+        if (mc::isSolidish(f.blockAboveHead) && f.pos.y - currentAir_.takeoffY < 0.6) currentAir_.ceilingAtTakeoff = true;
         if (f.onGround) {
             airborne_ = false;
             landed_ = true;
@@ -122,6 +124,7 @@ void PlayerTrack::updateAir(const PlayerFrame& f, const PlayerFrame* prev, Tick 
             currentAir_.landY = f.pos.y;
             // Velocity just before touchdown: ticks [k=1..3].
             currentAir_.endVelocity = velocity(1, 2).horizontal();
+            if (currentAir_.landY > currentAir_.takeoffY + 0.4) lastStepUpTick_ = tick;
             airSegments_.push_back(currentAir_);
             while (airSegments_.size() > 24) airSegments_.pop_front();
             groundTicks_ = 1;

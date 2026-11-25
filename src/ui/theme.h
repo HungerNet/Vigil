@@ -43,11 +43,23 @@ struct Theme {
     Color severity(float confidence) const;   // 0..100
 };
 
-const std::vector<Theme>& themes();
-const std::vector<std::pair<const char*, Color>>& accentChoices();  // index 0 = theme default
+// Parameters of the Custom theme (Settings → Appearance → Theme editor).
+struct CustomTheme {
+    int base = 0;            // built-in theme it starts from
+    float hue = 228.f;       // accent hue, degrees
+    float tint = 0.3f;       // how much the surfaces lean toward the accent hue (0..1)
+    float contrast = 1.f;    // 0.8 softer … 1.4 crisper
+    float radius = 1.f;      // corner radius scale
+    float glow = 0.5f;
+};
 
-// Active theme with user accent applied.
+const std::vector<Theme>& themes();                                  // built-in themes
+const std::vector<std::pair<const char*, Color>>& accentChoices();  // index 0 = theme default
+Theme deriveCustomTheme(const CustomTheme& c);
+Color hsv(float hueDeg, float s, float v);
+
+// Active theme with user accent applied. `index == themes().size()` selects the Custom theme.
 const Theme& theme();
-void setTheme(int index, int accentChoice);
+void setTheme(int index, int accentChoice, const CustomTheme& custom);
 
 }  // namespace vigil::ui

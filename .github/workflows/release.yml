@@ -27,7 +27,7 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
 
-      - name: Detection tests
+      - name: Tests (detection, utilities, identity)
         run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Verify embedded Java shims are reproducible
@@ -52,24 +52,13 @@ jobs:
         if: github.event_name == 'push' && env.RUN == 'true'
         shell: pwsh
         run: |
-          $package = "Vigil-$env:VERSION-win-x64"
-          $stage = Join-Path $env:RUNNER_TEMP $package
-          New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item build/Release/Vigil.dll $stage
-          Copy-Item build/Release/VigilLauncher.exe $stage
-          Copy-Item assets/fonts/LICENSE-Inter.txt $stage
-          @(
-            "Vigil $env:VERSION - cheat detection and player analysis for Lunar Client 1.8.9"
-            ""
-            "1. Start Minecraft 1.8.9 in Lunar Client."
-            "2. Run VigilLauncher.exe (keep it next to Vigil.dll)."
-            "3. Press Right Shift in game, or type /vigil in chat."
-            ""
-            "Vigil stores its settings and session data in the 'vigil' folder next to Vigil.dll."
-            "It makes no network requests."
-          ) | Set-Content -Encoding utf8 "$stage\README.txt"
-          Compress-Archive -Path "$stage\*" -DestinationPath "$package.zip" -Force
-          "PACKAGE_FILE=$package.zip" >> $env:GITHUB_ENV
+          # Users download one file. Vigil.exe carries the runtime and writes it to
+          # %LOCALAPPDATA%\Vigil\runtime on first run.
+          $exe = "build/Release/Vigil.exe"
+          Copy-Item $exe "Vigil.exe"
+          $hash = (Get-FileHash Vigil.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  Vigil.exe" | Set-Content -Encoding ascii "Vigil.exe.sha256"
+          "SHA256=$hash" >> $env:GITHUB_ENV
 
       - name: Publish release
         if: github.event_name == 'push' && env.RUN == 'true'
@@ -78,4 +67,6 @@ jobs:
           tag_name: ${{ env.VERSION }}
           name: Vigil ${{ env.VERSION }}
           body_path: docs/RELEASE_NOTES.md
-          files: ${{ env.PACKAGE_FILE }}
+          files: |
+            Vigil.exe
+            Vigil.exe.sha256

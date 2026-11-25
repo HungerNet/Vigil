@@ -2,6 +2,6 @@
   <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171C29"/><stop offset="1" stop-color="#0C0F15"/></linearGradient></defs>
   <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
   <rect x="8.5" y="8.5" width="239" height="239" rx="55.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.08"/>
-  <path d="M58.25 73.75 L100.25 73.75 Q128 163 155.75 73.75 L197.75 73.75 L128 198.25 Z" fill="#E8ECF3"/>
-  <circle cx="128.00" cy="103.00" r="12.75" fill="#8FA8FF"/>
+  <path d="M61.675 77.885 A3.3 3.3 0 0 1 64.57 73 L93.204 73 L114.502 111.892 A15.39 15.39 0 0 0 141.498 111.892 L162.796 73 L191.43 73 A3.3 3.3 0 0 1 194.325 77.885 L131.947 191.793 A4.5 4.5 0 0 1 124.053 191.793 Z" fill="#E8ECF3"/>
+  <circle cx="128.00" cy="104.50" r="9.60" fill="#8FA8FF"/>
 </svg>

@@ -1,9 +1,15 @@
 #include "theme.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 
 namespace vigil::ui {
 namespace {
+
+void setChart(Theme& t, const std::uint32_t (&c)[6]) {
+    for (int i = 0; i < 6; ++i) t.chart[i] = Color::hex(c[i]);
+}
 
 Theme midnight() {
     Theme t;
@@ -30,15 +36,14 @@ Theme midnight() {
     t.sevNotice = Color::hex(0xE8B35A);
     t.sevAlert = Color::hex(0xF0766A);
     t.sevCritical = Color::hex(0xE5484D);
-    const std::uint32_t chart[6] = {0x8FA8FF, 0x5CC8B2, 0xE8B35A, 0xF0766A, 0xB48CFF, 0x5EB8FF};
-    for (int i = 0; i < 6; ++i) t.chart[i] = Color::hex(chart[i]);
+    setChart(t, {0x8FA8FF, 0x5CC8B2, 0xE8B35A, 0xF0766A, 0xB48CFF, 0x5EB8FF});
     return t;
 }
 
 Theme vesper() {
     Theme t = midnight();
     t.name = "Vesper";
-    t.description = "Warm espresso and candle gold — the vigil light";
+    t.description = "Warm espresso and candle gold \xE2\x80\x94 the vigil light";
     t.backdropTint = Color::hex(0x0C0804, 0.56f);
     t.windowTop = Color::hex(0x1A1612);
     t.windowBottom = Color::hex(0x120F0C);
@@ -57,8 +62,7 @@ Theme vesper() {
     t.textOnAccent = Color::hex(0x1A1208);
     t.accent = Color::hex(0xE2B866);
     t.sevClear = Color::hex(0x8CC7A1);
-    const std::uint32_t chart[6] = {0xE2B866, 0x8CC7A1, 0xD98E5F, 0xE8746A, 0xC9A7E8, 0x86B6D9};
-    for (int i = 0; i < 6; ++i) t.chart[i] = Color::hex(chart[i]);
+    setChart(t, {0xE2B866, 0x8CC7A1, 0xD98E5F, 0xE8746A, 0xC9A7E8, 0x86B6D9});
     t.glow = 0.65f;
     return t;
 }
@@ -66,7 +70,7 @@ Theme vesper() {
 Theme obsidian() {
     Theme t = midnight();
     t.name = "Obsidian";
-    t.description = "True black, hairlines, no shadows — maximum contrast";
+    t.description = "True black, hairlines, no shadows \xE2\x80\x94 maximum contrast";
     t.backdropTint = Color::hex(0x000000, 0.74f);
     t.backdropBlur = 0.6f;
     t.windowTop = Color::hex(0x050505);
@@ -90,15 +94,14 @@ Theme obsidian() {
     t.radiusControl = 7.f;
     t.shadowStrength = 0.f;
     t.glow = 0.3f;
-    const std::uint32_t chart[6] = {0x4ADE9F, 0xF5F5F5, 0xFACC15, 0xFB7185, 0xA78BFA, 0x60A5FA};
-    for (int i = 0; i < 6; ++i) t.chart[i] = Color::hex(chart[i]);
+    setChart(t, {0x4ADE9F, 0xF5F5F5, 0xFACC15, 0xFB7185, 0xA78BFA, 0x60A5FA});
     return t;
 }
 
 Theme glacier() {
     Theme t;
     t.name = "Glacier";
-    t.description = "Cool paper tones and deep iris — a light workspace";
+    t.description = "Cool paper tones and deep iris \xE2\x80\x94 a light workspace";
     t.light = true;
     t.backdropTint = Color::hex(0xE9EDF3, 0.62f);
     t.windowTop = Color::hex(0xFAFBFC);
@@ -121,8 +124,7 @@ Theme glacier() {
     t.sevNotice = Color::hex(0xB7791F);
     t.sevAlert = Color::hex(0xD2513F);
     t.sevCritical = Color::hex(0xC9302C);
-    const std::uint32_t chart[6] = {0x4C5FD7, 0x13917B, 0xB7791F, 0xD2513F, 0x8B5CF6, 0x0EA5E9};
-    for (int i = 0; i < 6; ++i) t.chart[i] = Color::hex(chart[i]);
+    setChart(t, {0x4C5FD7, 0x13917B, 0xB7791F, 0xD2513F, 0x8B5CF6, 0x0EA5E9});
     t.shadowStrength = 0.45f;
     t.glow = 0.2f;
     return t;
@@ -149,17 +151,168 @@ Theme aurora() {
     t.textFaint = Color::hex(0x6B71A0);
     t.textOnAccent = Color::hex(0x051018);
     t.accent = Color::hex(0x5EE0F0);
-    const std::uint32_t chart[6] = {0x5EE0F0, 0xB48CFF, 0xF5C26B, 0xFF7A90, 0x7CF29A, 0x8FA8FF};
-    for (int i = 0; i < 6; ++i) t.chart[i] = Color::hex(chart[i]);
+    setChart(t, {0x5EE0F0, 0xB48CFF, 0xF5C26B, 0xFF7A90, 0x7CF29A, 0x8FA8FF});
     t.glow = 0.9f;
     return t;
 }
 
-int g_theme = 0;
-int g_accent = 0;
+// Deep forest floor with a chartreuse shoot — calm, organic, unmistakably not blue.
+Theme verdant() {
+    Theme t = midnight();
+    t.name = "Verdant";
+    t.description = "Forest floor and a fresh chartreuse signal";
+    t.backdropTint = Color::hex(0x050A07, 0.6f);
+    t.windowTop = Color::hex(0x131B16);
+    t.windowBottom = Color::hex(0x0C120F);
+    t.rail = Color::hex(0x09100C, 0.72f);
+    t.surface = Color::hex(0x16201A);
+    t.surfaceRaised = Color::hex(0x1C2821);
+    t.surfaceHover = Color::hex(0x213026);
+    t.inset = Color::hex(0x0A100D);
+    t.border = Color::hex(0xD6F5E0, 0.07f);
+    t.borderStrong = Color::hex(0xD6F5E0, 0.12f);
+    t.divider = Color::hex(0xD6F5E0, 0.05f);
+    t.highlight = Color::hex(0xD6F5E0, 0.05f);
+    t.text = Color::hex(0xE7F2EA);
+    t.textMuted = Color::hex(0x9DB4A6);
+    t.textFaint = Color::hex(0x5F7568);
+    t.textOnAccent = Color::hex(0x0E1606);
+    t.accent = Color::hex(0xC5E27A);
+    t.sevClear = Color::hex(0x6FD0A5);
+    t.sevNotice = Color::hex(0xE6C15A);
+    setChart(t, {0xC5E27A, 0x6FD0A5, 0xE6C15A, 0xF08A6E, 0xB9A3F0, 0x7FC4E8});
+    t.radiusWindow = 20.f;
+    t.radiusCard = 16.f;
+    t.glow = 0.55f;
+    return t;
+}
+
+// Twilight plum with a peach horizon — soft and warm for long sessions.
+Theme dusk() {
+    Theme t = midnight();
+    t.name = "Dusk";
+    t.description = "Twilight plum with a peach horizon";
+    t.backdropTint = Color::hex(0x0B060C, 0.58f);
+    t.windowTop = Color::hex(0x1F1722);
+    t.windowBottom = Color::hex(0x150F17);
+    t.rail = Color::hex(0x120C13, 0.7f);
+    t.surface = Color::hex(0x221A25);
+    t.surfaceRaised = Color::hex(0x2A202D);
+    t.surfaceHover = Color::hex(0x302533);
+    t.inset = Color::hex(0x110C12);
+    t.border = Color::hex(0xFFD9EA, 0.07f);
+    t.borderStrong = Color::hex(0xFFD9EA, 0.12f);
+    t.divider = Color::hex(0xFFD9EA, 0.05f);
+    t.highlight = Color::hex(0xFFD9EA, 0.06f);
+    t.text = Color::hex(0xF4EAF0);
+    t.textMuted = Color::hex(0xBBA6B5);
+    t.textFaint = Color::hex(0x7F6B7A);
+    t.textOnAccent = Color::hex(0x1E0E08);
+    t.accent = Color::hex(0xFFA27F);
+    t.sevClear = Color::hex(0x8ED1B8);
+    t.sevNotice = Color::hex(0xF2C46B);
+    t.sevAlert = Color::hex(0xFF7C7C);
+    t.sevCritical = Color::hex(0xF04A5E);
+    setChart(t, {0xFFA27F, 0x8ED1B8, 0xF2C46B, 0xFF7C7C, 0xC9A0F2, 0x86B8F0});
+    t.glow = 0.7f;
+    return t;
+}
+
+// Warm editorial paper with an ink-and-vermilion accent; a second, warmer light theme.
+Theme paper() {
+    Theme t;
+    t.name = "Paper";
+    t.description = "Warm editorial paper, ink and vermilion";
+    t.light = true;
+    t.backdropTint = Color::hex(0xEFE9DE, 0.66f);
+    t.backdropBlur = 0.9f;
+    t.windowTop = Color::hex(0xFBF8F2);
+    t.windowBottom = Color::hex(0xF5F0E7);
+    t.rail = Color::hex(0xEFE8DC, 0.9f);
+    t.surface = Color::hex(0xFFFDF8);
+    t.surfaceRaised = Color::hex(0xFFFFFF);
+    t.surfaceHover = Color::hex(0xF3EDE2);
+    t.inset = Color::hex(0xEDE6DA);
+    t.border = Color::hex(0x2B2118, 0.09f);
+    t.borderStrong = Color::hex(0x2B2118, 0.16f);
+    t.divider = Color::hex(0x2B2118, 0.07f);
+    t.highlight = Color::hex(0xFFFFFF, 0.7f);
+    t.text = Color::hex(0x1F1A14);
+    t.textMuted = Color::hex(0x6B5F52);
+    t.textFaint = Color::hex(0x9A8E80);
+    t.textOnAccent = Color::hex(0xFFFFFF);
+    t.accent = Color::hex(0xC4472E);
+    t.sevClear = Color::hex(0x2E8A5E);
+    t.sevNotice = Color::hex(0xAF7A1C);
+    t.sevAlert = Color::hex(0xC4472E);
+    t.sevCritical = Color::hex(0xA2201F);
+    setChart(t, {0xC4472E, 0x2E8A5E, 0xAF7A1C, 0x3F5FA8, 0x8A4FA0, 0x2C8C9C});
+    t.radiusWindow = 14.f;
+    t.radiusCard = 10.f;
+    t.radiusControl = 7.f;
+    t.shadowStrength = 0.35f;
+    t.glow = 0.f;
+    return t;
+}
+
+// High contrast: pure black, white type, signal yellow. Designed for readability first.
+Theme signal() {
+    Theme t = midnight();
+    t.name = "Signal";
+    t.description = "High contrast for clarity and accessibility";
+    t.backdropTint = Color::hex(0x000000, 0.86f);
+    t.backdropBlur = 0.4f;
+    t.windowTop = Color::hex(0x000000);
+    t.windowBottom = Color::hex(0x000000);
+    t.rail = Color::hex(0x000000, 0.f);
+    t.surface = Color::hex(0x0B0B0B);
+    t.surfaceRaised = Color::hex(0x161616);
+    t.surfaceHover = Color::hex(0x222222);
+    t.inset = Color::hex(0x000000);
+    t.border = Color::hex(0xFFFFFF, 0.30f);
+    t.borderStrong = Color::hex(0xFFFFFF, 0.48f);
+    t.divider = Color::hex(0xFFFFFF, 0.22f);
+    t.highlight = Color::hex(0xFFFFFF, 0.f);
+    t.text = Color::hex(0xFFFFFF);
+    t.textMuted = Color::hex(0xD6D6D6);
+    t.textFaint = Color::hex(0xA8A8A8);
+    t.textOnAccent = Color::hex(0x000000);
+    t.accent = Color::hex(0xFFD400);
+    t.sevClear = Color::hex(0x00E676);
+    t.sevNotice = Color::hex(0xFFD400);
+    t.sevAlert = Color::hex(0xFF8A00);
+    t.sevCritical = Color::hex(0xFF2D55);
+    setChart(t, {0xFFD400, 0x00E676, 0x40C4FF, 0xFF8A00, 0xE040FB, 0xFFFFFF});
+    t.radiusWindow = 12.f;
+    t.radiusCard = 8.f;
+    t.radiusControl = 6.f;
+    t.shadowStrength = 0.f;
+    t.glow = 0.f;
+    return t;
+}
+
+int g_theme = -1;
+int g_accent = -1;
+CustomTheme g_custom;
 Theme g_active = midnight();
 
+bool sameCustom(const CustomTheme& a, const CustomTheme& b) { return std::memcmp(&a, &b, sizeof(CustomTheme)) == 0; }
+
 }  // namespace
+
+Color hsv(float h, float s, float v) {
+    h = std::fmod(std::fmod(h, 360.f) + 360.f, 360.f) / 60.f;
+    const int i = static_cast<int>(h);
+    const float f = h - i, p = v * (1 - s), q = v * (1 - s * f), u = v * (1 - s * (1 - f));
+    switch (i) {
+        case 0: return {v, u, p};
+        case 1: return {q, v, p};
+        case 2: return {p, v, u};
+        case 3: return {p, q, v};
+        case 4: return {u, p, v};
+        default: return {v, p, q};
+    }
+}
 
 Color Theme::severity(float c) const {
     c = std::clamp(c, 0.f, 100.f);
@@ -169,7 +322,8 @@ Color Theme::severity(float c) const {
 }
 
 const std::vector<Theme>& themes() {
-    static const std::vector<Theme> all = {midnight(), vesper(), obsidian(), glacier(), aurora()};
+    static const std::vector<Theme> all = {midnight(), vesper(), obsidian(), glacier(), aurora(),
+                                           verdant(), dusk(), paper(), signal()};
     return all;
 }
 
@@ -186,17 +340,55 @@ const std::vector<std::pair<const char*, Color>>& accentChoices() {
     return a;
 }
 
+Theme deriveCustomTheme(const CustomTheme& c) {
+    const auto& all = themes();
+    Theme t = all[static_cast<std::size_t>(std::clamp(c.base, 0, static_cast<int>(all.size()) - 1))];
+    t.name = "Custom";
+    t.description = "Your own variation";
+    const Color hueColor = t.light ? hsv(c.hue, 0.62f, 0.72f) : hsv(c.hue, 0.48f, 1.f);
+    t.accent = hueColor;
+    t.chart[0] = hueColor;
+    t.textOnAccent = t.light ? Color::hex(0xFFFFFF) : hsv(c.hue, 0.6f, 0.08f);
+    // Surfaces lean toward the hue.
+    const float k = std::clamp(c.tint, 0.f, 1.f) * (t.light ? 0.05f : 0.09f);
+    const Color tintTo = t.light ? hsv(c.hue, 0.25f, 1.f) : hsv(c.hue, 0.6f, 0.35f);
+    for (Color* s : {&t.windowTop, &t.windowBottom, &t.surface, &t.surfaceRaised, &t.surfaceHover, &t.inset}) {
+        const float a = s->a;
+        *s = s->mix(tintTo, k);
+        s->a = a;
+    }
+    // Contrast: borders and secondary text move toward or away from the primary text.
+    const float ct = std::clamp(c.contrast, 0.8f, 1.4f);
+    t.border.a = std::clamp(t.border.a * ct, 0.f, 0.6f);
+    t.borderStrong.a = std::clamp(t.borderStrong.a * ct, 0.f, 0.7f);
+    t.divider.a = std::clamp(t.divider.a * ct, 0.f, 0.5f);
+    if (ct > 1.f) {
+        t.textMuted = t.textMuted.mix(t.text, (ct - 1.f) * 0.8f);
+        t.textFaint = t.textFaint.mix(t.textMuted, (ct - 1.f) * 0.8f);
+    } else {
+        t.textFaint = t.textFaint.mix(t.windowBottom, (1.f - ct) * 0.6f);
+    }
+    const float rs = std::clamp(c.radius, 0.5f, 1.5f);
+    t.radiusWindow *= rs;
+    t.radiusCard *= rs;
+    t.radiusControl *= rs;
+    t.glow = std::clamp(c.glow, 0.f, 1.f);
+    return t;
+}
+
 const Theme& theme() { return g_active; }
 
-void setTheme(int index, int accentChoice) {
+void setTheme(int index, int accentChoice, const CustomTheme& custom) {
     const auto& all = themes();
-    index = std::clamp(index, 0, static_cast<int>(all.size()) - 1);
+    index = std::clamp(index, 0, static_cast<int>(all.size()));
     accentChoice = std::clamp(accentChoice, 0, static_cast<int>(accentChoices().size()) - 1);
-    if (index == g_theme && accentChoice == g_accent && g_active.name == all[static_cast<std::size_t>(index)].name) return;
+    const bool isCustom = index == static_cast<int>(all.size());
+    if (index == g_theme && accentChoice == g_accent && (!isCustom || sameCustom(custom, g_custom))) return;
     g_theme = index;
     g_accent = accentChoice;
-    g_active = all[static_cast<std::size_t>(index)];
-    if (accentChoice > 0) {
+    g_custom = custom;
+    g_active = isCustom ? deriveCustomTheme(custom) : all[static_cast<std::size_t>(index)];
+    if (accentChoice > 0 && !isCustom) {
         Color a = accentChoices()[static_cast<std::size_t>(accentChoice)].second;
         if (g_active.light) a = a.darker(0.28f);  // keep contrast on light surfaces
         g_active.accent = a;

@@ -45,9 +45,8 @@ void drawChecks(PageContext& ctx, const Rect& area) {
     auto& st = ctx.state;
     st.selectedCheck = std::clamp(st.selectedCheck, 0, static_cast<int>(checks.size()) - 1);
 
-    pageHeader(ctx, area, "Checks", "Configure what Vigil looks for and how much evidence it needs before it speaks.");
+    const float top = pageHeader(ctx, area, "Checks", pagePurpose(Page::Checks));
 
-    const float top = area.y + 70.f;
     const Rect list{area.x, top, 300.f, area.b() - top};
     const Rect detail{list.r() + 16.f, top, area.r() - list.r() - 16.f, area.b() - top};
 
@@ -112,7 +111,7 @@ void drawChecks(PageContext& ctx, const Rect& area) {
     {
         const Rect hdr{detail.x, dy, w, 0.f};
         const auto aboutLines = ui.fonts.wrap(type::Body, c.about(), w - 44.f);
-        const float hh = 104.f + aboutLines.size() * (ui.fonts.lineHeight(type::Body) + 4.f);
+        const float hh = 104.f + aboutLines.size() * (ui.fonts.lineHeight(type::Body) + 4.f) + (c.requirements().empty() ? 0.f : 30.f);
         const Rect hc{hdr.x, hdr.y, w, hh};
         card(ui, hc);
         const Rect ic{hc.x + 22.f, hc.y + 22.f, 44.f, 44.f};
@@ -136,6 +135,38 @@ void drawChecks(PageContext& ctx, const Rect& area) {
         for (const auto& l : aboutLines) {
             ui.fonts.draw(ui.r, type::Body, hc.x + 22.f, ay, l, t.textMuted);
             ay += ui.fonts.lineHeight(type::Body) + 4.f;
+        }
+        // Signals the check depends on.
+        const auto reqs = c.requirements();
+        if (!reqs.empty()) {
+            float rx = hc.x + 22.f;
+            ui.fonts.draw(ui.r, type::Caption, rx, ay + 6.f, "Uses", t.textFaint);
+            rx += ui.fonts.width(type::Caption, "Uses") + 10.f;
+            for (const auto& r : reqs) {
+                const float cw = chipWidth(ui, r);
+                if (rx + cw > hc.r() - 20.f) break;
+                chip(ui, {rx, ay + 4.f, cw, 19.f}, r, t.textMuted);
+                rx += cw + 6.f;
+            }
+        }
+        // Reset this check to its defaults.
+        bool anyModified = false;
+        for (Setting* s : Settings::instance().withPrefix(c.settingsPrefix())) if (!s->isDefault()) { anyModified = true; break; }
+        if (anyModified) {
+            float& armed = ui.value(hashId("check-reset-armed", c.index()), -100.f);
+            const bool isArmed = ui.time - armed < 3.0;
+            const char* lbl = isArmed ? "Confirm reset" : "Reset check";
+            const Icon ri = Icon::Reset;
+            const float bw = buttonWidth(ui, lbl, true);
+            if (button(ui, hashId("check-reset", c.index()), {hc.r() - bw - 20.f, hc.y + 56.f, bw, 30.f}, lbl,
+                       isArmed ? ButtonKind::Danger : ButtonKind::Ghost, &ri)) {
+                if (isArmed) {
+                    for (Setting* s : Settings::instance().withPrefix(c.settingsPrefix())) s->reset();
+                    armed = -100.f;
+                } else {
+                    armed = static_cast<float>(ui.time);
+                }
+            }
         }
         dy += hh + 14.f;
     }
@@ -268,6 +299,7 @@ void drawChecks(PageContext& ctx, const Rect& area) {
         }
         dy += h + 14.f;
     }
+    scrollToFlash(ui, did, dv, dv.y + doff);
     endScroll(ui, did, dv, dy - (dv.y + doff) + 10.f);
 }
 

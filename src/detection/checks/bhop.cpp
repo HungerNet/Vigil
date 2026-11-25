@@ -102,11 +102,14 @@ public:
             st->chain = 1;
             st->chainStart = seg.takeoffTick;
         }
-        if (st->chain >= 3 && ctx.tick() - st->lastChainEvidence > 40) {
+        // Head-hitter chains (two-block ceilings) and stair climbing are legitimately faster.
+        const bool ceilingChain = seg.ceilingAtTakeoff || ctx.tick() - t.lastCeilingTick() <= 20;
+        const double terrain = ctx.tick() - t.lastStepUpTick() <= 20 ? 1.12 : 1.0;
+        if (st->chain >= 3 && !ceilingChain && ctx.tick() - st->lastChainEvidence > 40) {
             const int window = static_cast<int>(std::min<Tick>(ctx.tick() - st->chainStart, t.size() - 1));
             if (window >= 20) {
                 const double avg = t.horizontalSpeed(window);
-                const double limit = hopLimit_->value * mult;
+                const double limit = hopLimit_->value * mult * terrain;
                 if (avg > limit) {
                     st->lastChainEvidence = ctx.tick();
                     const float sev = static_cast<float>(std::clamp((avg / limit - 1.0) / 0.25 + 0.3, 0.3, 1.0));

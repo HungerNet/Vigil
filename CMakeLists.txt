@@ -1,25 +1,50 @@
 cmake_minimum_required(VERSION 3.20)
-project(Vigil VERSION 2.0.0 LANGUAGES CXX RC)
 
-option(VIGIL_BUILD_DLL "Build Vigil.dll (requires JNI headers from a JDK)" ON)
-option(VIGIL_BUILD_LAUNCHER "Build VigilLauncher.exe" ON)
+# ── Version: version.yaml is the single source ("1.0-dev.7" → 1.0.7) ─────────────────────────
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.yaml" VIGIL_VERSION_YAML)
+string(REGEX MATCH "version:[ ]*'?([^'\r\n]+)'?" _ "${VIGIL_VERSION_YAML}")
+set(VIGIL_VERSION_STRING "${CMAKE_MATCH_1}")
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)" _ "${VIGIL_VERSION_STRING}")
+set(VIGIL_VERSION_MAJOR "${CMAKE_MATCH_1}")
+set(VIGIL_VERSION_MINOR "${CMAKE_MATCH_2}")
+string(REGEX MATCH "([0-9]+)$" _ "${VIGIL_VERSION_STRING}")
+set(VIGIL_VERSION_PATCH "${CMAKE_MATCH_1}")
+if(NOT VIGIL_VERSION_MAJOR)
+    set(VIGIL_VERSION_MAJOR 0)
+    set(VIGIL_VERSION_MINOR 0)
+endif()
+if(NOT VIGIL_VERSION_PATCH)
+    set(VIGIL_VERSION_PATCH 0)
+endif()
+
+project(Vigil VERSION ${VIGIL_VERSION_MAJOR}.${VIGIL_VERSION_MINOR}.${VIGIL_VERSION_PATCH} LANGUAGES CXX RC)
+
+option(VIGIL_BUILD_DLL "Build Vigil.dll and Vigil.exe (requires JNI headers from a JDK)" ON)
 option(VIGIL_BUILD_PREVIEW "Build the standalone UI preview harness" ON)
-option(VIGIL_BUILD_TESTS "Build the detection test suite" ON)
+option(VIGIL_BUILD_TESTS "Build the test suites" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 if(MSVC)
-    add_compile_options(/W4 /permissive- /utf-8 /MP /wd4100 /wd4505)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/W4> $<$<COMPILE_LANGUAGE:CXX>:/permissive->
+                        $<$<COMPILE_LANGUAGE:CXX>:/utf-8> $<$<COMPILE_LANGUAGE:CXX>:/MP>
+                        $<$<COMPILE_LANGUAGE:CXX>:/wd4100> $<$<COMPILE_LANGUAGE:CXX>:/wd4505>)
     add_compile_definitions(NOMINMAX _CRT_SECURE_NO_WARNINGS)
 endif()
 
-# ── Core + detection framework (no JNI, no OpenGL) ───────────────────────────────────────────
+set(VIGIL_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+configure_file(src/core/version.h.in "${VIGIL_GENERATED_DIR}/core/version.h" @ONLY)
+include_directories("${VIGIL_GENERATED_DIR}")
+
+# ── Core: settings, logging, paths, detection, utilities logic, identity tools ────────────────
 add_library(vigil_core STATIC
     src/core/json.cpp
     src/core/log.cpp
+    src/core/paths.cpp
     src/core/settings.cpp
+    src/net/http.cpp
     src/detection/check.cpp
     src/detection/combat.cpp
     src/detection/confidence.cpp
@@ -36,33 +61,42 @@ add_library(vigil_core STATIC
     src/detection/checks/scaffold.cpp
     src/detection/checks/speed.cpp
     src/detection/checks/velocity.cpp
+    src/identity/identity.cpp
+    src/utilities/utilities.cpp
 )
-target_include_directories(vigil_core PUBLIC src)
+target_include_directories(vigil_core PUBLIC src "${VIGIL_GENERATED_DIR}")
+target_link_libraries(vigil_core PUBLIC winhttp shell32 ole32)
 
 # ── User interface (OpenGL fixed function + GDI typography) ──────────────────────────────────
 add_library(vigil_ui STATIC
     src/ui/app.cpp
     src/ui/font.cpp
     src/ui/gfx.cpp
+    src/ui/hud.cpp
     src/ui/icons.cpp
+    src/ui/onboarding.cpp
     src/ui/page_checks.cpp
     src/ui/page_common.cpp
     src/ui/page_evidence.cpp
     src/ui/page_overview.cpp
     src/ui/page_players.cpp
     src/ui/page_settings.cpp
+    src/ui/page_status.cpp
+    src/ui/page_utilities.cpp
+    src/ui/search.cpp
     src/ui/theme.cpp
     src/ui/widgets.cpp
 )
 target_link_libraries(vigil_ui PUBLIC vigil_core opengl32 gdi32 user32)
 
-# ── Vigil.dll ────────────────────────────────────────────────────────────────────────────────
+# ── Vigil.dll (runtime injected into the game) and Vigil.exe (the only file users run) ───────
 if(VIGIL_BUILD_DLL)
     find_package(JNI REQUIRED)
     add_library(Vigil SHARED
         src/platform/dllmain.cpp
         src/platform/hooks.cpp
         src/game/alerts.cpp
+        src/game/chat.cpp
         src/game/class_finder.cpp
         src/game/context.cpp
         src/game/jvm.cpp
@@ -70,16 +104,28 @@ if(VIGIL_BUILD_DLL)
         src/game/minecraft_util.cpp
         src/game/runtime.cpp
         src/game/sampler.cpp
+        src/game/utilities_runtime.cpp
         src/game/world_render.cpp
         assets/vigil.rc
     )
     target_include_directories(Vigil PRIVATE ${JNI_INCLUDE_DIRS})
-    target_link_libraries(Vigil PRIVATE vigil_ui shell32)
-endif()
+    target_link_libraries(Vigil PRIVATE vigil_ui)
 
-# ── VigilLauncher.exe ────────────────────────────────────────────────────────────────────────
-if(VIGIL_BUILD_LAUNCHER)
-    add_executable(VigilLauncher WIN32 src/platform/launcher.cpp assets/launcher.rc)
+    # Vigil.exe embeds Vigil.dll as a plain (uncompressed, unencrypted) resource and writes it to
+    # a fixed, versioned path at run time. The embedding script is generated so it can name the
+    # DLL's build location for any generator/configuration.
+    set(VIGIL_EMBED_RC "${VIGIL_GENERATED_DIR}/launcher_embed_$<CONFIG>.rc")
+    file(GENERATE OUTPUT "${VIGIL_EMBED_RC}"
+         CONTENT "// Generated: Vigil.dll as resource 301 (VIGIL_RES_EMBEDDED_DLL in src/ui/resources.h).\n301 RCDATA \"$<TARGET_FILE:Vigil>\"\n")
+    add_executable(VigilApp WIN32 src/platform/launcher.cpp assets/launcher.rc "${VIGIL_EMBED_RC}")
+    set_target_properties(VigilApp PROPERTIES OUTPUT_NAME Vigil)
+    target_link_libraries(VigilApp PRIVATE vigil_ui dwmapi)
+    target_include_directories(VigilApp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    add_dependencies(VigilApp Vigil)
+    set_source_files_properties("${VIGIL_EMBED_RC}" PROPERTIES GENERATED TRUE OBJECT_DEPENDS "$<TARGET_FILE:Vigil>")
+    if(MSVC)
+        target_link_options(VigilApp PRIVATE /MANIFEST:NO)
+    endif()
 endif()
 
 # ── Preview harness ──────────────────────────────────────────────────────────────────────────
@@ -94,4 +140,7 @@ if(VIGIL_BUILD_TESTS)
     add_executable(detection_tests tests/detection_tests.cpp)
     target_link_libraries(detection_tests PRIVATE vigil_core)
     add_test(NAME detection COMMAND detection_tests)
+    add_executable(feature_tests tests/feature_tests.cpp)
+    target_link_libraries(feature_tests PRIVATE vigil_core)
+    add_test(NAME features COMMAND feature_tests)
 endif()

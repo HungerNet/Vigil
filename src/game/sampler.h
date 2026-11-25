@@ -14,11 +14,15 @@ namespace vigil::game {
 struct SignalStatus {
     bool serverPositions = false;
     bool headRotation = false;
+    bool moveAttribute = false;   // generic.movementSpeed (+ sprint modifier)
     bool potions = false;
+    bool potionParticles = false;
     bool blocks = false;
     bool heldItem = false;
     bool swing = false;
     bool hurt = false;
+    bool profiles = false;        // GameProfile textures (identity tools)
+    bool skins = false;           // skin textures (player faces)
 };
 
 class Sampler {
@@ -28,15 +32,23 @@ public:
     void reset(JNIEnv* env);
     const SignalStatus& signals() const { return signals_; }
     bool resolved() const { return resolved_; }
+    // GL texture holding the player's skin (Minecraft's own texture), keyed like PlayerRecord.
+    bool faceTexture(const std::string& playerKey, unsigned int& texture) const;
+    // Entity ids of players that appeared since the last call (Party Queue Detector).
+    std::vector<int> takeSpawns() { std::vector<int> s; s.swap(spawns_); return s; }
 
 private:
     struct Identity {
         std::string uuid;
         std::string name;
         bool teammate = false;
+        bool texturesRead = false;
+        unsigned int skinTexture = 0;
         detection::Tick refreshedAt = -100000;
         detection::Tick teamAt = -100000;
+        detection::Tick skinAt = -100000;
     };
+    void readProfileExtras(JNIEnv* env, jobject mc, jobject entity, jobject profile, Identity& id, bool isLocal);
 
     bool resolve(JNIEnv* env, jobject mc);
     void readPlayer(JNIEnv* env, jobject mc, jobject world, jobject entity, bool isLocal, detection::PlayerFrame& f);
@@ -52,6 +64,9 @@ private:
     std::string localTeam_;
     detection::Tick localTeamAt_ = -100000;
     std::unordered_map<int, Identity> identities_;
+    std::unordered_map<std::string, unsigned int> faces_;
+    std::unordered_map<int, bool> seenIds_;
+    std::vector<int> spawns_;
 
     // Classes (global refs)
     jclass clsEntity_ = nullptr, clsLiving_ = nullptr, clsPlayer_ = nullptr, clsOther_ = nullptr;
@@ -78,6 +93,17 @@ private:
     jmethodID mBlockPosCtor_ = nullptr, mGetBlockState_ = nullptr, mStateBlock_ = nullptr, mBlockId_ = nullptr;
     // Profile
     jmethodID mProfileId_ = nullptr, mProfileName_ = nullptr, mUuidToString_ = nullptr;
+    jmethodID mProfileProps_ = nullptr, mPropMapGet_ = nullptr, mPropValue_ = nullptr;
+    jobject texturesKey_ = nullptr;       // global "textures" string
+    // Movement attribute.
+    jobject moveSpeedAttr_ = nullptr;     // SharedMonsterAttributes.movementSpeed (global ref)
+    jobject sprintUuid_ = nullptr;        // vanilla sprint modifier UUID (global ref)
+    jmethodID mGetAttribute_ = nullptr, mAttrValue_ = nullptr, mAttrModifier_ = nullptr;
+    // Potion particles (DataWatcher index 7).
+    jmethodID mDataWatcher_ = nullptr, mWatchInt_ = nullptr;
+    // Skins.
+    jclass clsAbstractClient_ = nullptr;
+    jmethodID mLocationSkin_ = nullptr, mTextureManager_ = nullptr, mGetTexture_ = nullptr, mGlTextureId_ = nullptr;
 };
 
 }  // namespace vigil::game

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 100" role="img" aria-label="Vigil">
-  <path d="M10.94 16.82 L34.46 16.82 Q50 66.8 65.54 16.82 L89.06 16.82 L50 86.54 Z" fill="#E8ECF3"/>
-  <circle cx="50.00" cy="33.20" r="7.14" fill="#8FA8FF"/>
+  <path d="M12.858 19.136 A1.848 1.848 0 0 1 14.479 16.4 L30.514 16.4 L42.441 38.179 A8.618 8.618 0 0 0 57.559 38.179 L69.486 16.4 L85.521 16.4 A1.848 1.848 0 0 1 87.142 19.136 L52.21 82.924 A2.52 2.52 0 0 1 47.79 82.924 Z" fill="#E8ECF3"/>
+  <circle cx="50.00" cy="34.04" r="5.38" fill="#8FA8FF"/>
   <text x="118" y="67" fill="#E8ECF3" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="600" font-size="46" letter-spacing="14">VIGIL</text>
 </svg>

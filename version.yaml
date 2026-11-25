@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.6'
+version: '1.0-dev.7'
 description: |
   Dev 1:
   - Initial release
@@ -14,3 +14,8 @@ description: |
   - Removed Frenchify-native overlay features
   Dev 5-6:
   - Fix GUI bug
+  Dev 7:
+  - Polish & maturity pass: single Vigil.exe, in-game activation, Status page,
+    merged player profiles, global search, redesigned detection notifications,
+    onboarding, keybinds, Utilities (Auto Who, Fast Buy, party detectors),
+    denickers, new themes and theme editor, refined logo, movement-check fixes

@@ -1,5 +1,7 @@
 # Implementation summary
 
+> This summary describes the 2.0 transformation. The polish & maturity pass that followed (single `Vigil.exe`, Status, search, merged profiles, utilities, denickers, themes) is reported in [`POLISH_REPORT.md`](POLISH_REPORT.md).
+
 ## What changed
 
 | Area | Result |

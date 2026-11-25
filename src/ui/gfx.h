@@ -88,6 +88,10 @@ public:
     void areaUnder(const std::vector<Point>& pts, float baseline, Color top, Color bottom);
     void diamond(float cx, float cy, float radius, Color c);
 
+    // RGBA texture region drawn into `r` (dp). Texture parameters are never modified, so
+    // textures owned by the host (e.g. Minecraft skins) are drawn exactly as configured.
+    void image(unsigned int texture, const Rect& r, float u0, float v0, float u1, float v1, Color tint = {1, 1, 1, 1});
+
     // Textured quad in dp with a GL_ALPHA texture (used by fonts).
     void beginGlyphs(unsigned int texture, Color c);
     void glyph(float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1);
@@ -129,6 +133,8 @@ void bindFramebuffer(unsigned int target, unsigned int fbo);
 void activeTexture(unsigned int unit);
 void bindBuffer(unsigned int target, unsigned int buf);
 bool hasFramebuffers();
+// RGBA8 texture with nearest filtering (pixel art such as generated player faces).
+unsigned int createTextureRGBA(int w, int h, const unsigned char* pixels);
 // Preview harness helpers.
 unsigned int createFramebuffer(int w, int h, unsigned int& colorTex);
 void deleteFramebuffer(unsigned int fbo, unsigned int colorTex);

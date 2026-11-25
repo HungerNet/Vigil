@@ -13,4 +13,8 @@ bool installPresentHook();
 void ensurePresentHook();
 void removePresentHook();
 
+// Health (Status page).
+int presentHookSlots();
+bool windowHookActive();
+
 }  // namespace vigil::platform

@@ -1,5 +1,7 @@
 #include "widgets.h"
 
+#include "motion.h"
+
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -36,6 +38,7 @@ void Ui::beginFrame(double nowSeconds) {
     hot = 0;
     overlays.clear();
     tip_.requested = false;
+    flashY = -1.f;
 }
 
 void Ui::endFrame() {
@@ -43,9 +46,7 @@ void Ui::endFrame() {
     for (auto& fn : overlays) fn();
     drawingOverlay = false;
     drawTooltip();
-    if (in.released[0] || !in.down[0]) {
-        if (!in.down[0]) active = 0;
-    }
+    if (!in.down[0]) active = 0;
     for (int i = 0; i < 3; ++i) { in.pressed[i] = false; in.released[i] = false; }
     in.wheel = 0.f;
     in.chars.clear();
@@ -53,6 +54,7 @@ void Ui::endFrame() {
 }
 
 bool Ui::hover(const Rect& rc) const {
+    if (modal) return false;
     const float mx = in.mx - r.offsetX(), my = in.my - r.offsetY();
     if (!rc.contains(mx, my)) return false;
     const Rect clip = r.clip();
@@ -71,10 +73,11 @@ bool Ui::pressable(Id id, const Rect& rc, bool* hovered, bool* held) {
     return clicked;
 }
 
-bool Ui::consumeKey(int vk, bool* ctrl) {
+bool Ui::consumeKey(int vk, bool* ctrl, bool* shift) {
     for (auto it = in.keys.begin(); it != in.keys.end(); ++it) {
         if (it->down && it->vk == vk) {
             if (ctrl) *ctrl = it->ctrl;
+            if (shift) *shift = it->shift;
             in.keys.erase(it);
             return true;
         }
@@ -114,8 +117,10 @@ void Ui::tooltip(Id id, const Rect& anchor, std::string text) {
 }
 
 void Ui::drawTooltip() {
-    const bool show = tip_.requested && time - tip_.since > 0.35;
-    tip_.alpha = approach(tip_.alpha, show ? 1.f : 0.f, show ? 16.f : 22.f, dt);
+    const bool show = tip_.requested && time - tip_.since > motion::kTooltipDelay;
+    // Tooltips arrive deliberately and leave immediately.
+    const float rate = show ? 3.f / motion::kTooltipIn : 3.f / motion::kTooltipOut;
+    tip_.alpha = approach(tip_.alpha, show ? 1.f : 0.f, rate, dt);
     if (!tip_.requested && tip_.alpha < 0.02f) { tip_.id = 0; return; }
     if (tip_.alpha < 0.01f) return;
     const Theme& t = th();
@@ -128,9 +133,10 @@ void Ui::drawTooltip() {
     const float h = lines.size() * lh + 17.f;
     float x = tip_.anchor.cx() - w * 0.5f;
     float y = tip_.anchor.b() + 8.f;
-    if (y + h > r.height() - 8.f) y = tip_.anchor.y - h - 8.f;
+    bool above = false;
+    if (y + h > r.height() - 8.f) { y = tip_.anchor.y - h - 8.f; above = true; }
     x = std::clamp(x, 8.f, std::max(8.f, r.width() - w - 8.f));
-    const float rise = (1.f - tip_.alpha) * 4.f * motionLevel();
+    const float rise = (1.f - tip_.alpha) * motion::travel(4.f) * (above ? -1.f : 1.f);
     r.pushClip({0, 0, r.width(), r.height()});
     r.pushAlpha(tip_.alpha);
     const Rect box{x, y + rise, w, h};
@@ -161,7 +167,7 @@ std::string formatSettingValue(const Setting& s, double v) {
     else out = formatNumber(v, s.range.decimals);
     if (s.range.unit && s.range.unit[0]) {
         const std::string u = s.range.unit;
-        if (u == "%" || u == "°" || u == "x") out += u;
+        if (u == "%" || u == "\xC2\xB0" || u == "x") out += u;
         else out += " " + u;
     }
     return out;
@@ -200,6 +206,12 @@ std::string keyName(int vk) {
         case VK_END: return "End";
         case VK_PRIOR: return "Page Up";
         case VK_NEXT: return "Page Down";
+        case VK_UP: return "Up";
+        case VK_DOWN: return "Down";
+        case VK_LEFT: return "Left";
+        case VK_RIGHT: return "Right";
+        case VK_XBUTTON1: return "Mouse 4";
+        case VK_XBUTTON2: return "Mouse 5";
         case 0: return "None";
         default: break;
     }
@@ -208,6 +220,22 @@ std::string keyName(int vk) {
     char name[64] = {};
     if (scan && GetKeyNameTextA(static_cast<LONG>(scan << 16), name, sizeof(name)) > 0) return name;
     return "Key " + std::to_string(vk);
+}
+
+void copyToClipboard(const std::string& text) {
+    if (!OpenClipboard(nullptr)) return;
+    EmptyClipboard();
+    const int n = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+    if (HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, static_cast<SIZE_T>(n) * sizeof(wchar_t))) {
+        if (auto* p = static_cast<wchar_t*>(GlobalLock(mem))) {
+            MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, p, n);
+            GlobalUnlock(mem);
+            if (!SetClipboardData(CF_UNICODETEXT, mem)) GlobalFree(mem);
+        } else {
+            GlobalFree(mem);
+        }
+    }
+    CloseClipboard();
 }
 
 // ── Drawing helpers ──────────────────────────────────────────────────────────────────────────
@@ -247,17 +275,27 @@ void chip(Ui& ui, const Rect& rc, std::string_view text, Color c, bool filled) {
     ui.fonts.draw(ui.r, type::Caption, rc.cx(), rc.cy() - ui.fonts.lineHeight(type::Caption) * 0.5f, text, tc, Align::Center);
 }
 
+float keycapWidth(Ui& ui, std::string_view text) { return std::max(22.f, ui.fonts.width(type::Caption, text) + 14.f); }
+
+void keycap(Ui& ui, const Rect& rc, std::string_view text) {
+    const Theme& t = ui.th();
+    ui.r.roundRect(rc.offset(0, 1.f), 5.f, t.light ? Color(0, 0, 0, 0.10f) : Color(0, 0, 0, 0.35f));
+    ui.r.roundRect(rc, 5.f, t.light ? Color::hex(0xFFFFFF) : t.surfaceRaised.lighter(0.05f));
+    ui.r.roundRectStroke(rc, 5.f, 1.f, t.borderStrong);
+    ui.fonts.draw(ui.r, type::Caption, rc.cx(), rc.cy() - ui.fonts.lineHeight(type::Caption) * 0.5f, text, t.text, Align::Center);
+}
+
 void statusDot(Ui& ui, float cx, float cy, Color c, bool pulse) {
     if (pulse && motionLevel() > 0.01f) {
-        const float t = static_cast<float>(std::fmod(ui.time, 2.0) / 2.0);
-        ui.r.circle(cx, cy, 3.5f + 7.f * ease::outCubic(t), c.alpha(0.45f * (1.f - t)));
+        const float t = static_cast<float>(std::fmod(ui.time, 2.4) / 2.4);
+        ui.r.circle(cx, cy, 3.5f + 6.f * ease::outCubic(t), c.alpha(0.35f * (1.f - t)));
     }
     ui.r.circle(cx, cy, 3.5f, c);
 }
 
 void confidenceRing(Ui& ui, Id id, float cx, float cy, float radius, float value, float stroke, bool label) {
     const Theme& t = ui.th();
-    const float v = ui.anim(id, value, 7.f);
+    const float v = ui.anim(id, value, motion::kValue);
     ui.r.ring(cx, cy, radius, stroke, t.light ? Color(0, 0, 0, 0.07f) : Color(1, 1, 1, 0.07f));
     if (v > 0.3f) {
         const Color c = t.severity(v);
@@ -300,9 +338,9 @@ bool button(Ui& ui, Id id, const Rect& rc, std::string_view label, ButtonKind ki
     const Theme& t = ui.th();
     bool h = false, held = false;
     const bool clicked = ui.pressable(id, rc, &h, &held);
-    const float hv = ui.anim(mixId(id, 1), h ? 1.f : 0.f, 18.f);
-    const float pr = ui.anim(mixId(id, 2), held ? 1.f : 0.f, 30.f);
-    Rect b = rc.inset(pr * 0.8f);
+    const float hv = ui.anim(mixId(id, 1), h ? 1.f : 0.f, motion::kHover);
+    const float pr = ui.springTo(mixId(id, 2), held ? 1.f : 0.f, motion::kPress.stiffness, motion::kPress.damping);
+    Rect b = rc.inset(pr * 0.9f);
     Color bg, fg, border{0, 0, 0, 0};
     switch (kind) {
         case ButtonKind::Primary:
@@ -341,7 +379,7 @@ bool iconButton(Ui& ui, Id id, const Rect& rc, Icon icon, std::string_view tip, 
     const Theme& t = ui.th();
     bool h = false, held = false;
     const bool clicked = ui.pressable(id, rc, &h, &held);
-    const float hv = ui.anim(mixId(id, 1), h || activeState ? 1.f : 0.f, 18.f);
+    const float hv = ui.anim(mixId(id, 1), h || activeState ? 1.f : 0.f, motion::kHover);
     if (hv > 0.01f) ui.r.roundRect(rc, t.radiusControl, (activeState ? t.accentSoft() : t.surfaceHover).alpha(hv));
     const float sz = std::min(rc.w, rc.h) * 0.55f;
     const Color c = activeState ? t.accent : t.textMuted.mix(t.text, hv);
@@ -354,8 +392,8 @@ bool toggle(Ui& ui, Id id, const Rect& rc, bool on) {
     const Theme& t = ui.th();
     bool h = false, held = false;
     const bool clicked = ui.pressable(id, rc.inset(-4.f), &h, &held);
-    const float k = ui.springTo(mixId(id, 1), on ? 1.f : 0.f, 420.f, 22.f);
-    const float hv = ui.anim(mixId(id, 2), h ? 1.f : 0.f, 18.f);
+    const float k = ui.springTo(mixId(id, 1), on ? 1.f : 0.f, motion::kToggle.stiffness, motion::kToggle.damping);
+    const float hv = ui.anim(mixId(id, 2), h ? 1.f : 0.f, motion::kHover);
     const float kc = std::clamp(k, 0.f, 1.f);
     const Color off = t.light ? Color::hex(0xD5DAE3) : t.inset.lighter(0.06f);
     ui.r.roundRect(rc, rc.h * 0.5f, off.mix(t.accent, kc));
@@ -363,12 +401,12 @@ bool toggle(Ui& ui, Id id, const Rect& rc, bool on) {
     if (hv > 0.01f) ui.r.roundRectStroke(rc.inset(-2.5f), rc.h * 0.5f + 2.5f, 1.5f, t.accent.withAlpha(0.25f * hv));
     const float pad = 3.f;
     const float d = rc.h - pad * 2.f;
-    const float stretch = held ? 3.f : 0.f;
+    const float stretch = ui.springTo(mixId(id, 3), held ? 3.f : 0.f, motion::kPress.stiffness, motion::kPress.damping);
     const float travel = rc.w - pad * 2.f - d - stretch;
     const float kx = rc.x + pad + travel * k;
     const Rect knob{kx, rc.y + pad, d + stretch, d};
     ui.r.shadow(knob, d * 0.5f, 4.f, Color(0, 0, 0, 0.25f), 1.f);
-    ui.r.roundRect(knob, d * 0.5f, t.light ? Color::hex(0xFFFFFF) : Color::hex(0xF4F6FA).mix(t.textOnAccent, 0.f));
+    ui.r.roundRect(knob, d * 0.5f, t.light ? Color::hex(0xFFFFFF) : Color::hex(0xF4F6FA));
     return clicked;
 }
 
@@ -379,12 +417,23 @@ bool slider(Ui& ui, Id id, const Rect& rc, double& value, double mn, double mx, 
     if (h) ui.cursor = Cursor::Hand;
     bool changed = false;
     const double span = std::max(1e-9, mx - mn);
-    if (held) {
-        double f = std::clamp((ui.in.mx - ui.r.offsetX() - rc.x) / rc.w, 0.f, 1.f);
-        double v = mn + f * span;
+    const double unit = step > 0.0 ? step : span / 100.0;
+    auto setValue = [&](double v) {
         if (step > 0.0) v = mn + std::round((v - mn) / step) * step;
         v = std::clamp(v, mn, mx);
         if (std::fabs(v - value) > 1e-12) { value = v; changed = true; }
+    };
+    if (held) {
+        const double f = std::clamp((ui.in.mx - ui.r.offsetX() - rc.x) / rc.w, 0.f, 1.f);
+        setValue(mn + f * span);
+    } else if (h) {
+        // Fine adjustment: mouse wheel or arrow keys while hovering move one step.
+        if (ui.in.wheel != 0.f) {
+            setValue(value + unit * (ui.in.wheel > 0.f ? 1.0 : -1.0));
+            ui.in.wheel = 0.f;
+        }
+        if (ui.consumeKey(VK_RIGHT) || ui.consumeKey(VK_UP)) setValue(value + unit);
+        if (ui.consumeKey(VK_LEFT) || ui.consumeKey(VK_DOWN)) setValue(value - unit);
     }
     const float f = static_cast<float>((value - mn) / span);
     const float fa = ui.anim(mixId(id, 3), f, 30.f);
@@ -397,7 +446,7 @@ bool slider(Ui& ui, Id id, const Rect& rc, double& value, double mn, double mx, 
         const float dx = rc.x + rc.w * std::clamp(df, 0.f, 1.f);
         ui.r.roundRect({dx - 1.f, cy - 6.f, 2.f, 12.f}, 1.f, t.textFaint.alpha(0.7f));
     }
-    const float grow = ui.springTo(mixId(id, 4), held ? 1.f : (h ? 0.55f : 0.f), 360.f, 24.f);
+    const float grow = ui.springTo(mixId(id, 4), held ? 1.f : (h ? 0.55f : 0.f), motion::kGrow.stiffness, motion::kGrow.damping);
     const float kr = 6.5f + 2.f * grow;
     const float kx = rc.x + rc.w * fa;
     if (t.glow > 0.f) ui.r.circle(kx, cy, kr + 5.f * grow, t.accent.withAlpha(0.18f * grow));
@@ -413,7 +462,7 @@ bool segmented(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& op
     ui.r.roundRect(rc, t.radiusControl, t.inset);
     ui.r.roundRectStroke(rc, t.radiusControl, 1.f, t.border);
     const float segW = rc.w / options.size();
-    const float sx = ui.springTo(mixId(id, 1), rc.x + segW * selected, 340.f, 30.f);
+    const float sx = ui.springTo(mixId(id, 1), rc.x + segW * selected, motion::kIndicator.stiffness, motion::kIndicator.damping);
     const Rect pill{sx + 3.f, rc.y + 3.f, segW - 6.f, rc.h - 6.f};
     if (t.shadowStrength > 0.f) ui.r.shadow(pill, t.radiusControl - 2.f, 8.f, Color(0, 0, 0, 0.25f * t.shadowStrength), 2.f);
     ui.r.roundRect(pill, t.radiusControl - 2.f, t.light ? Color::hex(0xFFFFFF) : t.surfaceRaised.lighter(0.05f));
@@ -427,10 +476,39 @@ bool segmented(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& op
             changed = true;
         }
         const bool sel = selected == static_cast<int>(i);
-        const float hv = ui.anim(mixId(id, 200 + i), sel ? 1.f : (h ? 0.5f : 0.f), 16.f);
+        const float hv = ui.anim(mixId(id, 200 + i), sel ? 1.f : (h ? 0.5f : 0.f), motion::kHover);
         ui.fonts.draw(ui.r, type::SmallStrong, seg.cx(), seg.cy() - ui.fonts.lineHeight(type::SmallStrong) * 0.5f, options[i],
                       t.textMuted.mix(t.text, hv), Align::Center, segW - 8.f);
     }
+    return changed;
+}
+
+bool tabs(Ui& ui, Id id, float x, float y, const std::vector<std::string>& labels, int& selected, float* outWidth) {
+    const Theme& t = ui.th();
+    bool changed = false;
+    float cx = x;
+    std::vector<std::pair<float, float>> spans;
+    for (std::size_t i = 0; i < labels.size(); ++i) {
+        const float w = ui.fonts.width(type::BodyStrong, labels[i]);
+        const Rect hit{cx - 8.f, y - 6.f, w + 16.f, 32.f};
+        bool h = false;
+        if (ui.pressable(mixId(id, 300 + i), hit, &h) && selected != static_cast<int>(i)) {
+            selected = static_cast<int>(i);
+            changed = true;
+        }
+        const bool sel = selected == static_cast<int>(i);
+        const float hv = ui.anim(mixId(id, 400 + i), sel ? 1.f : (h ? 0.55f : 0.f), motion::kHover);
+        ui.fonts.draw(ui.r, type::BodyStrong, cx, y, labels[i], t.textMuted.mix(t.text, hv));
+        spans.push_back({cx, w});
+        cx += w + 26.f;
+    }
+    if (!spans.empty()) {
+        const auto& s = spans[static_cast<std::size_t>(std::clamp(selected, 0, static_cast<int>(spans.size()) - 1))];
+        const float ix = ui.springTo(mixId(id, 1), s.first, motion::kIndicator.stiffness, motion::kIndicator.damping);
+        const float iw = ui.springTo(mixId(id, 2), s.second, motion::kIndicator.stiffness, motion::kIndicator.damping);
+        ui.r.roundRect({ix, y + 24.f, iw, 2.5f}, 1.25f, t.accent);
+    }
+    if (outWidth) *outWidth = cx - x;
     return changed;
 }
 
@@ -439,13 +517,12 @@ bool dropdown(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& opt
     bool h = false;
     const bool open = ui.popup == id;
     if (ui.pressable(id, rc, &h)) ui.popup = open ? 0 : id;
-    const float hv = ui.anim(mixId(id, 1), h || open ? 1.f : 0.f, 18.f);
+    const float hv = ui.anim(mixId(id, 1), h || open ? 1.f : 0.f, motion::kHover);
     ui.r.roundRect(rc, t.radiusControl, t.inset.mix(t.surfaceHover, hv * 0.6f));
     ui.r.roundRectStroke(rc, t.radiusControl, 1.f, open ? t.accent.withAlpha(0.6f) : t.borderStrong);
     const std::string cur = (selected >= 0 && selected < static_cast<int>(options.size())) ? options[static_cast<std::size_t>(selected)] : "";
     ui.fonts.draw(ui.r, type::Body, rc.x + 12.f, rc.cy() - ui.fonts.lineHeight(type::Body) * 0.5f, cur, t.text, Align::Left, rc.w - 40.f);
-    const float rot = ui.anim(mixId(id, 2), open ? 1.f : 0.f, 20.f);
-    drawIcon(ui.r, rot > 0.5f ? Icon::ChevronDown : Icon::ChevronRight, rc.r() - 26.f, rc.cy() - 8.f, 16.f, t.textMuted);
+    drawIcon(ui.r, Icon::ChevronDown, rc.r() - 26.f, rc.cy() - 8.f, 16.f, t.textMuted);
 
     bool changed = false;
     // Selections made in last frame's overlay are applied here (overlays run after this call returns).
@@ -455,18 +532,19 @@ bool dropdown(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& opt
         pending = 0.f;
         changed = true;
     }
-    const float openT = ui.anim(mixId(id, 3), ui.popup == id ? 1.f : 0.f, 22.f);
+    const float openT = ui.anim(mixId(id, 3), ui.popup == id ? 1.f : 0.f, 3.f / motion::kPopover);
     if (openT > 0.01f) {
         const float itemH = 32.f;
         Rect pop{rc.x + ui.r.offsetX(), rc.b() + 6.f + ui.r.offsetY(), std::max(rc.w, 180.f), itemH * options.size() + 8.f};
-        if (pop.b() > ui.r.height() - 8.f) pop.y = rc.y + ui.r.offsetY() - pop.h - 6.f;
+        const bool above = pop.b() > ui.r.height() - 8.f;
+        if (above) pop.y = rc.y + ui.r.offsetY() - pop.h - 6.f;
         if (ui.popup == id) ui.popupRect = pop;
         const int current = selected;
-        ui.addOverlay([&ui, id, pop, options, openT, current, itemH]() {
+        ui.addOverlay([&ui, id, pop, options, openT, current, itemH, above]() {
             const Theme& tt = ui.th();
             ui.r.pushClip({0, 0, ui.r.width(), ui.r.height()});
             ui.r.pushAlpha(openT);
-            const Rect p = pop.offset(0, (1.f - openT) * -6.f * motionLevel());
+            const Rect p = pop.offset(0, (1.f - openT) * motion::travel(motion::kPopoverTravel) * (above ? 1.f : -1.f));
             ui.r.shadow(p, 12.f, 24.f, Color(0, 0, 0, tt.light ? 0.14f : 0.45f), 8.f);
             ui.r.roundRect(p, 12.f, tt.surfaceRaised);
             ui.r.roundRectStroke(p, 12.f, 1.f, tt.borderStrong);
@@ -492,17 +570,33 @@ bool dropdown(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& opt
     return changed;
 }
 
-bool textField(Ui& ui, Id id, const Rect& rc, std::string& text, std::string_view placeholder, Icon leading) {
+bool textField(Ui& ui, Id id, const Rect& rc, std::string& text, std::string_view placeholder, Icon leading, bool masked,
+               std::size_t maxLength) {
     const Theme& t = ui.th();
     bool h = false;
     if (ui.pressable(id, rc, &h)) ui.focus = id;
     if (h) ui.cursor = Cursor::IBeam;
-    if (ui.in.pressed[0] && !h && ui.focus == id) ui.focus = 0;
+    if (ui.in.pressed[0] && !h && ui.focus == id && !ui.modal) ui.focus = 0;
     const bool focused = ui.focus == id;
     bool changed = false;
     if (focused) {
         for (unsigned int ch : ui.in.chars) {
-            if (ch >= 32 && ch < 127 && text.size() < 64) { text.push_back(static_cast<char>(ch)); changed = true; }
+            if (ch == 22) {  // Ctrl+V
+                if (OpenClipboard(nullptr)) {
+                    if (HANDLE hd = GetClipboardData(CF_TEXT)) {
+                        if (const char* s = static_cast<const char*>(GlobalLock(hd))) {
+                            for (const char* p = s; *p && text.size() < maxLength; ++p) {
+                                if (*p >= 32 && *p < 127) text.push_back(*p);
+                            }
+                            GlobalUnlock(hd);
+                            changed = true;
+                        }
+                    }
+                    CloseClipboard();
+                }
+                continue;
+            }
+            if (ch >= 32 && ch < 127 && text.size() < maxLength) { text.push_back(static_cast<char>(ch)); changed = true; }
         }
         bool ctrl = false;
         while (ui.consumeKey(VK_BACK, &ctrl)) {
@@ -513,18 +607,23 @@ bool textField(Ui& ui, Id id, const Rect& rc, std::string& text, std::string_vie
         }
         if (ui.consumeKey(VK_ESCAPE) || ui.consumeKey(VK_RETURN)) ui.focus = 0;
     }
-    const float fv = ui.anim(mixId(id, 1), focused ? 1.f : 0.f, 18.f);
+    const float fv = ui.anim(mixId(id, 1), focused ? 1.f : 0.f, motion::kSelect);
     ui.r.roundRect(rc, t.radiusControl, t.inset);
     ui.r.roundRectStroke(rc, t.radiusControl, 1.f, t.borderStrong.mix(t.accent.withAlpha(0.7f), fv));
     if (fv > 0.01f && t.glow > 0.f) ui.r.roundRectStroke(rc.inset(-3.f), t.radiusControl + 3.f, 2.f, t.accent.withAlpha(0.12f * fv));
     drawIcon(ui.r, leading, rc.x + 10.f, rc.cy() - 8.f, 16.f, t.textFaint.mix(t.textMuted, fv));
     const float tx = rc.x + 34.f;
     const float ty = rc.cy() - ui.fonts.lineHeight(type::Body) * 0.5f;
-    if (text.empty()) ui.fonts.draw(ui.r, type::Body, tx, ty, placeholder, t.textFaint);
-    const float w = ui.fonts.draw(ui.r, type::Body, tx, ty, text, t.text);
+    const std::string shown = masked ? std::string(text.size(), '*') : text;
+    if (text.empty()) ui.fonts.draw(ui.r, type::Body, tx, ty, placeholder, t.textFaint, Align::Left, rc.w - 44.f);
+    ui.r.pushClip({tx, rc.y, rc.w - 44.f, rc.h});
+    const float full = ui.fonts.width(type::Body, shown);
+    const float shift = std::max(0.f, full - (rc.w - 50.f));
+    const float w = ui.fonts.draw(ui.r, type::Body, tx - shift, ty, shown, t.text);
     if (focused && std::fmod(ui.time, 1.0) < 0.6) {
-        ui.r.rect({tx + w + 1.f, ty + 1.f, 1.5f, ui.fonts.lineHeight(type::Body) - 2.f}, t.accent);
+        ui.r.rect({tx - shift + w + 1.f, ty + 1.f, 1.5f, ui.fonts.lineHeight(type::Body) - 2.f}, t.accent);
     }
+    ui.r.popClip();
     return changed;
 }
 
@@ -537,58 +636,119 @@ bool keybind(Ui& ui, Id id, const Rect& rc, int& vk) {
     if (capturing) {
         for (const auto& k : ui.in.keys) {
             if (!k.down) continue;
-            if (k.vk != VK_ESCAPE) { vk = k.vk; changed = true; }
+            if (k.vk == VK_ESCAPE) {
+                // cancel
+            } else if (k.vk == VK_BACK || k.vk == VK_DELETE) {
+                if (vk != 0) { vk = 0; changed = true; }
+            } else if (k.vk != VK_SHIFT && k.vk != VK_CONTROL && k.vk != VK_MENU) {
+                vk = k.vk;
+                changed = true;
+            }
             ui.captureKey = 0;
             break;
         }
         ui.in.keys.clear();
+        if (ui.in.pressed[1] || ui.in.pressed[2]) ui.captureKey = 0;
     }
-    const float hv = ui.anim(mixId(id, 1), h || capturing ? 1.f : 0.f, 18.f);
+    const float hv = ui.anim(mixId(id, 1), h || capturing ? 1.f : 0.f, motion::kHover);
+    const float pulse = capturing ? 0.5f + 0.5f * std::sin(static_cast<float>(ui.time) * 5.f) : 0.f;
     ui.r.roundRect(rc, t.radiusControl, capturing ? t.accentSoft() : t.inset.mix(t.surfaceHover, hv * 0.6f));
-    ui.r.roundRectStroke(rc, t.radiusControl, 1.f, capturing ? t.accent : t.borderStrong);
+    ui.r.roundRectStroke(rc, t.radiusControl, 1.f, capturing ? t.accent.alpha(0.6f + 0.4f * pulse) : t.borderStrong);
     const std::string label = capturing ? "Press a key\xE2\x80\xA6" : keyName(vk);
     ui.fonts.draw(ui.r, type::BodyStrong, rc.cx(), rc.cy() - ui.fonts.lineHeight(type::BodyStrong) * 0.5f, label,
-                  capturing ? t.accent : t.text, Align::Center, rc.w - 12.f);
+                  capturing ? t.accent : (vk == 0 ? t.textFaint : t.text), Align::Center, rc.w - 12.f);
     return changed;
 }
 
 void infoIcon(Ui& ui, Id id, float x, float y, std::string text) {
     const Rect rc{x, y, 16.f, 16.f};
     const bool h = ui.hover(rc.inset(-3.f));
-    const float hv = ui.anim(mixId(id, 1), h ? 1.f : 0.f, 18.f);
+    const float hv = ui.anim(mixId(id, 1), h ? 1.f : 0.f, motion::kHover);
     drawIcon(ui.r, Icon::Info, x + 1.f, y + 1.f, 14.f, ui.th().textFaint.mix(ui.th().accent, hv), 1.4f);
     ui.tooltip(id, rc.inset(-3.f), std::move(text));
 }
 
+// ── Key conflicts ────────────────────────────────────────────────────────────────────────────
+
+std::string keyConflict(const Setting& s, Setting** other) {
+    if (other) *other = nullptr;
+    const int vk = s.i();
+    if (s.type != SettingType::Key || vk == 0) return {};
+    for (const auto& sp : Settings::instance().all()) {
+        if (sp.get() == &s || sp->type != SettingType::Key || sp->i() != vk) continue;
+        if (other) *other = sp.get();
+        return "Also bound to " + sp->label + ".";
+    }
+    struct McKey { int vk; const char* action; };
+    static const McKey kMinecraft[] = {
+        {'W', "Walk forward"}, {'A', "Strafe left"}, {'S', "Walk backward"}, {'D', "Strafe right"},
+        {VK_SPACE, "Jump"}, {VK_LSHIFT, "Sneak"}, {VK_LCONTROL, "Sprint"}, {'E', "Inventory"}, {'Q', "Drop item"},
+        {'T', "Chat"}, {VK_OEM_2, "Command"}, {VK_TAB, "Player list"}, {VK_F1, "Hide HUD"}, {VK_F2, "Screenshot"},
+        {VK_F3, "Debug screen"}, {VK_F5, "Perspective"}, {VK_F11, "Fullscreen"}, {VK_ESCAPE, "Game menu"},
+        {'1', "Hotbar 1"}, {'2', "Hotbar 2"}, {'3', "Hotbar 3"}, {'4', "Hotbar 4"}, {'5', "Hotbar 5"},
+        {'6', "Hotbar 6"}, {'7', "Hotbar 7"}, {'8', "Hotbar 8"}, {'9', "Hotbar 9"},
+    };
+    for (const McKey& k : kMinecraft) {
+        if (k.vk == vk) return std::string("Minecraft uses ") + keyName(vk) + " for " + k.action + " by default.";
+    }
+    return {};
+}
+
 // ── Setting rows ─────────────────────────────────────────────────────────────────────────────
+
+float settingRowHeight(const Setting& s) {
+    bool warn = s.warningActive();
+    if (s.type == SettingType::Key && !keyConflict(s).empty()) warn = true;
+    return 54.f + (warn ? 26.f : 0.f);
+}
 
 float settingRow(Ui& ui, Setting& s, float x, float y, float w, const SettingRowOptions& opt) {
     const Theme& t = ui.th();
     const Id id = hashId(s.key);
     const float rowH = 54.f;
-    const bool warn = s.warningActive();
+    Setting* conflictWith = nullptr;
+    const std::string conflict = s.type == SettingType::Key ? keyConflict(s, &conflictWith) : std::string();
+    const bool warn = s.warningActive() || !conflict.empty();
+    const std::string warnText = !conflict.empty() ? conflict : s.warning;
     const float warnH = warn ? 26.f : 0.f;
     const float totalH = rowH + warnH;
     const Rect row{x, y, w, totalH};
     const bool hoverRow = ui.hover(row);
-    const float hv = ui.anim(mixId(id, 9), hoverRow ? 1.f : 0.f, 14.f);
+    const float hv = ui.anim(mixId(id, 9), hoverRow ? 1.f : 0.f, motion::kHover);
     if (hv > 0.01f) ui.r.roundRect(row.inset(-8.f, 0.f), 10.f, t.surfaceHover.alpha(0.55f * hv));
+    // Deep-link flash.
+    if (!ui.flashKey.empty() && ui.flashKey == s.key) {
+        ui.flashY = y;
+        const float age = static_cast<float>(ui.time - ui.flashAt);
+        if (age < 2.4f) {
+            const float k = age < 0.3f ? age / 0.3f : std::clamp(1.f - (age - 1.2f) / 1.2f, 0.f, 1.f);
+            ui.r.roundRect(row.inset(-8.f, 0.f), 10.f, t.accent.withAlpha(0.14f * k));
+            ui.r.roundRectStroke(row.inset(-8.f, 0.f), 10.f, 1.5f, t.accent.withAlpha(0.6f * k));
+        }
+    }
 
     float controlW = 250.f;
     if (s.type == SettingType::Bool) controlW = 40.f;
     else if (s.type == SettingType::Choice) controlW = std::min(300.f, std::max(200.f, s.choices.size() * 78.f));
     else if (s.type == SettingType::Key) controlW = 140.f;
+    else if (s.type == SettingType::Text) controlW = 280.f;
     const float labelW = w - controlW - 64.f;
 
     // Modified marker.
     const bool modified = !s.isDefault();
-    const float mv = ui.anim(mixId(id, 10), modified ? 1.f : 0.f, 16.f);
+    const float mv = ui.anim(mixId(id, 10), modified ? 1.f : 0.f, motion::kReveal);
     if (mv > 0.01f) ui.r.circle(x - 1.f, y + 19.f, 2.6f * mv, t.accent);
 
     const float labelX = x + 10.f;
     const float lw = ui.fonts.draw(ui.r, type::BodyStrong, labelX, y + 11.f, s.label, t.text, Align::Left, labelW - 26.f);
     infoIcon(ui, mixId(id, 11), labelX + lw + 7.f, y + 11.5f, s.tooltip);
-    ui.fonts.draw(ui.r, type::Small, labelX, y + 30.f, s.tooltip, t.textFaint, Align::Left, labelW);
+    const bool capturing = s.type == SettingType::Key && ui.captureKey == mixId(id, 4);
+    if (capturing) {
+        ui.fonts.draw(ui.r, type::Small, labelX, y + 30.f, "Press the new key \xC2\xB7 Esc cancels \xC2\xB7 Backspace clears", t.accent,
+                      Align::Left, labelW);
+    } else {
+        ui.fonts.draw(ui.r, type::Small, labelX, y + 30.f, s.tooltip, t.textFaint, Align::Left, labelW);
+    }
 
     // Control.
     const float cx = x + w - controlW;
@@ -628,8 +788,16 @@ float settingRow(Ui& ui, Setting& s, float x, float y, float w, const SettingRow
             if (keybind(ui, mixId(id, 4), {cx, cy - 15.f, controlW, 30.f}, vk)) { s.set(vk); edited = true; }
             break;
         }
-        case SettingType::Text:
+        case SettingType::Text: {
+            std::string text = s.text;
+            const bool secret = s.key.find("Key") != std::string::npos || s.key.find("key") != std::string::npos;
+            if (textField(ui, mixId(id, 6), {cx, cy - 15.f, controlW, 30.f}, text, "Not set", secret ? Icon::Keyboard : Icon::Search,
+                          secret && ui.focus != mixId(id, 6), 96)) {
+                s.setText(text);
+                edited = true;
+            }
             break;
+        }
     }
 
     // Reset to default (appears when modified).
@@ -639,6 +807,7 @@ float settingRow(Ui& ui, Setting& s, float x, float y, float w, const SettingRow
         std::string def = s.type == SettingType::Bool ? (s.def != 0.0 ? "On" : "Off")
                         : s.type == SettingType::Choice ? (s.def >= 0 && s.def < s.choices.size() ? s.choices[static_cast<std::size_t>(s.def)] : "")
                         : s.type == SettingType::Key ? keyName(static_cast<int>(s.def))
+                        : s.type == SettingType::Text ? (s.textDef.empty() ? "empty" : s.textDef)
                         : formatSettingValue(s, s.def);
         if (iconButton(ui, mixId(id, 5), rr, Icon::Reset, "Reset to default \xC2\xB7 " + def) && modified) {
             s.reset();
@@ -650,8 +819,17 @@ float settingRow(Ui& ui, Setting& s, float x, float y, float w, const SettingRow
     if (warn) {
         const float wy = y + rowH - 4.f;
         drawIcon(ui.r, Icon::Warning, labelX, wy, 14.f, t.sevNotice, 1.5f);
-        ui.fonts.draw(ui.r, type::Small, labelX + 20.f, wy, s.warning, t.light ? t.sevNotice.darker(0.2f) : t.sevNotice,
-                      Align::Left, w - 30.f);
+        const float tw = ui.fonts.draw(ui.r, type::Small, labelX + 20.f, wy, warnText, t.light ? t.sevNotice.darker(0.2f) : t.sevNotice,
+                                       Align::Left, w - 140.f);
+        if (conflictWith) {
+            const std::string lbl = "Clear " + conflictWith->label;
+            const Rect br{labelX + 30.f + tw, wy - 4.f, ui.fonts.width(type::SmallStrong, lbl) + 16.f, 22.f};
+            bool bh = false;
+            if (ui.pressable(mixId(id, 12), br, &bh)) conflictWith->set(0.0);
+            ui.r.roundRect(br, 6.f, t.sevNotice.withAlpha(bh ? 0.22f : 0.12f));
+            ui.fonts.draw(ui.r, type::SmallStrong, br.cx(), br.cy() - ui.fonts.lineHeight(type::SmallStrong) * 0.5f, lbl,
+                          t.light ? t.sevNotice.darker(0.25f) : t.sevNotice, Align::Center);
+        }
     }
     if (edited && opt.onEdited) opt.onEdited(s);
     return totalH;
@@ -674,7 +852,7 @@ float beginScroll(Ui& ui, Id id, const Rect& view) {
     }
     const float maxScroll = std::max(0.f, st.content - st.view);
     st.target = std::clamp(st.target, 0.f, maxScroll);
-    const float pos = st.pos.step(st.target, ui.dt, 300.f, 32.f);
+    const float pos = st.pos.step(st.target, ui.dt, motion::kScroll.stiffness, motion::kScroll.damping);
     ui.r.pushClip(view);
     return -pos;
 }
@@ -685,7 +863,7 @@ void endScroll(Ui& ui, Id id, const Rect& view, float contentHeight) {
     ui.r.popClip();
     if (contentHeight <= view.h + 1.f) return;
     const Theme& t = ui.th();
-    const float vis = ui.anim(mixId(id, 77), ui.hover(view) ? 1.f : 0.35f, 8.f);
+    const float vis = ui.anim(mixId(id, 77), ui.hover(view) ? 1.f : 0.35f, motion::kFade);
     const float ratio = view.h / contentHeight;
     const float barH = std::max(28.f, view.h * ratio);
     const float maxScroll = contentHeight - view.h;
@@ -694,6 +872,13 @@ void endScroll(Ui& ui, Id id, const Rect& view, float contentHeight) {
     ui.r.roundRect(bar, 1.5f, (t.light ? Color(0, 0, 0, 0.25f) : Color(1, 1, 1, 0.22f)).alpha(vis));
 }
 
-void scrollTo(Ui& ui, Id id, float y) { scrollState(ui, id).target = y; }
+void scrollTo(Ui& ui, Id id, float y) { scrollState(ui, id).target = std::max(0.f, y); }
+
+void scrollToFlash(Ui& ui, Id id, const Rect& view, float contentTop) {
+    if (ui.flashY < 0.f || ui.time - ui.flashAt > 0.6) return;
+    const float contentY = ui.flashY - contentTop;
+    ScrollState& st = scrollState(ui, id);
+    if (contentY < st.target || contentY > st.target + view.h - 90.f) st.target = std::max(0.f, contentY - 90.f);
+}
 
 }  // namespace vigil::ui

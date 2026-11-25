@@ -50,9 +50,15 @@ public:
     Rect popupRect;
     bool drawingOverlay = false;
     std::vector<std::function<void()>> overlays;
+    // While a modal overlay (search, onboarding) is open, widgets underneath ignore input.
+    bool modal = false;
+
+    // Deep-link flash: the setting row with this key pulses and reports its position.
+    std::string flashKey;
+    double flashAt = -10.0;
+    float flashY = -1.f;    // screen y of the flashed row in the last frame (−1 = not drawn)
 
     const Theme& th() const { return theme(); }
-    float s(float v) const { return v; }  // layout is in dp already; hook for future density tweaks
 
     void beginFrame(double nowSeconds);
     void endFrame();
@@ -61,7 +67,7 @@ public:
     bool hoverRaw(const Rect& rc) const { return rc.contains(in.mx - r.offsetX(), in.my - r.offsetY()); }
     // Standard press/release behavior. Returns true on click.
     bool pressable(Id id, const Rect& rc, bool* hovered = nullptr, bool* held = nullptr);
-    bool consumeKey(int vk, bool* ctrl = nullptr);
+    bool consumeKey(int vk, bool* ctrl = nullptr, bool* shift = nullptr);
 
     Spring& spring(Id id);
     float& value(Id id, float init = 0.f);
@@ -85,6 +91,8 @@ void divider(Ui& ui, float x0, float x1, float y);
 void sectionHeader(Ui& ui, float x, float y, std::string_view title, std::string_view subtitle = {});
 void chip(Ui& ui, const Rect& rc, std::string_view text, Color c, bool filled = false);
 float chipWidth(Ui& ui, std::string_view text);
+void keycap(Ui& ui, const Rect& rc, std::string_view text);   // keyboard key label
+float keycapWidth(Ui& ui, std::string_view text);
 void statusDot(Ui& ui, float cx, float cy, Color c, bool pulse);
 void confidenceRing(Ui& ui, Id id, float cx, float cy, float radius, float value, float stroke = 4.f, bool label = true);
 void meter(Ui& ui, const Rect& rc, float fraction, Color c);
@@ -94,6 +102,7 @@ std::string formatSettingValue(const Setting& s, double v);
 std::string formatDuration(double seconds);
 std::string formatClock(double seconds);   // m:ss or h:mm:ss
 std::string keyName(int vk);
+void copyToClipboard(const std::string& text);
 
 // ── Controls ─────────────────────────────────────────────────────────────────────────────────
 enum class ButtonKind { Primary, Secondary, Ghost, Danger };
@@ -105,17 +114,23 @@ bool toggle(Ui& ui, Id id, const Rect& rc, bool on);   // returns true when clic
 bool slider(Ui& ui, Id id, const Rect& rc, double& value, double min, double max, double step, double def,
             bool showDefault = true);
 bool segmented(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& options, int& selected);
+// Underlined tab strip; returns true when the selection changed.
+bool tabs(Ui& ui, Id id, float x, float y, const std::vector<std::string>& labels, int& selected, float* outWidth = nullptr);
 bool dropdown(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& options, int& selected);
-bool textField(Ui& ui, Id id, const Rect& rc, std::string& text, std::string_view placeholder, Icon leading = Icon::Search);
+bool textField(Ui& ui, Id id, const Rect& rc, std::string& text, std::string_view placeholder, Icon leading = Icon::Search,
+               bool masked = false, std::size_t maxLength = 64);
 bool keybind(Ui& ui, Id id, const Rect& rc, int& vk);
 void infoIcon(Ui& ui, Id id, float x, float y, std::string text);
 
+// Key-binding conflicts: other Vigil bindings and Minecraft's default controls.
+std::string keyConflict(const Setting& keySetting, Setting** otherVigilBinding = nullptr);
+
 // Complete control row generated from a registered Setting. Returns the row height.
 struct SettingRowOptions {
-    float labelWidth = 0.f;      // 0 = auto
     std::function<void(Setting&)> onEdited;
 };
 float settingRow(Ui& ui, Setting& s, float x, float y, float w, const SettingRowOptions& opt = {});
+float settingRowHeight(const Setting& s);
 
 // ── Scrolling ────────────────────────────────────────────────────────────────────────────────
 struct ScrollState {
@@ -129,5 +144,7 @@ ScrollState& scrollState(Ui& ui, Id id);
 float beginScroll(Ui& ui, Id id, const Rect& view);
 void endScroll(Ui& ui, Id id, const Rect& view, float contentHeight);
 void scrollTo(Ui& ui, Id id, float y);
+// Scrolls `id` so a flashed setting row drawn this frame is visible (call after drawing rows).
+void scrollToFlash(Ui& ui, Id id, const Rect& view, float contentTop);
 
 }  // namespace vigil::ui

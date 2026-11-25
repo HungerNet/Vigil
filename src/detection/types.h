@@ -95,6 +95,7 @@ struct Potions {
     int speed = -1;      // amplifier, -1 = none
     int slowness = -1;
     int jumpBoost = -1;
+    int count = 0;       // effects of any kind in the known list
 };
 
 // One client tick of one player as observed by the local client.
@@ -130,17 +131,54 @@ struct PlayerFrame {
     float health = -1.f;
     Potions potions;
     bool potionsKnown = false; // false when the adapter could not read potion effects
+    // Particles are synced continuously while the effect list only arrives when a player comes
+    // into view; particles with no known effect mean the list is stale.
+    bool potionParticles = false;
+    // Server-synced generic.movementSpeed attribute (vanilla base 0.1), or -1 when unavailable.
+    // It is re-sent whenever it changes and includes potions, abilities and server modifiers.
+    double moveSpeedAttribute = -1.0;
+    bool sprintModifier = false;   // attribute currently includes the vanilla sprint boost
 
     int blockBelow = -1;      // block id under the feet (-1 = unknown)
     int blockAboveHead = -1;  // block id at feet + 2 (ceiling check)
     bool wallNear = false;    // solid block within 0.6 horizontally at body height (sampled when hurt)
 };
 
-// Speed potion multiplier for movement limits. Unknown potion state uses a conservative value
-// that tolerates Speed II so missing data never produces false positives.
+// Movement-speed multiplier applied to every movement limit (Speed, BHop, NoSlow, Scaffold).
+//
+// Sources, combined by taking the largest (a missing or stale source can only loosen a limit):
+//   1. The movement-speed attribute divided by the vanilla base (0.1) with the sprint boost
+//      (×1.3) divided out. Authoritative and always current when the server syncs it.
+//   2. Known Speed potion amplifier: 1 + 0.2 × (amplifier + 1).
+//   3. Conservative 1.45 (tolerates Speed II) when effect data is missing or visibly stale.
+// Slowness never tightens a limit.
+inline double attributeMultiplier(const PlayerFrame& f) {
+    if (f.moveSpeedAttribute <= 0.0) return 0.0;
+    double m = f.moveSpeedAttribute / 0.1;
+    if (f.sprintModifier) m /= 1.3;
+    return m;
+}
 inline double speedMultiplier(const PlayerFrame& f) {
-    if (!f.potionsKnown) return 1.45;
-    return f.potions.speed >= 0 ? 1.0 + 0.2 * (f.potions.speed + 1) : 1.0;
+    double m = 1.0;
+    const double attr = attributeMultiplier(f);
+    if (attr > 0.0) m = std::fmax(m, attr);
+    if (!f.potionsKnown) {
+        if (attr <= 0.0) m = std::fmax(m, 1.45);
+    } else if (f.potions.speed >= 0) {
+        m = std::fmax(m, 1.0 + 0.2 * (f.potions.speed + 1));
+    } else if (f.potionParticles && f.potions.count == 0 && attr <= 0.0) {
+        m = std::fmax(m, 1.45);   // an effect is active but the list is stale
+    }
+    return m;
+}
+inline const char* speedMultiplierSource(const PlayerFrame& f) {
+    const double attr = attributeMultiplier(f);
+    if (attr > 0.0 && (!f.potionsKnown || f.potions.speed < 0 || attr >= 1.0 + 0.2 * (f.potions.speed + 1))) {
+        return attr > 1.001 ? "movement attribute" : "movement attribute (no modifiers)";
+    }
+    if (f.potionsKnown && f.potions.speed >= 0) return "Speed effect";
+    if (!f.potionsKnown || (f.potionParticles && f.potions.count == 0)) return "conservative (effects unknown)";
+    return "no speed modifiers";
 }
 
 struct WorldFrame {

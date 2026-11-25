@@ -121,6 +121,14 @@ void ContextDetector::poll(JNIEnv* env, jobject mc, double nowMs) {
     env->DeleteLocalRef(selfClass);
     env->DeleteLocalRef(self);
 
+    mode_.clear();
+    for (std::size_t pos = 0; pos < lines.size();) {
+        const std::size_t end = lines.find('\n', pos);
+        const std::string line = Trim(lines.substr(pos, end == std::string::npos ? std::string::npos : end - pos));
+        if (line.rfind("mode:", 0) == 0) { mode_ = Trim(line.substr(5)); break; }
+        if (end == std::string::npos) break;
+        pos = end + 1;
+    }
     const GameContext before = context_;
     if (title.empty() && lines.empty()) {
         context_ = GameContext::Unknown;

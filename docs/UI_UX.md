@@ -1,5 +1,7 @@
 # UI / UX
 
+> **Update (1.0-dev.7):** the navigation was regrouped (Monitor · Investigate · Configure + Status), Evidence and Players merged into one profile, and the motion system was centralised in `src/ui/motion.h`. See [`PLAN.md`](../PLAN.md) §3–5 and [`POLISH_REPORT.md`](POLISH_REPORT.md) §4–5.
+
 ![Overview](images/overview.png)
 
 ## Architecture

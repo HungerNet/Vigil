@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Vigil brand assets from the single source of truth for the mark's geometry.
 
-The geometry mirrors src/ui/icons.cpp (logoOutline / logoDotCenter / logoDotRadius), so the
+The construction mirrors src/ui/icons.cpp (logoOutline / logoDotCenter / logoDotRadius), so the
 in-app mark, the SVGs and the application icon are identical.
 
 Outputs (assets/brand/):
@@ -30,34 +30,88 @@ BG_TOP = (0x17, 0x1C, 0x29)
 BG_BOTTOM = (0x0C, 0x0F, 0x15)
 
 # ── Geometry (unit square) ───────────────────────────────────────────────────────────────────
-TOP_Y = 0.105
-LEFT_OUTER, LEFT_INNER = 0.035, 0.315
-RIGHT_INNER, RIGHT_OUTER = 0.685, 0.965
-BOTTOM = (0.5, 0.935)
-CONTROL = (0.5, 0.70)
-DOT = (0.5, 0.30)
-DOT_R = 0.085
+A = (0.04, 0.10)          # outer top-left
+B = (0.96, 0.10)          # outer top-right
+APEX = (0.5, 0.94)
+ARM = 0.20                # arm width, perpendicular to the outer edge
+DOT = (0.5, 0.31)         # point of light; also the centre of the lid arc
+DOT_R = 0.064
+FILLET = 0.022            # outer top corners
+APEX_FILLET = 0.03
+
+
+def _sub(a, b): return (a[0] - b[0], a[1] - b[1])
+def _add(a, b): return (a[0] + b[0], a[1] + b[1])
+def _mul(a, s): return (a[0] * s, a[1] * s)
+def _dot(a, b): return a[0] * b[0] + a[1] * b[1]
+def _norm(a):
+    l = math.hypot(*a)
+    return (a[0] / l, a[1] / l)
+
+
+def construction():
+    """Mirrors logoOutline() in src/ui/icons.cpp."""
+    dl = _norm(_sub(APEX, A))
+    inward = (dl[1], -dl[0])
+    o = _add(A, _mul(inward, ARM))
+    inner_l = _add(o, _mul(dl, (A[1] - o[1]) / dl[1]))
+    inner_r = (1.0 - inner_l[0], inner_l[1])
+    along = _dot(_sub(DOT, inner_l), dl)
+    tan_l = _add(inner_l, _mul(dl, along))
+    tan_r = (1.0 - tan_l[0], tan_l[1])
+    lid_r = math.hypot(*_sub(DOT, tan_l))
+    return inner_l, inner_r, tan_l, tan_r, lid_r
+
+
+def fillet(a, c, b, radius):
+    """Circular fillet at corner c between neighbours a and b: (start, end, centre)."""
+    u, v = _norm(_sub(a, c)), _norm(_sub(b, c))
+    half = math.acos(max(-1.0, min(1.0, _dot(u, v)))) * 0.5
+    d = radius / math.tan(half)
+    p0, p1 = _add(c, _mul(u, d)), _add(c, _mul(v, d))
+    centre = _add(c, _mul(_norm(_add(u, v)), radius / math.sin(half)))
+    return p0, p1, centre
+
+
+def _arc_points(centre, r, a0, a1, seg):
+    da = a1 - a0
+    while da > math.pi: da -= 2 * math.pi
+    while da < -math.pi: da += 2 * math.pi
+    return [(centre[0] + r * math.cos(a0 + da * i / seg), centre[1] + r * math.sin(a0 + da * i / seg)) for i in range(seg + 1)]
 
 
 def outline(segments: int = 48) -> list[tuple[float, float]]:
-    pts = [(LEFT_OUTER, TOP_Y), (LEFT_INNER, TOP_Y)]
-    p0, p2 = (LEFT_INNER, TOP_Y), (RIGHT_INNER, TOP_Y)
-    for i in range(1, segments):
-        t = i / segments
-        u = 1 - t
-        pts.append((u * u * p0[0] + 2 * u * t * CONTROL[0] + t * t * p2[0],
-                    u * u * p0[1] + 2 * u * t * CONTROL[1] + t * t * p2[1]))
-    pts += [(RIGHT_INNER, TOP_Y), (RIGHT_OUTER, TOP_Y), BOTTOM]
+    inner_l, inner_r, tan_l, tan_r, lid_r = construction()
+    pts = []
+    def add_fillet(a, c, b, r):
+        p0, p1, ce = fillet(a, c, b, r)
+        pts.extend(_arc_points(ce, r, math.atan2(p0[1] - ce[1], p0[0] - ce[0]), math.atan2(p1[1] - ce[1], p1[0] - ce[0]), 8))
+    add_fillet(APEX, A, inner_l, FILLET)
+    pts.append(inner_l)
+    a_l = math.atan2(tan_l[1] - DOT[1], tan_l[0] - DOT[0])
+    a_r = math.pi - a_l
+    for i in range(segments + 1):
+        t = a_l + (a_r - a_l) * i / segments
+        pts.append((DOT[0] + lid_r * math.cos(t), DOT[1] + lid_r * math.sin(t)))
+    pts.append(inner_r)
+    add_fillet(inner_r, B, APEX, FILLET)
+    add_fillet(B, APEX, A, APEX_FILLET)
     return pts
 
 
 def svg_path(scale: float = 100.0, ox: float = 0.0, oy: float = 0.0) -> str:
-    f = lambda v: f"{v:.2f}".rstrip("0").rstrip(".")
-    return (f"M{f(ox + LEFT_OUTER * scale)} {f(oy + TOP_Y * scale)} "
-            f"L{f(ox + LEFT_INNER * scale)} {f(oy + TOP_Y * scale)} "
-            f"Q{f(ox + CONTROL[0] * scale)} {f(oy + CONTROL[1] * scale)} {f(ox + RIGHT_INNER * scale)} {f(oy + TOP_Y * scale)} "
-            f"L{f(ox + RIGHT_OUTER * scale)} {f(oy + TOP_Y * scale)} "
-            f"L{f(ox + BOTTOM[0] * scale)} {f(oy + BOTTOM[1] * scale)} Z")
+    """The same construction as SVG path commands with true arcs."""
+    f = lambda v: f"{v:.3f}".rstrip("0").rstrip(".")
+    P = lambda p: f"{f(ox + p[0] * scale)} {f(oy + p[1] * scale)}"
+    R = lambda r: f(r * scale)
+    inner_l, inner_r, tan_l, tan_r, lid_r = construction()
+    a0, a1, _ = fillet(APEX, A, inner_l, FILLET)
+    b0, b1, _ = fillet(inner_r, B, APEX, FILLET)
+    p0, p1, _ = fillet(B, APEX, A, APEX_FILLET)
+    # The polygon runs clockwise on screen: convex fillets sweep clockwise (1); the lid is concave (0).
+    return (f"M{P(a0)} A{R(FILLET)} {R(FILLET)} 0 0 1 {P(a1)} L{P(inner_l)} L{P(tan_l)} "
+            f"A{R(lid_r)} {R(lid_r)} 0 0 0 {P(tan_r)} L{P(inner_r)} L{P(b0)} A{R(FILLET)} {R(FILLET)} 0 0 1 {P(b1)} "
+            f"L{P(p0)} A{R(APEX_FILLET)} {R(APEX_FILLET)} 0 0 1 {P(p1)} Z")
 
 
 def hexc(c: tuple[int, int, int]) -> str:
