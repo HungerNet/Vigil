@@ -32,6 +32,10 @@ the measured values, the limits they were compared against and the reasoning tha
 3. Press **Right Shift** or type `/vigil` in chat. `/vigil <player>` opens that player's
    evidence; `/vigil reset` starts a new session.
 
+The launcher confirms when Windows loads `Vigil.dll`; runtime startup continues in the game
+process. If the menu does not appear, check `vigil/logs/vigil.log` and `runtime.log` next to the
+DLL.
+
 Detections arrive as an on-screen notification and a chat line. Hover the chat line to read the
 evidence; clicking it runs `/wdr` (configurable).
 

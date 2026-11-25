@@ -277,13 +277,16 @@ std::string chatInputText(JNIEnv* env, jobject chatScreen) {
     if (!env || !chatScreen) return {};
     jclass chat = McFindClass(env, "net/minecraft/client/gui/GuiChat");
     if (!chat) return {};
-    jfieldID fid = env->GetFieldID(chat, "inputField", "Lnet/minecraft/client/gui/GuiTextField;");
+    static const char* kFieldSigs[] = {"Lnet/minecraft/client/gui/GuiTextField;", "Lavw;"};
+    jfieldID fid = JniResolveFieldIDFlex(env, chat, "inputField", "a", kFieldSigs, 2);
     std::string out;
     if (fid && !jniFailed(env)) {
         jobject field = env->GetObjectField(chatScreen, fid);
         if (field && !jniFailed(env)) {
             jclass tf = env->GetObjectClass(field);
-            jmethodID getText = env->GetMethodID(tf, "getText", "()Ljava/lang/String;");
+            static const char* kTextNames[] = {"getText", "b"};
+            static const char* kTextSigs[] = {"()Ljava/lang/String;", "()Ljava/lang/String;"};
+            jmethodID getText = JniResolveInstanceMethodAny(env, tf, kTextNames, kTextSigs, 2);
             if (getText && !jniFailed(env)) {
                 jstring js = static_cast<jstring>(env->CallObjectMethod(field, getText));
                 if (js && !jniFailed(env)) out = jstringToUtf8(env, js);

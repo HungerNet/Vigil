@@ -116,19 +116,46 @@ DWORD WINAPI mainThread(LPVOID module) {
 
     JNIEnv* env = attachJvm();
     if (!env) {
+        vigil::log::write("vigil", "startup failed: could not attach to the JVM");
         MessageBoxA(nullptr, "Vigil could not attach to the game's Java runtime.", "Vigil", MB_ICONERROR | MB_TOPMOST);
-        return 0;
+        FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
     }
 
-    jclass mcClass = McFindClass(env, "net/minecraft/client/Minecraft");
+    jclass mcClass = nullptr;
+    for (int attempt = 0; attempt < 225 && !mcClass; ++attempt) {
+        mcClass = McFindClass(env, "net/minecraft/client/Minecraft");
+        if (!mcClass) {
+            if (attempt == 0 || (attempt + 1) % 25 == 0) {
+                vigil::log::writef("vigil", "waiting for Minecraft class (attempt %d/225)", attempt + 1);
+            }
+            Sleep(200);
+        }
+    }
     if (!mcClass) {
-        vigil::log::write("vigil", "Minecraft class not found; Vigil is idle");
+        vigil::log::write("vigil", "startup failed: Minecraft class was not found after retries");
         g_jvm->DetachCurrentThread();
-        return 0;
+        MessageBoxA(nullptr, "Vigil could not find Minecraft after waiting for startup.\nSee vigil\\logs\\runtime.log.",
+                    "Vigil", MB_ICONERROR | MB_TOPMOST);
+        FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
     }
     g_mcClassGlobal = static_cast<jclass>(env->NewGlobalRef(mcClass));
+    if (!g_mcClassGlobal || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        env->DeleteLocalRef(mcClass);
+        vigil::log::write("vigil", "startup failed: could not retain the Minecraft class");
+        g_jvm->DetachCurrentThread();
+        FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
+    }
     g_midGetMinecraftStatic = env->GetStaticMethodID(g_mcClassGlobal, "getMinecraft", "()Lnet/minecraft/client/Minecraft;");
-    if (env->ExceptionCheck()) { env->ExceptionClear(); g_midGetMinecraftStatic = nullptr; }
+    if (env->ExceptionCheck() || !g_midGetMinecraftStatic) {
+        env->ExceptionClear();
+        env->DeleteLocalRef(mcClass);
+        vigil::log::write("vigil", "startup failed: Minecraft#getMinecraft was not found");
+        env->DeleteGlobalRef(g_mcClassGlobal);
+        g_mcClassGlobal = nullptr;
+        g_jvm->DetachCurrentThread();
+        FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
+    }
     {
         jclass classClass = env->GetObjectClass(mcClass);
         jmethodID getLoader = env->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
@@ -144,14 +171,29 @@ DWORD WINAPI mainThread(LPVOID module) {
     env->DeleteLocalRef(mcClass);
 
     HWND hwnd = nullptr;
-    for (int i = 0; i < 100 && !(hwnd = vigil::platform::findGameWindow()); ++i) Sleep(100);
+    for (int i = 0; i < 450 && !(hwnd = vigil::platform::findGameWindow()); ++i) {
+        if (i == 0 || (i + 1) % 50 == 0) {
+            vigil::log::writef("vigil", "waiting for game window (attempt %d/450)", i + 1);
+        }
+        Sleep(100);
+    }
+    if (!hwnd) {
+        vigil::log::write("vigil", "startup failed: game window was not found after retries");
+        g_jvm->DetachCurrentThread();
+        MessageBoxA(nullptr, "Vigil could not find the game window after waiting for startup.\nSee vigil\\logs\\runtime.log.",
+                    "Vigil", MB_ICONERROR | MB_TOPMOST);
+        FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
+    }
     vigil::game::Runtime::instance().initialize(g_dllDir, hwnd);
-    vigil::platform::installWindowHook(hwnd);
+    if (!vigil::platform::installWindowHook(hwnd)) {
+        vigil::log::write("runtime", "window procedure hook not installed yet; will retry");
+    }
     vigil::platform::installPresentHook();
-    vigil::log::write("vigil", "Vigil ready");
+    vigil::log::write("vigil", "runtime initialized");
 
     for (;;) {
         vigil::platform::ensureWindowHook();
+        vigil::platform::ensurePresentHook();
         schedulePump(env);
         Sleep(50);
     }

@@ -12,6 +12,7 @@
 #include <windowsx.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <filesystem>
 
@@ -238,15 +239,20 @@ void Runtime::handleMenu(JNIEnv* env, jobject mc) {
 
     if (requestOpen_.exchange(false) && !menuOnScreen_) {
         jobject blank = newBlankScreen(env);
-        if (blank && displayScreen(env, mc, blank)) {
+        if (!blank) {
+            log::write("runtime", "menu open failed: could not create the host screen");
+        } else if (displayScreen(env, mc, blank)) {
             if (menuScreen_) env->DeleteGlobalRef(menuScreen_);
             menuScreen_ = env->NewGlobalRef(blank);
             menuOnScreen_ = true;
             app.open();
+            log::write("runtime", "menu opened");
             if (!focusRequest_.empty()) {
                 app.focusPlayer(focusRequest_);
                 focusRequest_.clear();
             }
+        } else {
+            log::write("runtime", "menu open failed: host rejected the screen");
         }
         if (blank) env->DeleteLocalRef(blank);
     }
@@ -315,12 +321,17 @@ void Runtime::onRenderEntities(JNIEnv* env, jobject mc, jclass /*mcClass*/) {
 void Runtime::onSwapBuffers(HDC hdc) {
     if (!initialized_ || !hdc) return;
     HWND wnd = WindowFromDC(hdc);
-    if (hwnd_ && wnd && wnd != hwnd_) return;
-    if (!hwnd_) hwnd_ = wnd;
+    HWND renderWindow = wnd ? wnd : hwnd_;
+    if (!renderWindow) return;
+    if (!hwnd_) hwnd_ = renderWindow;
     RECT rc{};
-    if (!GetClientRect(hwnd_, &rc)) return;
+    if (!GetClientRect(renderWindow, &rc)) return;
     const int w = rc.right - rc.left, h = rc.bottom - rc.top;
     if (w <= 0 || h <= 0) return;
+    static std::atomic<bool> loggedFirstPresent{false};
+    if (!loggedFirstPresent.exchange(true)) {
+        log::writef("runtime", "UI render path active (window=%p, size=%dx%d)", renderWindow, w, h);
+    }
     ui::App::instance().render(w, h, nowMs(), alertToast_->b());
     menuVisible_ = ui::App::instance().isOpen();
 }
@@ -351,29 +362,46 @@ bool Runtime::onWindowMessage(HWND, UINT msg, WPARAM wParam, LPARAM lParam, LRES
                 app.onKey(vk, true, (GetKeyState(VK_CONTROL) & 0x8000) != 0, (GetKeyState(VK_SHIFT) & 0x8000) != 0);
                 return true;
             }
-            if (!screenOpen_.load() && menuKey_ && vk == menuKey_->i()) {
-                requestOpen_ = true;
-                return true;
-            }
-            if (vk == VK_RETURN && chatOpen_.load()) {
-                // The window procedure runs on Minecraft's thread (inside its message pump), so the
-                // chat field can be read directly; the pump's snapshot is only a fallback.
-                std::string text;
+            if (menuKey_ && vk == menuKey_->i()) {
+                bool screenOpen = screenOpen_.load();
                 if (JNIEnv* env = currentEnv()) {
                     if (jobject mc = minecraft(env)) {
                         if (jobject screen = currentScreen(env, mc)) {
-                            if (isChatScreen(env, screen)) text = chatInputText(env, screen);
+                            screenOpen = true;
                             env->DeleteLocalRef(screen);
+                        } else {
+                            screenOpen = false;
                         }
                         env->DeleteLocalRef(mc);
                     }
                     jniFailed(env);
                 }
+                if (!screenOpen) {
+                    requestOpen_ = true;
+                    log::write("runtime", "menu key received");
+                    return true;
+                }
+            }
+            if (vk == VK_RETURN) {
+                std::string text;
+                bool chat = chatOpen_.load();
+                if (JNIEnv* env = currentEnv()) {
+                    if (jobject mc = minecraft(env)) {
+                        jobject screen = currentScreen(env, mc);
+                        chat = screen && isChatScreen(env, screen);
+                        if (chat) text = chatInputText(env, screen);
+                        if (screen) env->DeleteLocalRef(screen);
+                        env->DeleteLocalRef(mc);
+                    }
+                    jniFailed(env);
+                }
+                if (!chat) return false;
                 std::lock_guard<std::mutex> lk(inputMu_);
                 if (text.empty()) text = chatInput_;
                 const std::string lower = LowerAscii(Trim(text));
                 if (lower == "/vigil" || lower.rfind("/vigil ", 0) == 0) {
                     pendingCommand_ = Trim(text);
+                    log::write("runtime", "received /vigil command from chat");
                     return true;
                 }
             }

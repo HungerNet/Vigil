@@ -10,6 +10,7 @@ bool installWindowHook(HWND hwnd);
 void removeWindowHook();
 void ensureWindowHook();
 bool installPresentHook();
+void ensurePresentHook();
 void removePresentHook();
 
 }  // namespace vigil::platform

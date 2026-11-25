@@ -123,5 +123,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     CloseHandle(proc);
     if (wait != WAIT_OBJECT_0) return fail("Starting Vigil timed out after 20 seconds.");
     if (exitCode == 0) return fail("The game refused to load Vigil.dll.\nMake sure you downloaded the 64-bit release.");
+    MessageBoxA(nullptr,
+                "Vigil.dll was loaded. Startup continues in the game process.\n"
+                "If the menu does not appear, check vigil\\logs\\vigil.log and runtime.log next to the DLL.",
+                kTitle, MB_ICONINFORMATION | MB_TOPMOST);
     return 0;
 }

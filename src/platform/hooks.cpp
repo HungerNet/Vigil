@@ -10,7 +10,10 @@
 
 #include <tlhelp32.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cstring>
+#include <string>
 #include <vector>
 
 namespace vigil::platform {
@@ -92,11 +95,21 @@ HWND findGameWindow() {
         if (pid != c->pid || !IsWindowVisible(hwnd)) return TRUE;
         char cls[64] = {};
         GetClassNameA(hwnd, cls, sizeof(cls));
+        if (std::strcmp(cls, "LWJGL") != 0 && std::strncmp(cls, "GLFW", 4) != 0) return TRUE;
         int score = 0;
-        if (std::strcmp(cls, "LWJGL") == 0 || std::strncmp(cls, "GLFW", 4) == 0) score += 100;
+        score += 100;
+        char title[256] = {};
+        GetWindowTextA(hwnd, title, sizeof(title));
+        std::string lowerTitle = title;
+        std::transform(lowerTitle.begin(), lowerTitle.end(), lowerTitle.begin(),
+                       [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        if (lowerTitle.find("lunar") != std::string::npos) score += 1000;
+        if (lowerTitle.find("minecraft") != std::string::npos) score += 500;
+        if (lowerTitle.find("1.8.9") != std::string::npos) score += 200;
         RECT rc{};
         GetClientRect(hwnd, &rc);
-        score += (rc.right - rc.left) * (rc.bottom - rc.top) > 0 ? 10 : 0;
+        const long long area = static_cast<long long>(rc.right - rc.left) * (rc.bottom - rc.top);
+        if (area > 0) score += 10 + static_cast<int>(std::min<long long>(area / 100000, 50));
         if (score > c->score) { c->score = score; c->best = hwnd; }
         return TRUE;
     }, reinterpret_cast<LPARAM>(&ctx));
@@ -106,19 +119,59 @@ HWND findGameWindow() {
 bool installWindowHook(HWND hwnd) {
     if (!hwnd) return false;
     g_hwnd = hwnd;
+    char cls[64] = {};
+    char title[256] = {};
+    GetClassNameA(hwnd, cls, sizeof(cls));
+    GetWindowTextA(hwnd, title, sizeof(title));
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    log::writef("runtime", "window hook target: hwnd=%p pid=%lu class=%s title=%s",
+                static_cast<void*>(hwnd), pid, cls, title);
+    SetLastError(0);
     auto prev = reinterpret_cast<WNDPROC>(SetWindowLongPtrA(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&hookedWndProc)));
+    const DWORD error = GetLastError();
+    if (!prev && error != 0) {
+        log::writef("runtime", "window procedure hook failed: error %lu", error);
+        return false;
+    }
     if (prev && prev != &hookedWndProc) g_origWndProc = prev;
-    return g_origWndProc != nullptr;
+    return prev == &hookedWndProc || g_origWndProc != nullptr;
 }
 
 void ensureWindowHook() {
-    // Some clients reinstall their window procedure (fullscreen toggles); re-subclass if so.
+    static ULONGLONG lastWindowSearch = 0;
+    const ULONGLONG now = GetTickCount64();
+    if (!g_hwnd || now - lastWindowSearch >= 1000) {
+        lastWindowSearch = now;
+        if (HWND current = findGameWindow(); current && current != g_hwnd) {
+            g_hwnd = current;
+            g_origWndProc = nullptr;
+            char cls[64] = {};
+            char title[256] = {};
+            GetClassNameA(current, cls, sizeof(cls));
+            GetWindowTextA(current, title, sizeof(title));
+            log::writef("runtime", "game window selected: hwnd=%p class=%s title=%s",
+                        static_cast<void*>(current), cls, title);
+        }
+    }
     if (!g_hwnd) return;
     auto cur = reinterpret_cast<WNDPROC>(GetWindowLongPtrA(g_hwnd, GWLP_WNDPROC));
     if (cur != &hookedWndProc) {
-        g_origWndProc = cur;
-        SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&hookedWndProc));
-        log::write("runtime", "window procedure re-hooked");
+        SetLastError(0);
+        auto prev = reinterpret_cast<WNDPROC>(
+            SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&hookedWndProc)));
+        const DWORD error = GetLastError();
+        if (!prev && error != 0) {
+            static ULONGLONG lastFailureLog = 0;
+            if (now - lastFailureLog >= 2000) {
+                log::writef("runtime", "window procedure re-hook failed: error %lu", error);
+                lastFailureLog = now;
+            }
+            return;
+        }
+        if (prev && prev != &hookedWndProc) g_origWndProc = prev;
+        else if (!g_origWndProc) g_origWndProc = cur;
+        log::write("runtime", "window procedure hooked");
     }
 }
 
@@ -137,8 +190,23 @@ bool installPresentHook() {
     if (!g_origSwap) {
         if (HMODULE gdi = GetModuleHandleA("gdi32.dll")) g_origSwap = reinterpret_cast<SwapBuffersFn>(GetProcAddress(gdi, "SwapBuffers"));
     }
-    log::writef("runtime", "present hook: %d import slots patched", static_cast<int>(g_swapSlots.size()));
-    return !g_swapSlots.empty();
+    const bool installed = !g_swapSlots.empty();
+    static bool reportedUnavailable = false;
+    if (installed) {
+        log::writef("runtime", "present hook: %d import slots patched", static_cast<int>(g_swapSlots.size()));
+        reportedUnavailable = false;
+    } else if (!reportedUnavailable) {
+        log::write("runtime", "present hook: no SwapBuffers import slots found; will retry");
+        reportedUnavailable = true;
+    }
+    return installed;
+}
+
+void ensurePresentHook() {
+    static ULONGLONG lastTry = 0;
+    if (!g_swapSlots.empty() || GetTickCount64() - lastTry < 2000) return;
+    lastTry = GetTickCount64();
+    installPresentHook();
 }
 
 void removePresentHook() {
