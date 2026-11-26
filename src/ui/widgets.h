@@ -58,6 +58,21 @@ public:
     double flashAt = -10.0;
     float flashY = -1.f;    // screen y of the flashed row in the last frame (−1 = not drawn)
 
+    // ── Keyboard focus (PLAN.md §8) ──────────────────────────────────────────────────────────
+    // Every pressable control registers itself in drawing (reading) order. Tab / Shift+Tab move
+    // `kbFocus` through that order; Enter or Space activate the focused control; arrows adjust
+    // sliders, segmented controls, tabs and dropdowns. The focus ring is drawn after keyboard
+    // use (or always, by setting) and hidden again by a mouse click.
+    Id kbFocus = 0;
+    bool focusVisible = false;
+    bool focusRingAlways = false;
+    Id keyActivated = 0;      // control activated with Enter/Space this frame
+    // Numeric entry: the value box being edited (sliders' typed values), its text, and when an
+    // invalid entry last shook it.
+    Id editingNumber = 0;
+    std::string editText;
+    double editShakeAt = -10.0;
+
     const Theme& th() const { return theme(); }
 
     void beginFrame(double nowSeconds);
@@ -65,9 +80,20 @@ public:
 
     bool hover(const Rect& rc) const;
     bool hoverRaw(const Rect& rc) const { return rc.contains(in.mx - r.offsetX(), in.my - r.offsetY()); }
-    // Standard press/release behavior. Returns true on click.
+    // Standard press/release behavior. Returns true on click, or on Enter/Space while focused.
     bool pressable(Id id, const Rect& rc, bool* hovered = nullptr, bool* held = nullptr);
     bool consumeKey(int vk, bool* ctrl = nullptr, bool* shift = nullptr);
+    // Keyboard focus helpers.
+    bool focused(Id id) const { return kbFocus == id; }
+    bool keyboardFocused(Id id) const { return kbFocus == id && (focusVisible || focusRingAlways); }
+    void setKeyboardFocus(Id id) { kbFocus = id; focusVisible = true; scrollFocusIntoView_ = true; }
+    // Moves focus to the next (+1) or previous (−1) control drawn this frame. Returns false when
+    // nothing is focusable.
+    bool moveFocus(int direction);
+    std::size_t focusableCount() const { return focusables_.size(); }
+    // Scroll regions report themselves so a newly focused control can be scrolled into view.
+    void pushScrollRegion(Id id) { scrollStack_.push_back(id); }
+    void popScrollRegion() { if (!scrollStack_.empty()) scrollStack_.pop_back(); }
 
     Spring& spring(Id id);
     // Layout moved under every spring (interface scale or window size changed): springs jump to
@@ -83,10 +109,27 @@ public:
 
 private:
     struct Tip { Id id = 0; std::string text; Rect anchor; double since = 0; float alpha = 0.f; bool requested = false; };
+    struct Focusable { Id id; Rect rc; };   // rc in screen space
+    void drawFocusRing();
     Tip tip_;
     std::unordered_map<Id, Spring> springs_;
     std::unordered_map<Id, float> values_;
+    std::vector<Focusable> focusables_;
+    std::vector<Id> scrollStack_;
+    Rect focusRect_;
+    bool focusDrawn_ = false;
+    int focusMissingFrames_ = 0;
+    bool scrollFocusIntoView_ = false;
+    float ringAlpha_ = 0.f;
 };
+
+// ── Pure helpers (unit-tested in tests/ui_logic_tests.cpp) ────────────────────────────────────
+// Parses a typed number ("1.25", "1,25", "0.40 b/tick", "75%", "1.2x"), then clamps it to
+// [min, max] and snaps it to `step` (0 = continuous). False when the text holds no number.
+bool parseNumberInput(std::string_view text, double min, double max, double step, double& out);
+// Index of the control that receives focus when moving `direction` from `current` through
+// `count` controls (wraps; −1 current = start from the edge). −1 when count is 0.
+int nextFocusIndex(int current, int count, int direction);
 
 // ── Drawing helpers ──────────────────────────────────────────────────────────────────────────
 void card(Ui& ui, const Rect& rc, bool raised = false, float radius = -1.f);
@@ -124,6 +167,11 @@ bool textField(Ui& ui, Id id, const Rect& rc, std::string& text, std::string_vie
                bool masked = false, std::size_t maxLength = 64);
 bool keybind(Ui& ui, Id id, const Rect& rc, int& vk);
 void infoIcon(Ui& ui, Id id, float x, float y, std::string text);
+// The value shown next to a slider. Click it (or press Enter on the focused slider `sliderId`)
+// to type a value: Enter commits (clamped, snapped), Esc cancels, an invalid entry shakes.
+// Returns true when `value` changed.
+bool numberBox(Ui& ui, Id id, Id sliderId, const Rect& rc, double& value, double min, double max, double step,
+               const std::string& display, bool modified);
 
 // Key-binding conflicts: other Vigil bindings and Minecraft's default controls.
 std::string keyConflict(const Setting& keySetting, Setting** otherVigilBinding = nullptr);

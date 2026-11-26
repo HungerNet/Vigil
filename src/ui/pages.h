@@ -1,9 +1,10 @@
 #pragma once
 // Vigil UI — page interfaces shared by the shell and the individual screens.
 //
-// Information architecture (PLAN.md §3):
+// Information architecture (PLAN.md §3, §3.4):
 //   MONITOR      Overview
-//   INVESTIGATE  Players (profile tabs: Summary · Evidence · Behavior · Identity)
+//   INVESTIGATE  Players (live: profile tabs Summary · Evidence · Behavior · Identity)
+//                Records (yours, kept across sessions: Confirmed · Watching · Exempt · Saved)
 //   CONFIGURE    Checks · Utilities · Settings
 //   SYSTEM       Status (rail footer)
 
@@ -20,8 +21,8 @@
 
 namespace vigil::ui {
 
-enum class Page { Overview, Players, Checks, Utilities, Settings, Status };
-inline constexpr int kPageCount = 6;
+enum class Page { Overview, Players, Records, Checks, Utilities, Settings, Status };
+inline constexpr int kPageCount = 7;
 enum class ProfileTab { Summary, Evidence, Behavior, Identity };
 
 const char* pageTitle(Page p);
@@ -60,6 +61,15 @@ struct AppState {
     // Confirm flow (profile header popover).
     std::string confirmKey;               // player whose confirm popover is open
     std::set<std::string> confirmReasons; // reasons ticked in the popover
+    std::string moreKey;                  // player whose "More" menu is open
+
+    // Records.
+    int recordsTab = 0;                   // 0 confirmed, 1 watching, 2 exempt, 3 saved
+    std::string recordsSearch;
+    std::string selectedRecord;           // mark key (tabs 0–2) or snapshot id (tab 3)
+    bool addOpen = false;                 // "Add player" popover
+    std::string addQuery;
+    ProfileTab snapshotTab = ProfileTab::Summary;
 
     // Checks.
     int selectedCheck = 0;
@@ -96,6 +106,11 @@ struct PageContext {
     Host* host;
     AppState& state;
     double nowMs;                    // engine clock (ms) for "ago" labels
+    // Session start for clock labels. A saved profile carries its own session (records page).
+    double sessionStartOverride = -1.0;
+    bool snapshot = false;           // drawing a saved profile: read-only, no live actions
+
+    double sessionStart() const { return sessionStartOverride >= 0.0 ? sessionStartOverride : engine.session().startMs(); }
 
     NavEntry current() const {
         return {state.page, state.selectedPlayer, state.profileTab, state.settingsSection, state.selectedCheck};
@@ -106,6 +121,17 @@ struct PageContext {
         if (state.history.size() > 32) state.history.erase(state.history.begin());
         state.navDirection = static_cast<int>(p) >= static_cast<int>(state.page) ? 1 : -1;
         state.page = p;
+    }
+    // Opens a record (mark key or saved-profile id) on the Records page.
+    void openRecord(const std::string& key, int tab) {
+        if (state.page != Page::Records || state.selectedRecord != key) {
+            state.history.push_back(current());
+            if (state.history.size() > 32) state.history.erase(state.history.begin());
+        }
+        state.navDirection = static_cast<int>(Page::Records) >= static_cast<int>(state.page) ? 1 : -1;
+        state.page = Page::Records;
+        state.recordsTab = tab;
+        state.selectedRecord = key;
     }
     void openPlayer(const std::string& key, ProfileTab tab = ProfileTab::Summary) {
         if (state.page != Page::Players || state.selectedPlayer != key) {
@@ -137,13 +163,24 @@ struct PageContext {
 // Pages.
 void drawOverview(PageContext& ctx, const Rect& area);
 void drawPlayers(PageContext& ctx, const Rect& area);
+void drawRecords(PageContext& ctx, const Rect& area);
 void drawChecks(PageContext& ctx, const Rect& area);
 void drawUtilities(PageContext& ctx, const Rect& area);
 void drawSettings(PageContext& ctx, const Rect& area);
 void drawStatus(PageContext& ctx, const Rect& area);
 
-// Profile tabs (page_players.cpp / page_evidence.cpp).
+// Profile tabs (page_players.cpp / page_evidence.cpp). The Records page reuses them for saved
+// profiles (ctx.snapshot): the same investigation surface, read-only.
 void drawEvidenceTab(PageContext& ctx, const detection::PlayerRecord& p, const Rect& area);
+void drawSummaryTab(PageContext& ctx, const detection::PlayerRecord& p, const Rect& area);
+void drawBehaviorTab(PageContext& ctx, const detection::PlayerRecord& p, const Rect& area);
+// "Add player" picker shared by Records: suggestions from this session, or any valid username.
+// Returns true when a player was chosen; `key` is their record key (empty when added by name).
+bool playerPicker(PageContext& ctx, const Rect& anchor, std::string& query, std::string& name, std::string& key);
+// Brief result of a Records action (save, export, import), drawn at the bottom of `rc`.
+void actionBanner(PageContext& ctx, const Rect& rc);
+// Status → Diagnostics: a plain-text report without player names (page_status.cpp).
+std::string buildDiagnosticsReport(const PageContext& ctx);
 
 // Overlays.
 void drawSearch(PageContext& ctx, const Rect& window);          // search.cpp

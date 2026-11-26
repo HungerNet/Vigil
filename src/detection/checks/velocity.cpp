@@ -184,7 +184,7 @@ private:
                      fmt("This hit should push %s about %.2f blocks away; they moved %.2f, with no wall behind them.",
                          t.name().c_str(), expected, std::max(0.0, push)),
                      {{"Push away from attacker", std::max(0.0, push), "blocks", minPush_->value, true},
-                      {"Expected push (vanilla)", expected, "blocks"},
+                      {"Vanilla push", expected, "blocks", 0.0, false, EvidenceValue::Role::Expected},
                       {"Rise after hit", std::max(0.0, maxRise), "blocks"},
                       {"Victim ping", static_cast<double>(std::max(0, p.ping)), "ms"},
                       {"Data quality", quality * 100.0, "%"}},

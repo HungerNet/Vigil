@@ -1,0 +1,183 @@
+# Validate — the checks every change must pass, and the only way a release is built.
+#
+#   Pull requests and pushes to other branches run it directly. Pushes to master/main run it
+#   through release.yml (workflow_call), which publishes only the artifacts it validated.
+#
+#   Required:      lint · metadata · build (warnings as errors, every test suite, golden trace,
+#                  self-check, embedded-runtime hash) · "Validation complete"
+#   Informational: UI smoke renders, Java shim reproducibility
+#
+# See docs/RELEASE_PROCESS.md and docs/VALIDATION.md.
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main, master]
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      version:
+        description: Version from version.yaml
+        value: ${{ jobs.metadata.outputs.version }}
+      run:
+        description: The version.yaml release switch
+        value: ${{ jobs.metadata.outputs.run }}
+      asset:
+        description: Release file name (Vigil-<version>.exe)
+        value: ${{ jobs.metadata.outputs.asset }}
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color
+
+  metadata:
+    name: Version, release notes, docs, golden trace
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      run: ${{ steps.meta.outputs.run }}
+      asset: ${{ steps.meta.outputs.asset }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Version and release notes
+        id: meta
+        run: python tools/ci/validate_repo.py metadata --github-output "$GITHUB_OUTPUT"
+      - name: Documentation links
+        run: python tools/ci/validate_repo.py links
+      - name: Golden trace files
+        run: python tools/ci/validate_repo.py golden
+
+  build:
+    name: Build, test and self-check
+    needs: metadata
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK (JNI headers only)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configure (warnings are errors)
+        run: cmake -S . -B build -A x64 -DVIGIL_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test suites (detection, features, records, validation, ui_logic)
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Golden trace replays to its committed outcome
+        shell: pwsh
+        run: |
+          ./build/Release/VigilReplay.exe tests/traces/golden-arena.vtrace --expect tests/traces/golden-arena.expect.json
+          if ($LASTEXITCODE -ne 0) { throw "The golden trace no longer replays to its expected outcome (docs/VALIDATION.md)." }
+
+      - name: Self-check (exe, embedded runtime, versions, build IDs)
+        shell: pwsh
+        run: |
+          $report = Join-Path $PWD 'selfcheck.json'
+          $p = Start-Process -FilePath ./build/Release/Vigil.exe -ArgumentList '--self-check', "`"$report`"" -Wait -PassThru
+          Get-Content $report
+          if ($p.ExitCode -ne 0) { throw "Vigil.exe --self-check failed (exit $($p.ExitCode))." }
+          $r = Get-Content $report -Raw | ConvertFrom-Json
+          $dll = (Get-FileHash ./build/Release/Vigil.dll -Algorithm SHA256).Hash.ToLower()
+          if ($r.runtimeSha256 -ne $dll) { throw "Vigil.exe embeds a different Vigil.dll than this build produced." }
+          if ($r.exeVersion -ne '${{ needs.metadata.outputs.version }}') { throw "Vigil.exe reports $($r.exeVersion), version.yaml says ${{ needs.metadata.outputs.version }}." }
+          if (-not $r.exeBuild.StartsWith($env:GITHUB_SHA.Substring(0, 10))) { throw "Build ID $($r.exeBuild) is not from commit $env:GITHUB_SHA." }
+
+      - name: Upload validated build
+        uses: actions/upload-artifact@v4
+        with:
+          name: vigil-validated
+          path: |
+            build/Release/Vigil.exe
+            selfcheck.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload preview harness (UI smoke)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vigil-preview
+          path: build/Release/VigilPreview.exe
+          if-no-files-found: error
+          retention-days: 3
+
+  ui-smoke:
+    name: UI smoke renders (informational)
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # Hosted runners have only a software OpenGL 1.1 driver; renders are recorded but cannot block
+    # a release until the job has proven stable (docs/VALIDATION.md §CI).
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vigil-preview
+      - name: Render every page
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          foreach ($page in 'overview','players','records','checks','utilities','settings','status') {
+            $p = Start-Process -FilePath ./VigilPreview.exe -ArgumentList '--shot', "shots/$page.png", '--page', $page, '--size', '1280x800' -Wait -PassThru
+            if ($p.ExitCode -ne 0 -or -not (Test-Path "shots/$page.png")) { throw "Rendering $page failed (exit $($p.ExitCode))." }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-smoke-shots
+          path: shots/
+          retention-days: 7
+
+  java-shims:
+    name: Java shims reproducible (informational)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # javac output can differ across JDK patch releases; a difference is reported, not fatal.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - shell: pwsh
+        run: |
+          python tools/build_java.py --javac "$env:JAVA_HOME\bin\javac.exe"
+          git diff --exit-code -- src/game/bytecode
+
+  complete:
+    name: Validation complete
+    # One status to require in branch protection: every required job succeeded.
+    if: always()
+    needs: [lint, metadata, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Required checks
+        run: |
+          echo "lint=${{ needs.lint.result }} metadata=${{ needs.metadata.result }} build=${{ needs.build.result }}"
+          test "${{ needs.lint.result }}" = success
+          test "${{ needs.metadata.result }}" = success
+          test "${{ needs.build.result }}" = success

@@ -49,9 +49,29 @@ PlayerMarks marksOf(const detection::Engine& e, const std::string& key) {
     PlayerMarks m;
     m.watched = e.marks().watched(key);
     m.confirmed = e.marks().confirmed(key);
+    m.exempt = e.marks().exempt(key);
     identity::Profile ip;
     m.nicked = identity::Service::instance().find(key, ip) && ip.nicked;
     return m;
+}
+
+std::string categoryConcern(detection::CheckCategory c) {
+    switch (c) {
+        case detection::CheckCategory::Combat: return "Unusual combat";
+        case detection::CheckCategory::Movement: return "Unusual movement";
+        default: return "Unusual building";
+    }
+}
+
+std::string concernLabel(const detection::Engine& e, const detection::PlayerRecord& r) {
+    const int top = r.topCheck();
+    if (top < 0 || top >= static_cast<int>(e.checks().size())) return {};
+    const detection::Check& c = *e.checks()[static_cast<std::size_t>(top)];
+    // The player's overall tier decides how specific the words may be; a single check that is
+    // already Elevated is named even when the combination is lower.
+    const float topValue = r.checks[static_cast<std::size_t>(top)].model.value();
+    if (tierOf(std::max(r.suspicion, topValue)) >= Tier::Elevated) return c.name();
+    return categoryConcern(c.category());
 }
 
 void playerHalo(Ui& ui, Host* host, Id id, const std::string& key, const std::string& name, const Rect& rc, const HaloStyle& s) {
@@ -99,8 +119,8 @@ void playerHalo(Ui& ui, Host* host, Id id, const std::string& key, const std::st
     ui.r.ring(cx, cy, ringR, trackW, (t.light ? Color(0, 0, 0, 0.09f) : Color(1, 1, 1, 0.09f)).alpha(alpha));
     if (v >= 1.f) ui.r.arc(cx, cy, ringR, arcW, 0.f, 6.2831853f * std::clamp(v / 100.f, 0.f, 1.f), sev.alpha(alpha), true);
 
-    // The user's verdict (shield) or watch mark (ring) sits on the halo at 4:30.
-    if (s.badge && (s.marks.confirmed || s.marks.watched)) {
+    // The user's verdict (shield), exemption (crossed ring) or watch mark (ring) sits at 4:30.
+    if (s.badge && (s.marks.confirmed || s.marks.watched || s.marks.exempt)) {
         const float br = std::max(5.f, size * 0.17f);
         const float bx = cx + ringR * 0.7071f, by = cy + ringR * 0.7071f;
         const Color cut = s.cutout.a > 0.f ? s.cutout : t.surface;
@@ -108,6 +128,10 @@ void playerHalo(Ui& ui, Host* host, Id id, const std::string& key, const std::st
         if (s.marks.confirmed) {
             ui.r.circle(bx, by, br, t.verdict);
             drawIcon(ui.r, Icon::ShieldCheck, bx - br * 0.72f, by - br * 0.72f, br * 1.44f, t.textOnAccent, 1.8f);
+        } else if (s.marks.exempt) {
+            // Neutral, not a severity: exempt players are simply not judged.
+            ui.r.circle(bx, by, br, t.textMuted);
+            drawIcon(ui.r, Icon::Exempt, bx - br * 0.72f, by - br * 0.72f, br * 1.44f, cut, 2.f);
         } else {
             ui.r.circle(bx, by, br, t.accent);
             ui.r.ring(bx, by, br * 0.42f, std::max(1.2f, br * 0.22f), t.textOnAccent);
@@ -134,6 +158,7 @@ float suspicionLabel(Ui& ui, float x, float y, float c, Align align, bool percen
 
 float markChipWidth(Ui& ui, const PlayerMarks& m) {
     if (m.confirmed) return ui.fonts.width(type::Caption, "Confirmed by you") + 34.f;
+    if (m.exempt) return ui.fonts.width(type::Caption, "Exempt") + 32.f;
     if (m.watched) return ui.fonts.width(type::Caption, "Watching") + 32.f;
     return 0.f;
 }
@@ -143,17 +168,20 @@ float markChip(Ui& ui, float x, float y, const PlayerMarks& m) {
     const float w = markChipWidth(ui, m);
     if (w <= 0.f) return 0.f;
     const Rect rc{x, y, w, 20.f};
-    const Color c = m.confirmed ? t.verdict : t.accent;
+    const Color c = m.confirmed ? t.verdict : m.exempt ? t.textMuted : t.accent;
     ui.r.roundRect(rc, 10.f, c.withAlpha(t.light ? 0.14f : 0.16f));
     ui.r.roundRectStroke(rc, 10.f, 1.f, c.withAlpha(0.45f));
     const Color tc = t.light ? c.darker(0.2f) : c.lighter(0.15f);
     if (m.confirmed) drawIcon(ui.r, Icon::ShieldCheck, rc.x + 7.f, rc.y + 3.f, 14.f, tc, 1.6f);
+    else if (m.exempt) drawIcon(ui.r, Icon::Exempt, rc.x + 6.f, rc.y + 3.f, 14.f, tc, 1.6f);
     else {
         ui.r.ring(rc.x + 13.f, rc.cy(), 4.2f, 1.6f, tc);
         ui.r.circle(rc.x + 13.f, rc.cy(), 1.4f, tc);
     }
     ui.fonts.draw(ui.r, type::Caption, rc.x + 25.f, rc.cy() - ui.fonts.lineHeight(type::Caption) * 0.5f,
-                  m.confirmed ? "Confirmed by you" : "Watching", tc);
+                  m.confirmed ? "Confirmed by you" : m.exempt ? "Exempt" : "Watching", tc);
+    if (m.exempt) ui.tooltip(hashId("exempt-chip-tip", static_cast<Id>(x * 7.f + y)), rc,
+                             "Exempt by you: listed, but Vigil never judges this player (no evidence, alerts or highlight).");
     return w;
 }
 
@@ -167,6 +195,7 @@ Briefing buildBriefing(const detection::Engine& e) {
         be.name = r.name;
         be.suspicion = r.suspicion;
         be.marks = marksOf(e, r.key);
+        if (be.marks.exempt) continue;   // the user decided this player isn't worth judging
         if (be.marks.confirmed) {
             be.priority = 0;
             be.reason = "Confirmed by you";

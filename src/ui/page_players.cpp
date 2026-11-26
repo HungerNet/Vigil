@@ -6,6 +6,13 @@
 
 #include "../identity/identity.h"
 #include "pages.h"
+#include "records.h"
+#include "sound.h"
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>   // virtual-key codes (list navigation)
 
 #include <algorithm>
 #include <cmath>
@@ -65,11 +72,12 @@ void rosterPlayerRow(PageContext& ctx, const PlayerRecord& p, const Rect& row) {
         drawIcon(ui.r, Icon::Mask, ix, row.y + 9.f, 14.f, t.chart[4], 1.6f);
         ui.tooltip(mixId(rid, 3), {ix - 2.f, row.y + 6.f, 18.f, 18.f}, "Nicked");
     }
-    // Second line: what matters about them, in words.
+    // Second line: what matters about them, in words. Below Elevated the words name the kind of
+    // behavior, not a check (PLAN.md §7.4); exempt players aren't judged at all.
     std::string sub;
-    const int top = p.topCheck();
-    if (top >= 0) sub = ctx.engine.checks()[static_cast<std::size_t>(top)]->name();
-    else if (!p.detections.empty()) sub = std::to_string(p.detections.size()) + (p.detections.size() == 1 ? " detection" : " detections");
+    if (ctx.engine.marks().exempt(p.key)) sub = "Exempt by you";
+    else sub = concernLabel(ctx.engine, p);
+    if (sub.empty() && !p.detections.empty()) sub = std::to_string(p.detections.size()) + (p.detections.size() == 1 ? " detection" : " detections");
     const std::string presence = presenceLabel(ctx, p);
     const Tier tier = tierOf(p.suspicion);
     float sx = nx;
@@ -89,17 +97,25 @@ void rosterPlayerRow(PageContext& ctx, const PlayerRecord& p, const Rect& row) {
 void rosterMarkRow(PageContext& ctx, const detection::Mark& m, const Rect& row) {
     Ui& ui = ctx.ui;
     const Theme& t = ui.th();
+    // The whole row opens the record (Records keeps everything about players not seen now).
+    bool rh = false;
+    if (ui.pressable(hashId("mark-row", hashId(m.key)), {row.x, row.y, row.w - 48.f, row.h}, &rh)) {
+        ctx.openRecord(m.key, m.confirmed ? 0 : m.exempt ? 2 : 1);
+    }
+    if (rh) ui.r.roundRect(row.inset(4.f, 2.f), 10.f, t.surfaceHover.alpha(0.8f));
     HaloStyle s;
     s.marks.confirmed = m.confirmed;
     s.marks.watched = m.watch || m.confirmed;
+    s.marks.exempt = m.exempt;
     s.present = false;
     playerHalo(ui, ctx.host, hashId(m.key, 9102), m.key, m.name, {row.x + 10.f, row.cy() - 17.f, 34.f, 34.f}, s);
     const float nx = row.x + 54.f;
     ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 8.f, m.name.empty() ? m.key.substr(0, 8) : m.name, t.textMuted, Align::Left,
                   row.w - 100.f);
-    std::string sub = m.confirmed ? "Confirmed " + epochAgoLabel(m.confirmedAtEpochMs) : "Watching";
+    std::string sub = m.confirmed ? "Confirmed " + epochAgoLabel(m.confirmedAtEpochMs) : m.exempt ? "Exempt" : "Watching";
     if (m.confirmed && !m.reasons.empty()) sub += " \xC2\xB7 " + m.reasons.front();
-    ui.fonts.draw(ui.r, type::Caption, nx, row.y + 28.f, sub + " \xC2\xB7 not seen this session", t.textFaint, Align::Left, row.w - 100.f);
+    ui.fonts.draw(ui.r, type::Caption, nx, row.y + 28.f, sub + (m.addedByName() ? " \xC2\xB7 added by name" : " \xC2\xB7 not seen this session"),
+                  t.textFaint, Align::Left, row.w - 100.f);
     float& armed = ui.value(hashId("mark-remove-armed", hashId(m.key)), -100.f);
     const bool isArmed = ui.time - armed < 3.0;
     if (iconButton(ui, hashId("mark-remove", hashId(m.key)), {row.r() - 40.f, row.cy() - 14.f, 28.f, 28.f}, isArmed ? Icon::Check : Icon::Close,
@@ -202,10 +218,23 @@ void roster(PageContext& ctx, const Rect& rc) {
     drawIcon(ui.r, Icon::ChevronDown, sortR.r() - 14.f, sortR.y + 3.f, 12.f, sh ? t.text : t.textFaint);
     ui.fonts.draw(ui.r, type::NumericCaption, rc.r() - 18.f, rc.y + 94.f, std::to_string(players), t.textFaint, Align::Right);
 
-    // Footer: NPCs ignored (game scope) and the way to earlier players.
+    // Footer: NPCs ignored (game scope) and the way to earlier players; in Marked, the way to
+    // manage marks (Records).
     const auto& npcs = engine.filtered();
+    if (ctx.state.rosterScope == 2) {
+        const float fy = rc.b() - 36.f;
+        divider(ui, rc.x + 14.f, rc.r() - 14.f, fy);
+        const std::string lbl = "Manage in Records";
+        const float w = ui.fonts.width(type::Caption, lbl) + 22.f;
+        const Rect link{rc.x + 16.f, fy + 8.f, w, 20.f};
+        bool lh = false;
+        if (ui.pressable(hashId("roster-records"), link, &lh)) ctx.openRecord(ctx.state.selectedRecord, ctx.state.recordsTab);
+        drawIcon(ui.r, Icon::Records, link.x, link.y + 3.f, 14.f, lh ? t.text : t.accent, 1.5f);
+        ui.fonts.draw(ui.r, type::Caption, link.x + 19.f, link.y + 4.f, lbl, lh ? t.text : t.accent);
+        ui.tooltip(hashId("roster-records-tip"), link, "Search, review and edit confirmations, watches and exemptions; add anyone by name");
+    }
     const bool footer = ctx.state.rosterScope == 0 && (!npcs.empty() || earlier > 0);
-    const float footerH = footer ? 34.f : 0.f;
+    const float footerH = footer ? 34.f : ctx.state.rosterScope == 2 ? 38.f : 0.f;
     const Rect view{rc.x + 6.f, rc.y + 116.f, rc.w - 12.f, rc.h - 122.f - footerH};
     if (footer) {
         const float fy = rc.b() - footerH - 2.f;
@@ -248,9 +277,11 @@ void roster(PageContext& ctx, const Rect& rc) {
     const Id sid = hashId("roster-list", static_cast<Id>(ctx.state.rosterScope));
     const float off = beginScroll(ui, sid, view);
     float y = view.y + off + 2.f;
+    std::vector<std::pair<std::string, float>> playerRows;   // key, top in content coordinates
     for (const RosterItem& it : items) {
         const float h = it.kind == RosterItem::Header ? 30.f : 54.f;
         const Rect row{view.x, y, view.w, h};
+        if (it.kind == RosterItem::Player) playerRows.push_back({it.player->key, y - (view.y + off)});
         if (row.b() >= view.y && row.y <= view.b()) {
             if (it.kind == RosterItem::Header) {
                 bool hh = false;
@@ -271,6 +302,28 @@ void roster(PageContext& ctx, const Rect& rc) {
         y += h + (it.kind == RosterItem::Header ? 0.f : 2.f);
     }
     endScroll(ui, sid, view, y - (view.y + off) + 6.f);
+
+    // ↑/↓ move the selection through the list (when no field is typing and focus is on the list
+    // or nowhere). The newly selected row scrolls into view and keeps the keyboard focus.
+    bool rowFocused = ui.kbFocus == 0;
+    for (const auto& pr : playerRows) rowFocused = rowFocused || ui.kbFocus == hashId(pr.first, 9001);
+    if (!ui.focus && !ui.modal && rowFocused && !playerRows.empty()) {
+        const int dir = ui.consumeKey(VK_DOWN) ? 1 : ui.consumeKey(VK_UP) ? -1 : 0;
+        if (dir != 0) {
+            int idx = -1;
+            for (std::size_t i = 0; i < playerRows.size(); ++i) if (playerRows[i].first == ctx.state.selectedPlayer) idx = static_cast<int>(i);
+            const int next = std::clamp(idx < 0 ? 0 : idx + dir, 0, static_cast<int>(playerRows.size()) - 1);
+            const auto& target = playerRows[static_cast<std::size_t>(next)];
+            ctx.state.selectedPlayer = target.first;
+            ctx.state.selectedEvidence = 0;
+            ctx.state.selectedDetection = 0;
+            ctx.state.unseenPlayers.erase(target.first);
+            ui.setKeyboardFocus(hashId(target.first, 9001));
+            ScrollState& st = scrollState(ui, sid);
+            if (target.second < st.target) st.target = std::max(0.f, target.second - 4.f);
+            else if (target.second + 56.f > st.target + view.h) st.target = target.second + 56.f - view.h + 4.f;
+        }
+    }
 }
 
 // ── Profile header ───────────────────────────────────────────────────────────────────────────
@@ -374,7 +427,9 @@ void confirmPopover(PageContext& ctx, const PlayerRecord& p, const Rect& anchor)
             if (ui.pressable(mixId(pid, 12), cb, &ch)) {
                 std::vector<std::string> picked;
                 for (const auto& r : reasons) if (state->confirmReasons.count(r)) picked.push_back(r);
-                engine->marks().confirm(key, name, picked);
+                const detection::PlayerRecord* rec = engine->session().find(key);
+                engine->marks().confirm(key, name, picked, rec ? rec->suspicion : -1.f);
+                playSound(Sound::Confirm);
                 state->confirmKey.clear();
                 state->confirmReasons.clear();
                 ui.popup = 0;
@@ -387,6 +442,79 @@ void confirmPopover(PageContext& ctx, const PlayerRecord& p, const Rect& anchor)
                 state->confirmReasons.clear();
                 ui.popup = 0;
             }
+        }
+        ui.r.popAlpha();
+        ui.r.popClip();
+    });
+}
+
+// "More" menu on a live profile: actions that are useful but not primary.
+void moreMenu(PageContext& ctx, const PlayerRecord& p, const Rect& anchor) {
+    Ui& ui = ctx.ui;
+    const Id pid = hashId("more-menu", hashId(p.key));
+    float& shown = ui.value(mixId(pid, 7), 0.f);
+    if (ctx.state.moreKey != p.key) { shown = 0.f; return; }
+    if (shown > 0.5f && ui.popup != pid) { ctx.state.moreKey.clear(); shown = 0.f; return; }
+    ui.popup = pid;
+    shown = 1.f;
+    struct Item { Icon icon; std::string label; std::string hint; int action; };
+    const bool exempt = ctx.engine.marks().exempt(p.key);
+    std::vector<Item> items = {
+        {Icon::Save, "Save profile", "Keep this investigation in Records", 1},
+        {Icon::Export, "Export profile", "Save a shareable copy to the exports folder", 2},
+    };
+    if (!p.local) {
+        items.push_back(exempt ? Item{Icon::Exempt, "Remove exemption", "Vigil judges this player again", 3}
+                               : Item{Icon::Exempt, "Exempt from checks", "A friend or party member: listed, never judged", 3});
+    }
+    if (ctx.engine.marks().find(p.key)) items.push_back({Icon::Records, "Open in Records", "Review your marks and notes", 4});
+    const float itemH = 46.f, w = 300.f;
+    const Rect pop{std::max(anchor.r() - w + ui.r.offsetX(), 8.f), anchor.b() + 8.f + ui.r.offsetY(), w, itemH * items.size() + 10.f};
+    ui.popupRect = pop;
+    if (ui.in.pressed[0] && !pop.contains(ui.in.mx, ui.in.my) && !ui.hoverRaw(anchor)) {
+        ctx.state.moreKey.clear();
+        ui.popup = 0;
+        return;
+    }
+    detection::Engine* engine = &ctx.engine;
+    AppState* state = &ctx.state;
+    const std::string key = p.key, name = p.name;
+    const float openT = ui.anim(mixId(pid, 1), 1.f, 3.f / motion::kPopover);
+    ui.addOverlay([&ui, engine, state, pop, pid, items, key, name, openT, itemH]() {
+        const Theme& t = ui.th();
+        ui.r.pushClip({0, 0, ui.r.width(), ui.r.height()});
+        ui.r.pushAlpha(openT);
+        const Rect b = pop.offset(0, (1.f - openT) * -motion::travel(motion::kPopoverTravel));
+        ui.r.shadow(b, 12.f, 24.f, Color(0, 0, 0, t.light ? 0.14f : 0.45f), 8.f);
+        ui.r.roundRect(b, 12.f, t.surfaceRaised);
+        ui.r.roundRectStroke(b, 12.f, 1.f, t.borderStrong);
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            const Item& it = items[i];
+            const Rect row{b.x + 5.f, b.y + 5.f + itemH * i, b.w - 10.f, itemH};
+            bool h = false;
+            if (ui.pressable(mixId(pid, 100 + i), row, &h)) {
+                const detection::PlayerRecord* rec = engine->session().find(key);
+                RecordsService& rs = RecordsService::instance();
+                if (it.action == 1 && rec) rs.announce(rs.save(*engine, *rec), ui.time);
+                if (it.action == 2 && rec) rs.announce(rs.exportLive(*engine, *rec), ui.time);
+                if (it.action == 3) {
+                    const bool wasExempt = engine->marks().exempt(key);
+                    engine->marks().setExempt(key, name, !wasExempt);
+                    if (!wasExempt) playSound(Sound::Confirm);
+                }
+                if (it.action == 4) {
+                    const detection::Mark* m = engine->marks().find(key);
+                    state->page = Page::Records;
+                    state->recordsTab = m && m->confirmed ? 0 : m && m->exempt ? 2 : 1;
+                    state->selectedRecord = key;
+                }
+                state->moreKey.clear();
+                ui.popup = 0;
+            }
+            if (h) ui.r.roundRect(row, 9.f, t.surfaceHover);
+            drawIcon(ui.r, it.icon, row.x + 12.f, row.cy() - 9.f, 18.f, h ? t.text : t.textMuted, 1.6f);
+            ui.fonts.draw(ui.r, type::BodyStrong, row.x + 42.f, row.y + 6.f, it.label, t.text);
+            ui.fonts.draw(ui.r, type::Caption, row.x + 42.f, row.y + 25.f, it.hint, t.textFaint, Align::Left, row.w - 52.f);
         }
         ui.r.popAlpha();
         ui.r.popClip();
@@ -418,6 +546,15 @@ void profileHeader(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
         ui.tooltip(hashId("report-tip", hashId(p.key)), br, "Sends /wdr " + p.name + " to Hypixel. Click twice to confirm.");
         ax -= 10.f;
     }
+    // More: save, export, exempt, open in Records.
+    ax -= 34.f;
+    const Rect moreR{ax, ay, 34.f, 34.f};
+    if (iconButton(ui, hashId("more", hashId(p.key)), moreR, Icon::More, "More: save, export, exempt", ctx.state.moreKey == p.key)) {
+        ctx.state.moreKey = ctx.state.moreKey == p.key ? std::string() : p.key;
+        ctx.state.confirmKey.clear();
+        if (ctx.state.moreKey.empty()) ui.popup = 0;
+    }
+    ax -= 6.f;
     if (!p.local) {
         ax -= 34.f;
         const Rect cr{ax, ay, 34.f, 34.f};
@@ -446,6 +583,7 @@ void profileHeader(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     ax -= 34.f;
     if (iconButton(ui, hashId("copy", hashId(p.key)), {ax, ay, 34.f, 34.f}, Icon::Copy, "Copy name")) copyToClipboard(p.name);
     if (!p.local) confirmPopover(ctx, p, {ax + 34.f + 6.f + 34.f + 6.f, ay, 34.f, 34.f});
+    moreMenu(ctx, p, moreR);
 
     // Identity: name and marks on the first line.
     const float nx = rc.x + 94.f;
@@ -453,7 +591,7 @@ void profileHeader(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     const float nw = ui.fonts.draw(ui.r, type::Heading, nx, rc.y + 12.f, p.name + p.displaySuffix, t.text, Align::Left, nameMax);
     float cx = nx + nw + 12.f;
     const float chipY = rc.y + 12.f + ui.fonts.ascent(type::Heading) - 15.f;
-    if (marks.confirmed || marks.watched) {
+    if (marks.confirmed || marks.watched || marks.exempt) {
         if (cx + markChipWidth(ui, marks) <= ax - 8.f) cx += markChip(ui, cx, chipY, marks) + 6.f;
     }
     auto addChip = [&](const std::string& s, Color c) {
@@ -478,15 +616,20 @@ void profileHeader(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     sx += suspicionLabel(ui, sx, sy, p.suspicion) + 8.f;
     const float trend = confidenceTrend(p.suspicionHistory, p.suspicion, ctx.nowMs);
     if (std::fabs(trend) >= 1.f) sx += trendLabel(ui, sx, sy + 1.f, trend) + 4.f;
-    std::string sub = presenceLabel(ctx, p);
-    if (!p.present && !p.local && p.suspicion > 0.f) sub += " \xC2\xB7 held while away";
+    // At most three facts here (information density): where they are, the peak when it differs,
+    // and detections. Earlier sessions and "held while away" live in the tooltip.
+    std::string sub = marks.exempt ? "Exempt \xC2\xB7 not judged \xC2\xB7 " + presenceLabel(ctx, p) : presenceLabel(ctx, p);
     if (p.peakSuspicion >= 15.f && p.peakSuspicion > p.suspicion + 5.f) sub += " \xC2\xB7 peak " + formatNumber(p.peakSuspicion, 0) + "%";
     if (!p.detections.empty()) sub += " \xC2\xB7 " + std::to_string(p.detections.size()) + (p.detections.size() == 1 ? " detection" : " detections");
-    if (p.priorSessions > 0) sub += " \xC2\xB7 " + std::to_string(p.priorSessions) + " earlier session" + (p.priorSessions == 1 ? "" : "s");
     ui.fonts.draw(ui.r, type::Small, sx, sy, "\xC2\xB7 " + sub, t.textMuted, Align::Left, rc.r() - 18.f - sx);
-    ui.tooltip(hashId("profile-susp", hashId(p.key)), {nx, sy - 4.f, sx - nx, 22.f},
-               "Vigil's confidence that this player is cheating, combined across checks. It rises with evidence and "
-               "fades while Vigil watches normal play; it holds while the player is out of view.");
+    std::string tip = "Vigil's confidence that this player is cheating, combined across checks. It rises with evidence and "
+                      "fades while Vigil watches normal play; it holds while the player is out of view.";
+    if (!p.present && !p.local && p.suspicion > 0.f) tip += "\nHeld while away: nothing is observed, so nothing decays.";
+    if (p.priorSessions > 0) {
+        tip += "\nSeen in " + std::to_string(p.priorSessions) + " earlier session" + (p.priorSessions == 1 ? "" : "s") + ", detected " +
+               std::to_string(p.priorDetections) + (p.priorDetections == 1 ? " time." : " times.");
+    }
+    ui.tooltip(hashId("profile-susp", hashId(p.key)), {nx, sy - 4.f, rc.r() - 18.f - nx, 22.f}, tip);
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────────────────────
@@ -548,7 +691,7 @@ void sessionChart(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     sectionHeader(ui, rc.x + 20.f, rc.y + 18.f, "CONFIDENCE OVER THE SESSION");
     const Rect plot{rc.x + 20.f, rc.y + 46.f, rc.w - 40.f, rc.h - 76.f};
     const double t1 = ctx.nowMs;
-    double t0 = std::min(ctx.engine.session().startMs(), p.firstSeenMs);
+    double t0 = std::min(ctx.sessionStart(), p.firstSeenMs);
     if (t1 - t0 < 60e3) t0 = t1 - 60e3;
     for (float g : {50.f, 70.f}) {
         const float gy = plot.b() - plot.h * g / 100.f;
@@ -997,6 +1140,9 @@ void identityTab(PageContext& ctx, const PlayerRecord& p, const Rect& area) {
 
 }  // namespace
 
+void drawSummaryTab(PageContext& ctx, const PlayerRecord& p, const Rect& area) { summaryTab(ctx, p, area); }
+void drawBehaviorTab(PageContext& ctx, const PlayerRecord& p, const Rect& area) { behaviorTab(ctx, p, area); }
+
 void drawPlayers(PageContext& ctx, const Rect& area) {
     Ui& ui = ctx.ui;
     const float top = pageHeader(ctx, area, "Players", pagePurpose(Page::Players));
@@ -1045,6 +1191,7 @@ void drawPlayers(PageContext& ctx, const Rect& area) {
     }
     ui.r.popOffset();
     ui.r.popAlpha();
+    actionBanner(ctx, main);   // result of Save / Export from the ⋯ menu
 }
 
 }  // namespace vigil::ui

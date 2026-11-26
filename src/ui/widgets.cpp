@@ -39,18 +39,91 @@ void Ui::beginFrame(double nowSeconds) {
     overlays.clear();
     tip_.requested = false;
     flashY = -1.f;
+    focusables_.clear();
+    scrollStack_.clear();
+    focusDrawn_ = false;
+    keyActivated = 0;
+    // A mouse click hides the focus ring; keyboard navigation brings it back.
+    if (in.pressed[0] || in.pressed[1]) focusVisible = false;
 }
 
 void Ui::endFrame() {
     drawingOverlay = true;
     for (auto& fn : overlays) fn();
     drawingOverlay = false;
+    // The focused control disappeared (page change, list scrolled away): nothing has focus. A few
+    // frames of grace let a control reached by keyboard scroll into view first.
+    if (kbFocus && !focusDrawn_) {
+        if (++focusMissingFrames_ > 6) kbFocus = 0;
+    } else {
+        focusMissingFrames_ = 0;
+    }
+    drawFocusRing();
     drawTooltip();
     if (!in.down[0]) active = 0;
     for (int i = 0; i < 3; ++i) { in.pressed[i] = false; in.released[i] = false; }
     in.wheel = 0.f;
     in.chars.clear();
     in.keys.clear();
+}
+
+bool Ui::moveFocus(int direction) {
+    if (focusables_.empty()) return false;
+    int current = -1;
+    for (std::size_t i = 0; i < focusables_.size(); ++i) {
+        if (focusables_[i].id == kbFocus) { current = static_cast<int>(i); break; }
+    }
+    const int next = nextFocusIndex(current, static_cast<int>(focusables_.size()), direction);
+    if (next < 0) return false;
+    kbFocus = focusables_[static_cast<std::size_t>(next)].id;
+    focusRect_ = focusables_[static_cast<std::size_t>(next)].rc;
+    focusDrawn_ = true;
+    focusMissingFrames_ = 0;
+    focusVisible = true;
+    scrollFocusIntoView_ = true;
+    if (focus && focus != kbFocus) focus = 0;   // leave a text field when tabbing out of it
+    return true;
+}
+
+void Ui::drawFocusRing() {
+    const bool show = focusDrawn_ && (focusVisible || focusRingAlways);
+    ringAlpha_ = approach(ringAlpha_, show ? 1.f : 0.f, show ? 22.f : 30.f, dt);
+    if (!show || ringAlpha_ < 0.02f) return;
+    const Theme& t = th();
+    const Rect rc = focusRect_.inset(-3.f);
+    const float rad = std::min(12.f, std::min(rc.w, rc.h) * 0.5f);
+    r.pushClip({0, 0, r.width(), r.height()});
+    r.pushOffset(-r.offsetX(), -r.offsetY());
+    r.roundRectStroke(rc.inset(-2.f), rad + 2.f, 3.f, t.accent.withAlpha(0.18f * ringAlpha_));
+    r.roundRectStroke(rc, rad, 2.f, t.accent.withAlpha(0.95f * ringAlpha_));
+    r.popOffset();
+    r.popClip();
+}
+
+bool parseNumberInput(std::string_view text, double min, double max, double step, double& out) {
+    std::string s;
+    for (char c : text) s.push_back(c == ',' ? '.' : c);
+    std::size_t b = 0;
+    while (b < s.size() && (s[b] == ' ' || s[b] == '\t')) ++b;
+    s = s.substr(b);
+    if (s.empty()) return false;
+    char* end = nullptr;
+    const double v = std::strtod(s.c_str(), &end);
+    if (end == s.c_str() || !std::isfinite(v)) return false;
+    // Anything after the number may be a unit ("b/tick", "%", "x"), but not more digits.
+    for (const char* p = end; *p; ++p) {
+        if (*p >= '0' && *p <= '9') return false;
+    }
+    double x = v;
+    if (step > 0.0) x = min + std::round((x - min) / step) * step;
+    out = std::clamp(x, min, max);
+    return true;
+}
+
+int nextFocusIndex(int current, int count, int direction) {
+    if (count <= 0) return -1;
+    if (current < 0 || current >= count) return direction >= 0 ? 0 : count - 1;
+    return ((current + (direction >= 0 ? 1 : -1)) % count + count) % count;
 }
 
 bool Ui::hover(const Rect& rc) const {
@@ -66,9 +139,37 @@ bool Ui::hover(const Rect& rc) const {
 bool Ui::pressable(Id id, const Rect& rc, bool* hovered, bool* held) {
     const bool h = hover(rc);
     if (h) { hot = id; cursor = Cursor::Hand; }
-    if (h && in.pressed[0]) active = id;
-    const bool clicked = active == id && in.released[0] && h;
-    if (hovered) *hovered = h;
+    if (h && in.pressed[0]) {
+        active = id;
+        kbFocus = id;   // the clicked control is where keyboard navigation continues
+    }
+    bool clicked = active == id && in.released[0] && h;
+    // Keyboard: controls under a modal overlay are neither focusable nor activatable.
+    if (!modal) {
+        const Rect screen = rc.offset(r.offsetX(), r.offsetY());
+        focusables_.push_back({id, screen});
+        if (kbFocus == id) {
+            focusRect_ = screen;
+            focusDrawn_ = true;
+            if (scrollFocusIntoView_ && !scrollStack_.empty()) {
+                // Bring a control reached with Tab into its scroll region's view.
+                scrollFocusIntoView_ = false;
+                ScrollState& st = scrollState(*this, scrollStack_.back());
+                const Rect clip = r.clip();
+                if (screen.y < clip.y + 8.f) st.target -= clip.y + 8.f - screen.y;
+                else if (screen.b() > clip.b() - 8.f) st.target += screen.b() - clip.b() + 8.f;
+            } else if (scrollFocusIntoView_) {
+                scrollFocusIntoView_ = false;
+            }
+            // A field that is already typing keeps Enter and Space for itself (search, commit).
+            if (!captureKey && focus != id && (consumeKey(VK_RETURN) || consumeKey(VK_SPACE))) {
+                clicked = true;
+                keyActivated = id;
+                focusVisible = true;
+            }
+        }
+    }
+    if (hovered) *hovered = h || (kbFocus == id && focusVisible && !modal);
     if (held) *held = active == id && in.down[0];
     return clicked;
 }
@@ -109,7 +210,14 @@ float Ui::springTo(Id id, float target, float stiffness, float damping) {
 }
 
 void Ui::tooltip(Id id, const Rect& anchor, std::string text) {
-    if (text.empty() || !hover(anchor)) return;
+    if (text.empty()) return;
+    // Keyboard users get the tooltip of the focused control (icon-only buttons stay discoverable).
+    bool show = hover(anchor);
+    if (!show && focusVisible && focusDrawn_ && !modal) {
+        const Rect a = anchor.offset(r.offsetX(), r.offsetY());
+        show = a.contains(focusRect_.cx(), focusRect_.cy());
+    }
+    if (!show) return;
     if (tip_.id != id) {
         tip_.id = id;
         tip_.since = time;
@@ -431,13 +539,19 @@ bool slider(Ui& ui, Id id, const Rect& rc, double& value, double mn, double mx, 
         const double f = std::clamp((ui.in.mx - ui.r.offsetX() - rc.x) / rc.w, 0.f, 1.f);
         setValue(mn + f * span);
     } else if (h) {
-        // Fine adjustment: mouse wheel or arrow keys while hovering move one step.
-        if (ui.in.wheel != 0.f) {
+        // Fine adjustment: mouse wheel or arrow keys while hovering or focused move one step;
+        // Shift moves ten. Home / End jump to the ends of the range.
+        if (ui.in.wheel != 0.f && ui.hover(rc.inset(-2.f, -6.f))) {
             setValue(value + unit * (ui.in.wheel > 0.f ? 1.0 : -1.0));
             ui.in.wheel = 0.f;
         }
-        if (ui.consumeKey(VK_RIGHT) || ui.consumeKey(VK_UP)) setValue(value + unit);
-        if (ui.consumeKey(VK_LEFT) || ui.consumeKey(VK_DOWN)) setValue(value - unit);
+        bool shift = false;
+        if (ui.consumeKey(VK_RIGHT, nullptr, &shift) || ui.consumeKey(VK_UP, nullptr, &shift)) setValue(value + unit * (shift ? 10.0 : 1.0));
+        if (ui.consumeKey(VK_LEFT, nullptr, &shift) || ui.consumeKey(VK_DOWN, nullptr, &shift)) setValue(value - unit * (shift ? 10.0 : 1.0));
+        if (ui.focused(id)) {
+            if (ui.consumeKey(VK_HOME)) setValue(mn);
+            if (ui.consumeKey(VK_END)) setValue(mx);
+        }
     }
     const float f = static_cast<float>((value - mn) / span);
     const float fa = ui.anim(mixId(id, 3), f, 30.f);
@@ -472,6 +586,19 @@ bool segmented(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& op
     ui.r.roundRect(pill, t.radiusControl - 2.f, t.light ? Color::hex(0xFFFFFF) : t.surfaceRaised.lighter(0.05f));
     ui.r.roundRectStroke(pill, t.radiusControl - 2.f, 1.f, t.borderStrong);
     bool changed = false;
+    // Arrows move the selection while any segment has keyboard focus (focus follows).
+    for (std::size_t i = 0; i < options.size(); ++i) {
+        if (!ui.focused(mixId(id, 100 + i))) continue;
+        int next = selected;
+        if (ui.consumeKey(VK_LEFT)) next = std::max(0, selected - 1);
+        if (ui.consumeKey(VK_RIGHT)) next = std::min(static_cast<int>(options.size()) - 1, selected + 1);
+        if (next != selected) {
+            selected = next;
+            changed = true;
+            ui.setKeyboardFocus(mixId(id, 100 + static_cast<std::size_t>(next)));
+        }
+        break;
+    }
     for (std::size_t i = 0; i < options.size(); ++i) {
         const Rect seg{rc.x + segW * i, rc.y, segW, rc.h};
         bool h = false;
@@ -492,6 +619,18 @@ bool tabs(Ui& ui, Id id, float x, float y, const std::vector<std::string>& label
     bool changed = false;
     float cx = x;
     std::vector<std::pair<float, float>> spans;
+    for (std::size_t i = 0; i < labels.size(); ++i) {
+        if (!ui.focused(mixId(id, 300 + i))) continue;
+        int next = selected;
+        if (ui.consumeKey(VK_LEFT)) next = std::max(0, selected - 1);
+        if (ui.consumeKey(VK_RIGHT)) next = std::min(static_cast<int>(labels.size()) - 1, selected + 1);
+        if (next != selected) {
+            selected = next;
+            changed = true;
+            ui.setKeyboardFocus(mixId(id, 300 + static_cast<std::size_t>(next)));
+        }
+        break;
+    }
     for (std::size_t i = 0; i < labels.size(); ++i) {
         const float w = ui.fonts.width(type::BodyStrong, labels[i]);
         const Rect hit{cx - 8.f, y - 6.f, w + 16.f, 32.f};
@@ -520,6 +659,18 @@ bool dropdown(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& opt
     const Theme& t = ui.th();
     bool h = false;
     const bool open = ui.popup == id;
+    // Keyboard: Enter opens; while open ↑/↓ move the highlight and Enter picks it (Esc closes).
+    float& highlight = ui.value(mixId(id, 601), static_cast<float>(selected));
+    if (open && ui.focused(id)) {
+        if (ui.consumeKey(VK_DOWN)) highlight = std::min(static_cast<float>(options.size()) - 1.f, highlight + 1.f);
+        if (ui.consumeKey(VK_UP)) highlight = std::max(0.f, highlight - 1.f);
+        if (ui.consumeKey(VK_RETURN) || ui.consumeKey(VK_SPACE)) {
+            ui.value(mixId(id, 600), 0.f) = highlight + 1.f;
+            ui.popup = 0;
+        }
+    } else if (!open) {
+        highlight = static_cast<float>(selected);
+    }
     if (ui.pressable(id, rc, &h)) ui.popup = open ? 0 : id;
     const float hv = ui.anim(mixId(id, 1), h || open ? 1.f : 0.f, motion::kHover);
     ui.r.roundRect(rc, t.radiusControl, t.inset.mix(t.surfaceHover, hv * 0.6f));
@@ -544,7 +695,8 @@ bool dropdown(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& opt
         if (above) pop.y = rc.y + ui.r.offsetY() - pop.h - 6.f;
         if (ui.popup == id) ui.popupRect = pop;
         const int current = selected;
-        ui.addOverlay([&ui, id, pop, options, openT, current, itemH, above]() {
+        const int keyHighlight = ui.focused(id) ? static_cast<int>(highlight) : -1;
+        ui.addOverlay([&ui, id, pop, options, openT, current, itemH, above, keyHighlight]() {
             const Theme& tt = ui.th();
             ui.r.pushClip({0, 0, ui.r.width(), ui.r.height()});
             ui.r.pushAlpha(openT);
@@ -559,7 +711,7 @@ bool dropdown(Ui& ui, Id id, const Rect& rc, const std::vector<std::string>& opt
                     ui.value(mixId(id, 600), 0.f) = static_cast<float>(i + 1);
                     ui.popup = 0;
                 }
-                if (hh) ui.r.roundRect(it, 8.f, tt.surfaceHover);
+                if (hh || static_cast<int>(i) == keyHighlight) ui.r.roundRect(it, 8.f, tt.surfaceHover);
                 const bool sel = static_cast<int>(i) == current;
                 ui.fonts.draw(ui.r, type::Body, it.x + 12.f, it.cy() - ui.fonts.lineHeight(type::Body) * 0.5f, options[i],
                               sel ? tt.text : tt.textMuted);
@@ -579,8 +731,13 @@ bool textField(Ui& ui, Id id, const Rect& rc, std::string& text, std::string_vie
     const Theme& t = ui.th();
     bool h = false;
     if (ui.pressable(id, rc, &h)) ui.focus = id;
-    if (h) ui.cursor = Cursor::IBeam;
-    if (ui.in.pressed[0] && !h && ui.focus == id && !ui.modal) ui.focus = 0;
+    if (ui.hover(rc)) ui.cursor = Cursor::IBeam;
+    if (ui.in.pressed[0] && !ui.hover(rc) && ui.focus == id && !ui.modal) ui.focus = 0;
+    // Typing follows keyboard focus: tabbing into a field starts typing, tabbing out stops.
+    if (!ui.modal && ui.focusVisible) {
+        if (ui.kbFocus == id && ui.focus != id) ui.focus = id;
+        else if (ui.focus == id && ui.kbFocus != id) ui.focus = 0;
+    }
     const bool focused = ui.focus == id;
     bool changed = false;
     if (focused) {
@@ -661,6 +818,78 @@ bool keybind(Ui& ui, Id id, const Rect& rc, int& vk) {
     const std::string label = capturing ? "Press a key\xE2\x80\xA6" : keyName(vk);
     ui.fonts.draw(ui.r, type::BodyStrong, rc.cx(), rc.cy() - ui.fonts.lineHeight(type::BodyStrong) * 0.5f, label,
                   capturing ? t.accent : (vk == 0 ? t.textFaint : t.text), Align::Center, rc.w - 12.f);
+    return changed;
+}
+
+bool numberBox(Ui& ui, Id id, Id sliderId, const Rect& rc, double& value, double mn, double mx, double step,
+               const std::string& display, bool modified) {
+    const Theme& t = ui.th();
+    bool changed = false;
+    auto decimalsOf = [](double s) {
+        if (s <= 0.0) return 2;
+        int d = 0;
+        while (d < 4 && std::fabs(s * std::pow(10.0, d) - std::round(s * std::pow(10.0, d))) > 1e-6) ++d;
+        return d;
+    };
+    auto finish = [&]() {
+        ui.editingNumber = 0;
+        if (ui.focus == id) ui.focus = 0;
+        ui.kbFocus = sliderId;   // back on the slider, so arrows keep working
+    };
+    auto commit = [&]() -> bool {
+        double v = value;
+        if (!parseNumberInput(ui.editText, mn, mx, step, v)) {
+            ui.editShakeAt = ui.time;
+            return false;
+        }
+        if (std::fabs(v - value) > 1e-12) { value = v; changed = true; }
+        finish();
+        return true;
+    };
+    bool h = false;
+    if (ui.editingNumber != id) {
+        if (ui.pressable(id, rc, &h) || (sliderId && ui.keyActivated == sliderId)) {
+            ui.editingNumber = id;
+            ui.editText = formatNumber(value, decimalsOf(step));
+            ui.focus = id;
+            ui.kbFocus = id;
+        }
+        ui.tooltip(mixId(id, 1), rc, "Click or press Enter to type a value \xC2\xB7 range " + formatNumber(mn, decimalsOf(step)) +
+                                         "\xE2\x80\x93" + formatNumber(mx, decimalsOf(step)));
+    } else {
+        ui.pressable(id, rc, &h);
+        ui.focus = id;
+        for (unsigned int ch : ui.in.chars) {
+            const bool ok = (ch >= '0' && ch <= '9') || ch == '.' || ch == ',' || ch == '-';
+            if (ok && ui.editText.size() < 16) ui.editText.push_back(static_cast<char>(ch));
+        }
+        bool ctrl = false;
+        while (ui.consumeKey(VK_BACK, &ctrl)) {
+            if (ctrl) ui.editText.clear();
+            else if (!ui.editText.empty()) ui.editText.pop_back();
+        }
+        if (ui.consumeKey(VK_ESCAPE)) finish();
+        else if (ui.consumeKey(VK_RETURN) || ui.consumeKey(VK_TAB)) commit();
+        else if (ui.in.pressed[0] && !ui.hover(rc)) { if (!commit()) finish(); }
+    }
+    const bool editing = ui.editingNumber == id;
+    const float shake = static_cast<float>(ui.time - ui.editShakeAt) < 0.35f
+                            ? std::sin(static_cast<float>(ui.time - ui.editShakeAt) * 60.f) * 4.f * (1.f - static_cast<float>(ui.time - ui.editShakeAt) / 0.35f)
+                            : 0.f;
+    const Rect box = rc.offset(editing ? shake : 0.f, 0.f);
+    const float hv = ui.anim(mixId(id, 2), editing ? 1.f : (h ? 0.6f : 0.f), motion::kHover);
+    ui.r.roundRect(box, 7.f, t.inset.mix(t.surfaceHover, editing ? 0.f : hv * 0.6f));
+    ui.r.roundRectStroke(box, 7.f, editing ? 1.5f : 1.f, editing ? t.accent.withAlpha(0.8f) : t.border.mix(t.borderStrong, hv));
+    if (editing) {
+        const float tw = ui.fonts.width(type::SmallStrong, ui.editText);
+        const float tx = box.cx() - tw * 0.5f;
+        const float ty = box.cy() - ui.fonts.lineHeight(type::SmallStrong) * 0.5f;
+        ui.fonts.draw(ui.r, type::SmallStrong, tx, ty, ui.editText, t.text);
+        if (std::fmod(ui.time, 1.0) < 0.6) ui.r.rect({tx + tw + 1.f, ty + 1.f, 1.5f, ui.fonts.lineHeight(type::SmallStrong) - 2.f}, t.accent);
+    } else {
+        ui.fonts.draw(ui.r, type::SmallStrong, box.cx(), box.cy() - ui.fonts.lineHeight(type::SmallStrong) * 0.5f, display,
+                      modified ? t.accent : t.text, Align::Center, box.w - 6.f);
+    }
     return changed;
 }
 
@@ -776,10 +1005,12 @@ float settingRow(Ui& ui, Setting& s, float x, float y, float w, const SettingRow
                 edited = true;
             }
             const Rect vr{x + w - valueW, cy - 13.f, valueW, 26.f};
-            ui.r.roundRect(vr, 7.f, t.inset);
-            ui.r.roundRectStroke(vr, 7.f, 1.f, t.border);
-            ui.fonts.draw(ui.r, type::SmallStrong, vr.cx(), vr.cy() - ui.fonts.lineHeight(type::SmallStrong) * 0.5f,
-                          formatSettingValue(s, s.value), modified ? t.accent : t.text, Align::Center, valueW - 6.f);
+            double typed = s.value;
+            if (numberBox(ui, mixId(id, 13), mixId(id, 2), vr, typed, s.range.min, s.range.max, s.range.step,
+                          formatSettingValue(s, s.value), modified)) {
+                s.set(typed);
+                edited = true;
+            }
             break;
         }
         case SettingType::Choice: {
@@ -852,6 +1083,7 @@ ScrollState& scrollState(Ui& ui, Id id) {
 
 float beginScroll(Ui& ui, Id id, const Rect& view) {
     ScrollState& st = scrollState(ui, id);
+    ui.pushScrollRegion(id);
     st.view = view.h;
     if (ui.hover(view) && ui.in.wheel != 0.f && !ui.popup) {
         st.target -= ui.in.wheel * 80.f;
@@ -867,6 +1099,7 @@ float beginScroll(Ui& ui, Id id, const Rect& view) {
 void endScroll(Ui& ui, Id id, const Rect& view, float contentHeight) {
     ScrollState& st = scrollState(ui, id);
     st.content = contentHeight;
+    ui.popScrollRegion();
     ui.r.popClip();
     if (contentHeight <= view.h + 1.f) return;
     const Theme& t = ui.th();

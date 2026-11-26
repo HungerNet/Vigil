@@ -97,6 +97,7 @@ public:
                      fmt("%.1f m/s over one second; the limit with %.2fx movement (%s)%s is %.1f m/s.", avg * 20.0, mult,
                          modifier.c_str(), steppingUp ? " and stair tolerance" : "", limit * 20.0),
                      {{"Average speed", avg, "b/tick", limit, true},
+                      {"Vanilla sprint-jump", mc::kSprintJumpAverage * mult, "b/tick", 0.0, false, EvidenceValue::Role::Expected},
                       {"Movement multiplier", mult, "x"},
                       {"Data quality", q20 * 100.0, "%"}});
         }
@@ -114,6 +115,7 @@ public:
                              "movement (%s) the limit is %.2f.",
                              g, mult, modifier.c_str(), glimit),
                          {{"Ground speed", g, "b/tick", glimit, true},
+                          {"Vanilla sprint", mc::kSprintGroundSpeed * mult, "b/tick", 0.0, false, EvidenceValue::Role::Expected},
                           {"Movement multiplier", mult, "x"},
                           {"Data quality", q12 * 100.0, "%"}});
             }

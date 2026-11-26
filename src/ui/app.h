@@ -2,6 +2,7 @@
 // Vigil UI — the application shell. Drawn natively with OpenGL inside the host's frame, so it is
 // independent of Minecraft's GUI system; the host forwards window input while the menu is open.
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -46,6 +47,21 @@ struct RuntimeStatus {
     bool chatReader = false;
     int chatLines = 0;
     std::string dataDir;
+    // Live validation (docs/LIVE_VALIDATION.md).
+    std::string runtimeVersion;        // this runtime's version and build
+    std::string runtimeBuild;
+    int bindingsTotal = 0, bindingsMissing = 0, bindingsObfuscated = 0;
+    std::vector<std::string> bindingNotes;   // "missing: isBurning", "posX → s"
+};
+
+// Diagnostic trace recording (Status → Diagnostics). Hosts that can't record report !supported.
+struct TraceInfo {
+    bool supported = false;
+    bool active = false;
+    std::string path;            // current or last recording
+    int frames = 0;
+    std::uint64_t bytes = 0;
+    std::string stopReason;      // why the last recording stopped
 };
 
 // Services the UI needs from its host (the game runtime or the preview harness).
@@ -60,6 +76,9 @@ public:
     virtual void newSession() = 0;
     virtual RuntimeStatus runtimeStatus() const = 0;
     virtual bool playerFace(const std::string& playerKey, FaceTexture& out) = 0;
+    // Diagnostic traces: the frames the engine receives, written to <data>\traces (off by default).
+    virtual TraceInfo traceInfo() const { return {}; }
+    virtual bool setTraceRecording(bool on) { (void)on; return false; }
 };
 
 enum class Cursor { Arrow, Hand, IBeam, Resize };

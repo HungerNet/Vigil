@@ -93,6 +93,9 @@ private:
     Setting& add(std::unique_ptr<Setting> s);
 
     std::vector<std::unique_ptr<Setting>> settings_;
+    // Keys this version doesn't know (written by a newer or older Vigil), kept verbatim as JSON
+    // text and written back, so switching versions never loses another version's settings.
+    std::vector<std::pair<std::string, std::string>> unknown_;
     std::string path_;
     std::uint64_t revision_ = 1;
     bool dirty_ = false;

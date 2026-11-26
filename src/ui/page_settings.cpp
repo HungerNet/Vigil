@@ -4,6 +4,7 @@
 
 #include "core/version.h"
 #include "pages.h"
+#include "records.h"
 
 #include <algorithm>
 #include <cmath>
@@ -24,11 +25,13 @@ const std::vector<Section>& sections() {
         {"Alerts", Icon::Bell, {"Alerts"}, "How detections reach you while you play."},
         {"Keybinds", Icon::Keyboard, {}, "Every shortcut in one place. Click a binding, then press the new key."},
         {"Suspect Highlight", Icon::Target, {"Suspect Highlight"}, "Outline suspicious players in the world, colored by severity."},
-        {"Exemptions", Icon::Filter, {"Exemptions"}, "Situations in which checks deliberately look away to avoid false positives."},
+        {"Exemptions", Icon::Filter, {"Exemptions"},
+         "Players and situations Vigil deliberately does not judge, to avoid false positives."},
         {"Hit attribution", Icon::Combat, {"Hit attribution"},
          "How Vigil decides who hit whom. These settings affect KillAura, Reach and Velocity."},
-        {"Identity", Icon::Mask, {"Identity"}, "Denickers: how Vigil identifies nicked players, and what it may look up."},
         {"Appearance", Icon::Palette, {"Appearance"}, "Themes are complete designs; the editor lets you make your own."},
+        {"Accessibility", Icon::Accessibility, {"Accessibility"},
+         "Keyboard navigation, readability, motion and sound. Everything in Vigil can be used without a mouse."},
         {"Data", Icon::Database, {"Data"}, "What Vigil keeps on disk."},
         {"About", Icon::Info, {}, ""},
     };
@@ -233,34 +236,33 @@ void dataActions(PageContext& ctx, float x, float y, float w) {
     }
 }
 
-// The user's marks (watch, confirmed by you): what is stored, where, and how to manage it.
-float marksCard(PageContext& ctx, float x, float y, float w) {
+// The user's records (confirmed, watching, exempt, saved): what is stored and where to manage it.
+float recordsCard(PageContext& ctx, float x, float y, float w) {
     Ui& ui = ctx.ui;
     const Theme& t = ui.th();
     auto& marks = ctx.engine.marks();
     const Rect c{x, y, w, 150.f};
     card(ui, c);
-    sectionHeader(ui, c.x + 22.f, c.y + 18.f, "YOUR MARKS", "watch and confirmed by you");
-    const int confirmed = marks.confirmedCount(), watched = marks.watchedCount();
-    PlayerMarks pm;
-    pm.confirmed = true;
-    float mx = c.x + 22.f;
-    if (confirmed > 0) mx += markChip(ui, mx, c.y + 44.f, pm) + 8.f;
-    ui.fonts.draw(ui.r, type::Body, mx, c.y + 45.f,
-                  std::to_string(confirmed) + " confirmed \xC2\xB7 " + std::to_string(watched) + " watched", t.text);
-    ui.fonts.draw(ui.r, type::Small, c.x + 22.f, c.y + 70.f,
-                  "Your conclusions, stored only on this computer. Checks never read them; Vigil's confidence is separate.",
-                  t.textMuted, Align::Left, c.w - 44.f);
-    const Icon pin = Icon::Pin, rst = Icon::Reset;
-    const float b1 = buttonWidth(ui, "Review in Players", true);
-    if (button(ui, hashId("marks-review"), {c.x + 22.f, c.y + 100.f, b1, 34.f}, "Review in Players", ButtonKind::Secondary, &pin)) {
-        ctx.state.rosterScope = 2;
-        ctx.navigate(Page::Players);
+    sectionHeader(ui, c.x + 22.f, c.y + 18.f, "YOUR RECORDS", "history/marks.json \xC2\xB7 profiles/");
+    const int confirmed = marks.confirmedCount(), watched = marks.watchedCount() - confirmed, exempt = marks.exemptCount();
+    const int saved = static_cast<int>(RecordsService::instance().store().list().size());
+    ui.fonts.draw(ui.r, type::Body, c.x + 22.f, c.y + 45.f,
+                  std::to_string(confirmed) + " confirmed \xC2\xB7 " + std::to_string(watched) + " watching \xC2\xB7 " + std::to_string(exempt) +
+                      " exempt \xC2\xB7 " + std::to_string(saved) + " saved profiles",
+                  t.text);
+    std::string sub = "Your decisions and saved investigations, stored only on this computer. Checks never read them.";
+    if (marks.readOnly()) sub = marks.loadNote() + ".";
+    ui.fonts.draw(ui.r, type::Small, c.x + 22.f, c.y + 70.f, sub, marks.readOnly() ? t.sevNotice : t.textMuted, Align::Left, c.w - 44.f);
+    const Icon rec = Icon::Records, rst = Icon::Reset;
+    const float b1 = buttonWidth(ui, "Manage in Records", true);
+    if (button(ui, hashId("marks-review"), {c.x + 22.f, c.y + 100.f, b1, 34.f}, "Manage in Records", ButtonKind::Secondary, &rec)) {
+        ctx.navigate(Page::Records);
     }
+    const int all = static_cast<int>(marks.all().size());
     float& armed = ui.value(hashId("marks-clear-armed"), -100.f);
     const bool isArmed = ui.time - armed < 3.0;
-    const std::string lbl = isArmed ? "Click again to clear " + std::to_string(watched) + " marks" : "Clear all marks";
-    if (watched > 0 &&
+    const std::string lbl = isArmed ? "Click again to clear " + std::to_string(all) + " marks" : "Clear all marks";
+    if (all > 0 &&
         button(ui, hashId("marks-clear"), {c.x + 34.f + b1, c.y + 100.f, buttonWidth(ui, lbl, true), 34.f}, lbl,
                isArmed ? ButtonKind::Danger : ButtonKind::Ghost, &rst)) {
         if (isArmed) {
@@ -269,6 +271,31 @@ float marksCard(PageContext& ctx, float x, float y, float w) {
         } else {
             armed = static_cast<float>(ui.time);
         }
+    }
+    return c.h + 14.f;
+}
+
+// Exemptions section: the players you exempted live in Records; this card points there.
+float exemptPlayersCard(PageContext& ctx, float x, float y, float w) {
+    Ui& ui = ctx.ui;
+    const Theme& t = ui.th();
+    const auto exempt = ctx.engine.marks().search("", static_cast<int>(detection::MarkKind::Exempt));
+    const Rect c{x, y, w, 132.f};
+    card(ui, c);
+    sectionHeader(ui, c.x + 22.f, c.y + 18.f, "EXEMPT PLAYERS", "listed, never judged");
+    std::string names;
+    for (std::size_t i = 0; i < exempt.size() && i < 5; ++i) names += (i ? ", " : "") + exempt[i].name;
+    if (exempt.size() > 5) names += " and " + std::to_string(exempt.size() - 5) + " more";
+    ui.fonts.draw(ui.r, type::Body, c.x + 22.f, c.y + 44.f, exempt.empty() ? "Nobody is exempt." : names, exempt.empty() ? t.textMuted : t.text,
+                  Align::Left, c.w - 44.f);
+    ui.fonts.draw(ui.r, type::Small, c.x + 22.f, c.y + 66.f,
+                  "Friends and party members: Vigil lists them but records no evidence, alerts or highlights for them.", t.textMuted,
+                  Align::Left, c.w - 44.f);
+    const Icon ic = Icon::Exempt;
+    const char* lbl = exempt.empty() ? "Exempt a player" : "Manage exemptions";
+    if (button(ui, hashId("exempt-manage"), {c.x + 22.f, c.y + 88.f, buttonWidth(ui, lbl, true), 32.f}, lbl, ButtonKind::Secondary, &ic)) {
+        ctx.openRecord({}, 2);
+        if (exempt.empty()) { ctx.state.addOpen = true; ctx.ui.focus = hashId("picker-field"); ctx.ui.kbFocus = ctx.ui.focus; }
     }
     return c.h + 14.f;
 }
@@ -301,7 +328,12 @@ float keybinds(PageContext& ctx, float x, float y, float w) {
     struct Shortcut { const char* keys; const char* what; };
     static const Shortcut kShortcuts[] = {
         {"Ctrl K  or  /", "Search everything"},
-        {"Ctrl 1 \xE2\x80\xA6 6", "Go to a page"},
+        {"Ctrl 1 \xE2\x80\xA6 7", "Go to a page"},
+        {"Tab  \xC2\xB7  Shift Tab", "Move between controls"},
+        {"Enter  \xC2\xB7  Space", "Activate the focused control"},
+        {"\xE2\x86\x90 \xE2\x86\x92  \xC2\xB7  Shift", "Adjust a slider or choice (Shift: 10 steps)"},
+        {"\xE2\x86\x91 \xE2\x86\x93", "Move through player and record lists"},
+        {"Enter on a slider", "Type an exact value"},
         {"Backspace", "Back"},
         {"Esc", "Close the innermost layer, then Vigil"},
         {"/vigil", "Open Vigil from chat"},
@@ -378,8 +410,8 @@ void revealSetting(PageContext& ctx, const std::string& key) {
         const std::string id = rest.substr(0, rest.find('.'));
         if (detection::Check* c = ctx.engine.checkById(id)) ctx.state.selectedCheck = c->index();
         ctx.navigate(Page::Checks);
-    } else if (s->group == "Utilities" && s->type != SettingType::Key) {
-        ctx.navigate(Page::Utilities);
+    } else if ((s->group == "Utilities" || s->group == "Identity") && s->type != SettingType::Key) {
+        ctx.navigate(Page::Utilities);   // denickers live with the other optional tools
     } else {
         ctx.navigate(Page::Settings);
         ctx.state.settingsSection = s->type == SettingType::Key ? settingsSectionByName("Keybinds") : settingsSectionForGroup(s->group);
@@ -441,9 +473,10 @@ void drawSettings(PageContext& ctx, const Rect& area) {
 
     if (name == "Appearance") y += appearance(ctx, panel.x, y, w);
     if (name == "Keybinds") y += keybinds(ctx, panel.x, y, w);
+    if (name == "Exemptions") y += exemptPlayersCard(ctx, panel.x, y, w);
     for (const char* g : sec.groups) y += groupCard(ctx, g, panel.x, y, w);
     if (name == "Data") {
-        y += marksCard(ctx, panel.x, y, w);
+        y += recordsCard(ctx, panel.x, y, w);
         dataActions(ctx, panel.x, y, w);
         y += 156.f;
     }

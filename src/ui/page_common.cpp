@@ -10,6 +10,7 @@ const char* pageTitle(Page p) {
     switch (p) {
         case Page::Overview: return "Overview";
         case Page::Players: return "Players";
+        case Page::Records: return "Records";
         case Page::Checks: return "Checks";
         case Page::Utilities: return "Utilities";
         case Page::Settings: return "Settings";
@@ -21,7 +22,8 @@ const char* pageTitle(Page p) {
 const char* pageSection(Page p) {
     switch (p) {
         case Page::Overview: return "Monitor";
-        case Page::Players: return "Investigate";
+        case Page::Players:
+        case Page::Records: return "Investigate";
         case Page::Checks:
         case Page::Utilities:
         case Page::Settings: return "Configure";
@@ -34,8 +36,9 @@ const char* pagePurpose(Page p) {
     switch (p) {
         case Page::Overview: return "What is happening right now.";
         case Page::Players: return "Everyone Vigil has observed. Open a profile to investigate.";
+        case Page::Records: return "Players you confirmed, watch or exempted, and saved profiles. Kept across sessions.";
         case Page::Checks: return "What Vigil looks for and how much evidence it needs before it speaks.";
-        case Page::Utilities: return "Optional Bed Wars helpers. Each one is off until you turn it on.";
+        case Page::Utilities: return "Optional helpers and identity tools. Each one is off until you turn it on.";
         case Page::Settings: return "Alerts, scope, keybinds, appearance and data. Changes save automatically.";
         case Page::Status: return "Whether Vigil is running correctly, and what each part is doing.";
     }
@@ -46,6 +49,7 @@ Icon pageIcon(Page p) {
     switch (p) {
         case Page::Overview: return Icon::Overview;
         case Page::Players: return Icon::Players;
+        case Page::Records: return Icon::Records;
         case Page::Checks: return Icon::Checks;
         case Page::Utilities: return Icon::Utilities;
         case Page::Settings: return Icon::Settings;

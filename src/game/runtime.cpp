@@ -8,6 +8,7 @@
 #include "../ui/suspicion.h"
 #include "../ui/widgets.h"
 #include "alerts.h"
+#include "core/version.h"
 #include "jvm.h"
 #include "mc.h"
 #include "minecraft_util.h"
@@ -19,6 +20,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <ctime>
 #include <filesystem>
 
 namespace vigil::game {
@@ -122,6 +124,7 @@ void Runtime::initialize(const std::string& dllDirectory, HWND gameWindow) {
     engine_.setMarksPath((std::filesystem::path(dataDir_) / "history" / "marks.json").string());
     engine_.setJournalDirectory((std::filesystem::path(dataDir_) / "sessions").string());
     engine_.resetSession(nowMs());
+    if (engine_.marks().readOnly()) log::writef("vigil", "records: %s", engine_.marks().loadNote().c_str());
     initialized_ = true;
 }
 
@@ -183,7 +186,57 @@ ui::RuntimeStatus Runtime::runtimeStatus() const {
     st.chatReader = chat_.available();
     st.chatLines = chat_.linesRead();
     st.dataDir = dataDir_;
+    st.runtimeVersion = VIGIL_VERSION_STRING;
+    st.runtimeBuild = VIGIL_BUILD_ID;
+    if (sampler_.resolved()) {
+        const BindingReport& b = sampler_.bindings();
+        st.bindingsTotal = b.total;
+        st.bindingsMissing = b.missing;
+        st.bindingsObfuscated = b.obfuscated;
+        st.bindingNotes = b.notes;
+    }
     return st;
+}
+
+ui::TraceInfo Runtime::traceInfo() const {
+    ui::TraceInfo ti;
+    ti.supported = true;
+    ti.active = trace_.active();
+    ti.path = trace_.active() ? trace_.path() : lastTracePath_;
+    ti.frames = trace_.frames();
+    ti.bytes = trace_.bytes();
+    ti.stopReason = trace_.stopReason();
+    return ti;
+}
+
+bool Runtime::setTraceRecording(bool on) {
+    if (!on) {
+        if (trace_.active()) {
+            trace_.stop("stopped by you");
+            log::writef("runtime", "trace recording stopped: %d frames, %llu bytes", trace_.frames(),
+                        static_cast<unsigned long long>(trace_.bytes()));
+        }
+        return true;
+    }
+    if (trace_.active()) return true;
+    char stamp[32];
+    const std::time_t now = std::time(nullptr);
+    std::tm tmv{};
+    localtime_s(&tmv, &now);
+    std::strftime(stamp, sizeof(stamp), "%Y%m%d-%H%M%S", &tmv);
+    const std::string path = (std::filesystem::path(dataDir_) / "traces" / (std::string("trace-") + stamp + ".vtrace")).string();
+    detection::TraceHeader h;
+    h.vigil = VIGIL_VERSION_STRING;
+    h.build = VIGIL_BUILD_ID;
+    h.startedEpochMs = detection::epochNowMs();
+    h.note = serverHost_;
+    if (!trace_.start(path, h)) {
+        log::writef("runtime", "trace recording could not start: %s", path.c_str());
+        return false;
+    }
+    lastTracePath_ = path;
+    log::writef("runtime", "trace recording started: %s", path.c_str());
+    return true;
 }
 
 bool Runtime::playerFace(const std::string& playerKey, ui::FaceTexture& out) {
@@ -286,12 +339,21 @@ void Runtime::pump(JNIEnv* env, jobject mc) {
         engine_.onWorldChanged();
         utilities_.onWorldChanged();
         identity::Service::instance().resetGame();
+        // Also carried on the next frame, so a recorded trace replays the world change (the
+        // engine treats a repeated world change as a no-op).
+        pendingWorldChange_ = true;
     }
     if (sampled) {
         frame.timeMs = now;
         frame.context = allowed ? context_.context() : detection::GameContext::Unknown;
         frame.contextDetail = allowed ? context_.detail() : std::string();
         frame.chat.swap(pendingChat_);
+        frame.worldChanged = pendingWorldChange_;
+        pendingWorldChange_ = false;
+        if (trace_.active()) {
+            trace_.write(frame);
+            if (!trace_.active()) log::writef("runtime", "trace recording stopped: %s", trace_.stopReason().c_str());
+        }
         engine_.onFrame(frame);
         utilities_.onSpawns(sampler_.takeSpawns(), now);
         announceMatch(env, mc, now);
@@ -468,7 +530,7 @@ void Runtime::handleMenu(JNIEnv* env, jobject mc) {
 void Runtime::runCommand(JNIEnv* env, jobject mc, const std::string& raw) {
     std::string args = Trim(raw.size() > 6 ? raw.substr(6) : "");
     const std::string lower = LowerAscii(args);
-    static const char* kPages[] = {"overview", "players", "checks", "utilities", "settings", "status"};
+    static const char* kPages[] = {"overview", "players", "records", "checks", "utilities", "settings", "status"};
     if (lower.empty()) {
         openRequest_ = 2;
         return;
@@ -524,6 +586,7 @@ void Runtime::onRenderEntities(JNIEnv* env, jobject mc, jclass /*mcClass*/) {
     RenderSuspectHighlights(env, mc, [&](int entityId, HighlightStyle& s) {
         for (const auto& r : engine_.session().players()) {
             if (r.entityId != entityId || !r.present || r.local) continue;
+            if (engine_.marks().exempt(r.key)) return false;   // exempt players are never highlighted
             const bool confirmed = confirmedToo && engine_.marks().confirmed(r.key);
             if (r.suspicion < threshold && !confirmed) return false;
             const ui::Tier tier = ui::tierOf(r.suspicion);
@@ -724,6 +787,7 @@ bool Runtime::onWindowMessage(HWND, UINT msg, WPARAM wParam, LPARAM lParam, LRES
 
 void Runtime::shutdown(JNIEnv* env) {
     if (!initialized_) return;
+    trace_.stop("game closed");
     engine_.flushHistory();
     Settings::instance().save();
     identity::Service::instance().stop();

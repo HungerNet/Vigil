@@ -372,6 +372,57 @@ void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, flo
             P.poly({{7.2f, 6.8f}, {3.7f, 8.2f}, {3.1f, 4.4f}});
             P.poly({{10, 7}, {10, 10.5f}, {12.6f, 12}});
             break;
+        case Icon::Records:  // an archive box: lid, body, label slot
+            P.rrect(2.8f, 3.5f, 17.2f, 7.2f, 1.2f);
+            P.poly({{4.2f, 7.2f}, {4.2f, 16.5f}, {15.8f, 16.5f}, {15.8f, 7.2f}});
+            P.line(8, 10.4f, 12, 10.4f);
+            break;
+        case Icon::Save:  // a bookmark ribbon: kept in Records
+            P.poly({{5.5f, 2.8f}, {14.5f, 2.8f}, {14.5f, 17.2f}, {10, 13.4f}, {5.5f, 17.2f}}, true);
+            break;
+        case Icon::Import:  // tray with an arrow coming in (mirror of Export)
+            P.poly({{6, 8}, {4, 8}, {4, 16.5f}, {16, 16.5f}, {16, 8}, {14, 8}});
+            P.line(10, 2.8f, 10, 11.8f);
+            P.poly({{6.8f, 8.6f}, {10, 11.8f}, {13.2f, 8.6f}});
+            break;
+        case Icon::Exempt:  // not judged: a ring crossed once
+            P.circle(10, 10, 6.8f);
+            P.line(5.2f, 14.8f, 14.8f, 5.2f);
+            break;
+        case Icon::UserPlus:  // the Players glyph with a plus
+            P.circle(8, 7, 3.1f);
+            P.arc(8, 18.5f, 6.2f, -62, 62);
+            P.line(15.5f, 6.2f, 15.5f, 11.8f);
+            P.line(12.7f, 9, 18.3f, 9);
+            break;
+        case Icon::Sound:  // speaker and two waves
+            P.poly({{3, 7.8f}, {6.2f, 7.8f}, {10, 4.4f}, {10, 15.6f}, {6.2f, 12.2f}, {3, 12.2f}}, true);
+            P.arc(10.5f, 10, 3.4f, 35, 145);
+            P.arc(10.5f, 10, 6.4f, 40, 140);
+            break;
+        case Icon::More:
+            P.dot(4.6f, 10, 1.45f);
+            P.dot(10, 10, 1.45f);
+            P.dot(15.4f, 10, 1.45f);
+            break;
+        case Icon::Trash:
+            P.line(3.8f, 5.4f, 16.2f, 5.4f);
+            P.poly({{8, 5.4f}, {8.6f, 3}, {11.4f, 3}, {12, 5.4f}});
+            P.poly({{5.4f, 5.4f}, {6.3f, 17}, {13.7f, 17}, {14.6f, 5.4f}});
+            P.line(8.6f, 8.6f, 8.6f, 14);
+            P.line(11.4f, 8.6f, 11.4f, 14);
+            break;
+        case Icon::Edit:  // pencil
+            P.poly({{4, 16}, {4.6f, 12.6f}, {13.4f, 3.8f}, {16.2f, 6.6f}, {7.4f, 15.4f}}, true);
+            P.line(11.6f, 5.6f, 14.4f, 8.4f);
+            break;
+        case Icon::Accessibility:  // a figure inside a ring
+            P.circle(10, 10, 7.6f);
+            P.dot(10, 6, 1.35f);
+            P.line(6, 8.6f, 14, 8.6f);
+            P.poly({{7.6f, 15.4f}, {10, 10.6f}, {12.4f, 15.4f}});
+            P.line(10, 8.6f, 10, 10.6f);
+            break;
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <set>
 
 namespace vigil::detection {
@@ -50,6 +51,40 @@ void ConfidenceModel::gate(double nowMs, const ConfidenceParams& p, int& count, 
         kinds.insert(e.second);
     }
     distinct = static_cast<int>(kinds.size());
+}
+
+Envelope deriveEnvelope(const std::vector<EvidenceValue>& values) {
+    Envelope e;
+    const EvidenceValue* measure = nullptr;
+    for (const auto& v : values) {
+        if (v.role == EvidenceValue::Role::Measure && v.hasLimit) { measure = &v; break; }
+    }
+    if (!measure) return e;
+    e.quantity = measure->name;
+    e.unit = measure->unit;
+    e.observed = measure->value;
+    e.limit = measure->limit;
+    for (const auto& v : values) {
+        if (&v == measure) continue;
+        if (v.role == EvidenceValue::Role::Expected && !e.hasExpected) {
+            e.expected = v.value;
+            e.hasExpected = true;
+            e.expectedLabel = v.name;
+            continue;
+        }
+        if (v.hasLimit) continue;   // a second limited measure is its own observation, not context
+        char buf[96];
+        const double a = std::fabs(v.value);
+        std::snprintf(buf, sizeof(buf), a >= 100.0 ? "%.0f" : a >= 10.0 ? "%.1f" : "%.2f", v.value);
+        std::string text = v.name + " " + buf;
+        if (!v.unit.empty()) text += (v.unit == "%" || v.unit == "x" || v.unit == "\xC2\xB0") ? v.unit : " " + v.unit;
+        e.context.push_back(text);
+    }
+    // Which side is legitimate: an expectation above the limit means legitimate play produces
+    // more than the limit (knockback taken, air time); otherwise less (speed, reach).
+    if (e.hasExpected) e.upper = e.expected <= e.limit;
+    else e.upper = e.observed >= e.limit;
+    return e;
 }
 
 bool ConfidenceModel::canDetect(double nowMs, const ConfidenceParams& p) const {

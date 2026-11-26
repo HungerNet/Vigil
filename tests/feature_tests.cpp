@@ -13,19 +13,10 @@
 
 using namespace vigil;
 
-static int g_failures = 0;
-static int g_checks = 0;
+#include "test_framework.h"
 
-#define EXPECT(cond, ...)                                                                  \
-    do {                                                                                   \
-        ++g_checks;                                                                        \
-        if (!(cond)) {                                                                     \
-            ++g_failures;                                                                  \
-            std::printf("    FAIL %s:%d  %s  — ", __FILE__, __LINE__, #cond);              \
-            std::printf(__VA_ARGS__);                                                      \
-            std::printf("\n");                                                             \
-        }                                                                                  \
-    } while (0)
+using vigil::test::Test;
+using vigil::test::runSuite;
 
 static void testWhoTriggers() {
     using namespace utilities;
@@ -194,8 +185,7 @@ static void testIdentityService() {
     s.stop();
 }
 
-int main() {
-    struct Test { const char* name; void (*fn)(); };
+int main(int argc, char** argv) {
     const Test tests[] = {
         {"who triggers", testWhoTriggers},
         {"auto who disabled means disabled", testAutoWhoDisabled},
@@ -205,12 +195,5 @@ int main() {
         {"identity helpers", testIdentityHelpers},
         {"identity service", testIdentityService},
     };
-    for (const Test& t : tests) {
-        const int before = g_failures;
-        std::printf("[ RUN  ] %s\n", t.name);
-        t.fn();
-        std::printf("[ %s ] %s\n", g_failures == before ? " OK " : "FAIL", t.name);
-    }
-    std::printf("\n%d expectations, %d failed\n", g_checks, g_failures);
-    return g_failures == 0 ? 0 : 1;
+    return runSuite(argc, argv, tests, "features");
 }

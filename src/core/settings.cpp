@@ -1,5 +1,6 @@
 #include "settings.h"
 
+#include "core/version.h"
 #include "json.h"
 #include "log.h"
 
@@ -152,9 +153,14 @@ bool Settings::load() {
     }
     const json::Value& values = root.get("settings");
     int applied = 0;
+    unknown_.clear();
     for (const auto& kv : values.members()) {
         Setting* s = find(kv.first);
-        if (!s) continue;  // unknown/obsolete keys are dropped on next save
+        if (!s) {
+            // Another version's key: kept and written back unchanged.
+            if (unknown_.size() < 512) unknown_.push_back({kv.first, json::write(kv.second, -1)});
+            continue;
+        }
         if (s->type == SettingType::Text) {
             if (kv.second.isString()) { s->text = kv.second.asString(); ++applied; }
         } else if (kv.second.isBool()) {
@@ -177,12 +183,17 @@ bool Settings::save() {
     json::Value root = json::Value::object();
     root["format"] = json::Value(1);
     root["product"] = json::Value("Vigil");
+    root["writtenBy"] = json::Value(VIGIL_VERSION_STRING);
     json::Value& values = root["settings"];
     values = json::Value::object();
     for (const auto& s : settings_) {
         if (s->type == SettingType::Text) values[s->key] = json::Value(s->text);
         else if (s->type == SettingType::Bool) values[s->key] = json::Value(s->b());
         else values[s->key] = json::Value(s->value);
+    }
+    for (const auto& kv : unknown_) {
+        json::Value v;
+        if (json::parse(kv.second, v)) values[kv.first] = v;
     }
     std::error_code ec;
     std::filesystem::create_directories(std::filesystem::path(path_).parent_path(), ec);

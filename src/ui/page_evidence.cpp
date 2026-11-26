@@ -36,7 +36,7 @@ void timeline(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     const double t1 = ctx.nowMs;
     const double spans[3] = {60e3, 300e3, 900e3};
     double t0 = ctx.state.timelineWindow < 3 ? t1 - spans[ctx.state.timelineWindow]
-                                             : std::min(ctx.engine.session().startMs(), p.firstSeenMs);
+                                             : std::min(ctx.sessionStart(), p.firstSeenMs);
     if (t1 - t0 < 10e3) t0 = t1 - 10e3;
     const float labelW = 104.f;
     const Rect plot{rc.x + 22.f + labelW, rc.y + 50.f, rc.w - 44.f - labelW, rc.h - 84.f};
@@ -166,7 +166,7 @@ void evidenceList(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     const Id sid = hashId("ev-list", hashId(p.key));
     const float off = beginScroll(ui, sid, view);
     float y = view.y + off;
-    const double start = ctx.engine.session().startMs();
+    const double start = ctx.sessionStart();
     for (const Evidence* e : items) {
         const Rect row{view.x, y, view.w, 46.f};
         if (row.b() >= view.y && row.y <= view.b()) {
@@ -194,9 +194,78 @@ void evidenceList(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     endScroll(ui, sid, view, y - (view.y + off) + 6.f);
 }
 
+std::string valueText(double v, const std::string& unit) {
+    const bool whole = std::fabs(v - std::round(v)) < 1e-9;   // ticks, counts
+    std::string s = formatNumber(v, whole || std::fabs(v) >= 100 ? 0 : std::fabs(v) >= 10 ? 1 : 2);
+    if (!unit.empty()) s += (unit == "%" || unit == "\xC2\xB0" || unit == "x") ? unit : " " + unit;
+    return s;
+}
+
+// What was expected, what happened, and why the difference is suspicious (PLAN.md §7.2).
+float envelopeBlock(Ui& ui, const Evidence& e, float x, float y, float w) {
+    const Theme& t = ui.th();
+    const detection::Envelope& env = e.envelope;
+    if (!env.valid()) return y;
+    ui.fonts.draw(ui.r, type::Overline, x, y, "EXPECTED VS OBSERVED", t.textFaint);
+    y += 20.f;
+    // Three columns: expected (vanilla, this context) · edge of legitimate play · observed.
+    struct Col { const char* label; std::string value; Color c; };
+    std::vector<Col> cols;
+    if (env.hasExpected) cols.push_back({"Vanilla", valueText(env.expected, env.unit), t.text});
+    cols.push_back({"Limit", valueText(env.limit, env.unit), t.text});
+    cols.push_back({"Observed", valueText(env.observed, env.unit), t.severity(e.confidenceAfter)});
+    const float colW = w / static_cast<float>(cols.size());
+    for (std::size_t i = 0; i < cols.size(); ++i) {
+        const float cx = x + colW * i;
+        ui.fonts.draw(ui.r, type::Caption, cx, y, cols[i].label, t.textFaint, Align::Left, colW - 6.f);
+        if (std::string(cols[i].label) == "Limit") {
+            ui.tooltip(hashId("env-limit", hashId(e.summary)), {cx, y - 2.f, colW - 6.f, 36.f},
+                       env.upper ? "Legitimate play stays at or below this value in this player's context."
+                                 : "Legitimate play reaches at least this value in this player's context.");
+        }
+        ui.fonts.draw(ui.r, type::Numeric, cx, y + 16.f, cols[i].value, cols[i].c, Align::Left, colW - 6.f);
+    }
+    y += 42.f;
+    // The envelope on one axis: the legitimate band, the vanilla mark, the edge, the observation.
+    double hi = std::max({env.observed, env.limit, env.hasExpected ? env.expected : 0.0});
+    hi = hi <= 0.0 ? 1.0 : hi * 1.15;
+    const Rect bar{x, y, w, 8.f};
+    auto px = [&](double v) { return bar.x + bar.w * static_cast<float>(std::clamp(v / hi, 0.0, 1.0)); };
+    ui.r.roundRect(bar, 4.f, t.inset);
+    const float lx = px(env.limit);
+    const Rect band = env.upper ? Rect{bar.x, bar.y, lx - bar.x, bar.h} : Rect{lx, bar.y, bar.r() - lx, bar.h};
+    ui.r.roundRect(band, 4.f, t.sevClear.withAlpha(0.28f));
+    ui.r.rect({lx - 0.75f, bar.y - 4.f, 1.5f, bar.h + 8.f}, t.text.alpha(0.7f));
+    if (env.hasExpected) {
+        const float ex = px(env.expected);
+        ui.r.rect({ex - 0.75f, bar.y, 1.5f, bar.h}, t.textMuted);
+    }
+    const Color oc = t.severity(e.confidenceAfter);
+    ui.r.circle(px(env.observed), bar.cy(), 6.f, t.surfaceRaised);
+    ui.r.circle(px(env.observed), bar.cy(), 4.5f, oc);
+    y += 20.f;
+    // Why it is suspicious, in one line.
+    const double dev = env.deviation();
+    std::string why;
+    if (dev <= 0.0005) why = "At the edge of what legitimate play produces.";
+    else why = formatNumber(dev * 100.0, dev >= 0.1 ? 0 : 1) + "% " + (env.upper ? "beyond" : "short of") + " what legitimate play can produce.";
+    y += ui.fonts.drawWrapped(ui.r, type::Small, x, y, w, why, t.text, 3.f) + 4.f;
+    if (!env.context.empty()) {
+        std::string ctxLine = "Context: ";
+        for (std::size_t i = 0; i < env.context.size(); ++i) ctxLine += (i ? " \xC2\xB7 " : "") + env.context[i];
+        y += ui.fonts.drawWrapped(ui.r, type::Caption, x, y, w, ctxLine, t.textFaint, 3.f) + 4.f;
+    }
+    return y + 12.f;
+}
+
 float valueTable(Ui& ui, const Evidence& e, float x, float y, float w) {
     const Theme& t = ui.th();
     for (const auto& v : e.values) {
+        // The envelope block already shows the measured quantity and the vanilla expectation.
+        if (e.envelope.valid() && (v.role == detection::EvidenceValue::Role::Expected ||
+                                   (v.hasLimit && v.name == e.envelope.quantity))) {
+            continue;
+        }
         ui.fonts.draw(ui.r, type::Small, x, y, v.name, t.textMuted, Align::Left, w * 0.55f);
         std::string val = formatNumber(v.value, std::fabs(v.value) >= 100 ? 0 : std::fabs(v.value) >= 10 ? 1 : 2);
         if (!v.unit.empty()) val += (v.unit == "%" || v.unit == "\xC2\xB0" || v.unit == "x") ? v.unit : " " + v.unit;
@@ -344,17 +413,27 @@ void inspector(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
         ui.fonts.draw(ui.r, type::Overline, x, y, chk.name() + "  \xC2\xB7  " + ind.name, sev);
         y += 20.f;
         y += ui.fonts.drawWrapped(ui.r, type::Title, x, y, w, ev->summary, t.text, 4.f) + 6.f;
-        const double start = ctx.engine.session().startMs();
+        const double start = ctx.sessionStart();
         ui.fonts.draw(ui.r, type::Caption, x, y, "Session " + formatClock((ev->timeMs - start) / 1000.0) + "  \xC2\xB7  " +
                                                      agoLabel(ctx.nowMs, ev->timeMs) + (ev->target.empty() ? "" : "  \xC2\xB7  vs " + ev->target),
                       t.textFaint);
         y += 26.f;
+        y = envelopeBlock(ui, *ev, x, y, w);
         ui.fonts.draw(ui.r, type::Overline, x, y, "WHY IT MATTERS", t.textFaint);
         y += 18.f;
         y += ui.fonts.drawWrapped(ui.r, type::Small, x, y, w, ev->detail, t.textMuted, 4.f) + 16.f;
-        ui.fonts.draw(ui.r, type::Overline, x, y, "MEASURED", t.textFaint);
-        y += 20.f;
-        y = valueTable(ui, *ev, x, y, w);
+        bool otherValues = false;
+        for (const auto& v : ev->values) {
+            if (!ev->envelope.valid() || (v.role != detection::EvidenceValue::Role::Expected &&
+                                          !(v.hasLimit && v.name == ev->envelope.quantity))) {
+                otherValues = true;
+            }
+        }
+        if (otherValues) {
+            ui.fonts.draw(ui.r, type::Overline, x, y, ev->envelope.valid() ? "ALSO MEASURED" : "MEASURED", t.textFaint);
+            y += 20.f;
+            y = valueTable(ui, *ev, x, y, w);
+        }
         y += 8.f;
         y = formation(ctx, *ev, x, y, w);
     } else {

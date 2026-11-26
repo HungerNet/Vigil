@@ -2,8 +2,8 @@
 
 > Status: **phases 0–9 implemented.** This plan was written before any code changed; the
 > outcome, QA results and the in-game validation checklist are in
-> [`docs/IMPLEMENTATION_SUMMARY.md`](docs/IMPLEMENTATION_SUMMARY.md). Companion reports live in
-> [`docs/`](docs/).
+> [`docs/IMPLEMENTATION_SUMMARY.md`](../IMPLEMENTATION_SUMMARY.md). Companion reports live in
+> [`docs/`](../).
 
 ---
 
@@ -235,7 +235,7 @@ with zero UI code.
 
 ## 4. Detection framework design
 
-Full design: [`docs/DETECTION_FRAMEWORK.md`](docs/DETECTION_FRAMEWORK.md). Summary:
+Full design: [`docs/DETECTION_FRAMEWORK.md`](../DETECTION_FRAMEWORK.md). Summary:
 
 ### 4.1 Core concepts
 
@@ -291,7 +291,7 @@ settings with presets (Relaxed / Balanced / Strict).
 | **FlatScaff (ScaffoldB)** | Keep | Ported; thresholds exposed. |
 
 New checks: **AutoClicker, Reach, Speed, Velocity**. Redesign details:
-[`docs/DETECTION_REDESIGN.md`](docs/DETECTION_REDESIGN.md).
+[`docs/DETECTION_REDESIGN.md`](../DETECTION_REDESIGN.md).
 
 ### 5.1 New/redesigned check designs (summary)
 
@@ -336,7 +336,7 @@ New checks: **AutoClicker, Reach, Speed, Velocity**. Redesign details:
 | No tests | High | `tests/detection_tests.cpp` + CTest |
 | Output names `ChatReaderLunar.dll`, `InjectorLunar.exe` | Low | `Vigil.dll`, `VigilLauncher.exe` |
 
-Full report: [`docs/TECH_DEBT.md`](docs/TECH_DEBT.md).
+Full report: [`docs/TECH_DEBT.md`](../TECH_DEBT.md).
 
 ---
 
@@ -431,7 +431,7 @@ Embedded **Inter** (SIL OFL) rendered through a GDI glyph atlas with grayscale a
 exact pixel sizes per UI scale; Consolas for raw values. Type scale: 11 / 12 / 13 / 15 / 18 /
 24 / 32.
 
-Full plan: [`docs/UI_UX.md`](docs/UI_UX.md).
+Full plan: [`docs/UI_UX.md`](../UI_UX.md).
 
 ---
 
@@ -467,7 +467,7 @@ outline, and with the logotype "VIGIL" in widely tracked Inter SemiBold.
 
 Deliverables: `assets/brand/vigil-mark.svg`, `vigil-mark-mono.svg`, `vigil-lockup.svg`,
 `vigil-app-icon.svg`, the same geometry drawn natively in the UI, and
-[`docs/BRAND.md`](docs/BRAND.md).
+[`docs/BRAND.md`](../BRAND.md).
 
 ---
 

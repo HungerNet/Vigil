@@ -14,7 +14,7 @@
 //
 // Privacy: no analytics, telemetry or reporting. Requests are made only for nicked players, only
 // to the endpoints above, from a worker thread, with a generic user agent. Each lookup is shown in
-// the player's Identity tab. Everything can be switched off in Settings → Identity.
+// the player's Identity tab. Everything can be switched off in Utilities → Identity tools.
 
 #include <condition_variable>
 #include <cstdint>

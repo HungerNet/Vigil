@@ -22,6 +22,8 @@ enum class Icon {
     Eye, TrendUp, TrendDown, Globe, Play, Plug, Chip, Mask,
     // Investigation marks and relevance.
     Shield, ShieldCheck, Bot, History,
+    // Records and actions (1.0-dev.9). Export = tray with an arrow out; Import = arrow in.
+    Records, Save, Import, Exempt, UserPlus, Sound, More, Trash, Edit, Accessibility,
 };
 
 void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, float stroke = 1.6f);

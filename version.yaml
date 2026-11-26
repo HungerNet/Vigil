@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.8'
+version: '1.0-dev.9'
 description: |
   Dev 1:
   - Initial release
@@ -24,3 +24,9 @@ description: |
     NPC/bot filtering, duplicate handling, confidence halos, Confirmed by you,
     latency-aware Velocity and update-aware Speed/BHop/NoSlow, stable interface
     scaling, theme transitions, typography and icon refinements, compatibility fixes
+  Dev 9:
+  - Finalization & validation pass: Records (confirm, watch and exempt anyone; saved,
+    exported and imported profiles), keyboard navigation and focus, typed slider values,
+    expected-vs-observed evidence, category language for low-confidence findings, match
+    cleanup, denickers in Utilities, diagnostics report and trace recording, runtime
+    version protection, versioned release files, validation-gated release workflow

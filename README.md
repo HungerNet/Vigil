@@ -11,9 +11,11 @@ the measured values, the limits they were compared against and the reasoning tha
 
 ## Use
 
-1. Download **`Vigil.exe`** from the latest release.
+1. Download **`Vigil-<version>.exe`** (for example `Vigil-1.0-dev.9.exe`) from the latest
+   release. `SHA256SUMS` next to it lets you verify the download.
 2. Run it. Vigil finds Lunar Client (start Minecraft 1.8.9 first, or it will wait for you),
-   starts itself inside the game and confirms when it is active.
+   starts itself inside the game and confirms when it is active. If an older Vigil is already
+   running in the game, it asks you to restart Lunar Client instead of loading a second one.
 3. In game, press **Right Shift** (rebindable) or type `/vigil`.
 
 That's all — there are no other files to keep track of. Vigil stores its settings and data in
@@ -24,8 +26,9 @@ That's all — there are no other files to keep track of. Vigil stores its setti
 | Right Shift | Open Vigil. While a detection notification is on screen, opens that player. |
 | `/vigil <player>` | Investigate a player (searches if they weren't observed this session) |
 | `/vigil search <text>` | Search players, checks, settings and evidence |
-| `/vigil status` · `/vigil reset` | Open Status · start a new session |
+| `/vigil status` · `/vigil records` · `/vigil reset` | Open Status · open Records · start a new session |
 | Ctrl K or `/` (in Vigil) | Search everything |
+| Tab · Enter · arrows (in Vigil) | Move between controls · activate · adjust sliders, choices and lists |
 
 ## What's inside
 
@@ -39,16 +42,20 @@ That's all — there are no other files to keep track of. Vigil stores its setti
   match briefing names the players worth knowing about.
 - **Confidence you can read at a glance:** every player wears a halo — a ring that fills and grows
   heavier with Vigil's confidence — in the roster, profiles, notifications and the world.
-- **Your conclusions, kept separate:** watch players or mark them **Confirmed by you**. Vigil never
-  does this on its own, and your marks never change its confidence.
+- **Your conclusions, kept separate (Records):** confirm, watch or exempt anyone — a player in
+  your game or any username. Search and review confirmations with reasons and notes; exempt friends
+  so Vigil never judges them. Vigil never does any of this on its own, and your records never
+  change its confidence.
 - **Player profiles:** confidence over the session, what drives it and how it evolved; the
-  evidence timeline with an inspector that explains every observation; behavior; identity.
-- **Denickers:** recognises nicked players, identifies the account behind a nick that kept its
-  own skin, and (with your own Bordic key) matches Bed Wars final/bed counters.
-- **Utilities:** Auto Who, Fast Buy, Party Detector and Party Queue Detector — off until you turn
-  them on.
-- **Status:** a live view of every part of Vigil, from injection to signals.
-- **Yours:** nine themes plus a theme editor, rebindable shortcuts, motion settings.
+  evidence timeline with an inspector that shows, for every observation, what vanilla play would
+  have produced, what was observed and why the difference is suspicious; behavior; identity.
+  Save a profile, export it to share, import one you received.
+- **Utilities:** Auto Who, Fast Buy, Party Detector, Party Queue Detector and the identity tools
+  (skin and number denickers) — off until you turn them on.
+- **Status:** a live view of every part of Vigil, plus a diagnostics report and trace recording for
+  bug reports.
+- **Yours:** nine themes plus a theme editor, rebindable shortcuts, full keyboard navigation,
+  higher-contrast text, motion settings and optional quiet interface sounds.
 
 ## Privacy
 
@@ -61,7 +68,9 @@ denickers you enable, only for nicked players, and only with Mojang's public pro
 Vigil loads itself into the game process — the same technique every in-game mod loader uses — so
 some antivirus products may warn about it. Vigil does not hide or obfuscate anything: it writes
 one file, `%LOCALAPPDATA%\Vigil\runtime\Vigil-<version>.dll`, never asks for administrator
-rights, and each release publishes the SHA-256 of `Vigil.exe` so you can verify your download.
+rights, and each release publishes `SHA256SUMS` so you can verify your download
+(`Get-FileHash Vigil-<version>.exe`). `Vigil-<version>.exe --self-check report.json` checks that
+the file and the runtime inside it belong together, without starting anything.
 See [docs/TRUST_AUDIT.md](docs/TRUST_AUDIT.md).
 
 ## Build
@@ -71,37 +80,44 @@ Requirements: Visual Studio 2022 Build Tools (x64), CMake ≥ 3.20, and a JDK fo
 ```powershell
 cmake -S . -B build -A x64
 cmake --build build --config Release
-ctest --test-dir build -C Release           # detection + utility/identity tests
+ctest --test-dir build -C Release           # five suites: detection, features, records, validation, ui_logic
 build\Release\VigilPreview.exe              # UI + engine with a simulated arena
 build\Release\VigilPreview.exe --shot out.png --page players --player Kestrel --tab evidence --theme 7
+build\Release\VigilReplay.exe tests\traces\golden-arena.vtrace --expect tests\traces\golden-arena.expect.json
+build\Release\Vigil.exe --self-check report.json   # verifies the exe and its embedded runtime; starts nothing
 ```
 
-`build\Release\Vigil.exe` is the distributable; it embeds `Vigil.dll`. The version comes from
-`version.yaml`. The Java shims (`src/game/bytecode/`) are generated from `java/src` with
-`python tools/build_java.py`; brand assets with `python tools/make_brand_assets.py`.
+`build\Release\Vigil.exe` is the distributable (published as `Vigil-<version>.exe`); it embeds
+`Vigil.dll`. The version comes from `version.yaml`. The Java shims (`src/game/bytecode/`) are
+generated from `java/src` with `python tools/build_java.py`; brand assets with
+`python tools/make_brand_assets.py`. CI and releases: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
 ## Layout
 
 ```
-src/core/        logging, JSON, paths, typed settings registry
-src/detection/   detection framework and checks (pure C++, unit-tested)
-src/utilities/   Auto Who, Fast Buy, party detectors (pure logic, unit-tested)
-src/identity/    nick detection and denickers
-src/net/         HTTPS client (WinHTTP) for the identity tools
+src/core/        logging, JSON, paths, typed settings registry                  (vigil_core)
+src/detection/   engine, checks, records formats, traces (pure C++, std only)    (vigil_detection)
+src/utilities/   Auto Who, Fast Buy, party detectors (pure logic)                (vigil_services)
+src/identity/    nick detection and denickers; src/net/ HTTPS for them           (vigil_services)
+src/ui/          native OpenGL interface: renderer, fonts, icons, themes, widgets, pages, records
 src/game/        Minecraft adapter over JNI: sampler, context, chat, utilities, alerts, highlight
-src/ui/          native OpenGL interface: renderer, fonts, icons, motion, themes, widgets, pages
-src/platform/    DLL bootstrap, render/input hooks, Vigil.exe launcher
-tests/           detection scenarios and feature tests
-tools/           UI preview harness, Java and brand asset builders
-docs/            design, audits and reports
+src/platform/    DLL bootstrap, render/input hooks, runtime version guard, Vigil.exe launcher
+tests/           five suites, shared framework and simulator, golden trace
+tools/           preview harness, trace replay, CI checks, Java and brand asset builders
+docs/            architecture, validation, release process, audits and reports
 ```
 
 ## Documentation
 
-[Plan](PLAN.md) · [Quality report](docs/QUALITY_REPORT.md) · [Polish report](docs/POLISH_REPORT.md) ·
-[Trust audit](docs/TRUST_AUDIT.md) · [Detection framework](docs/DETECTION_FRAMEWORK.md) ·
-[Detection redesign](docs/DETECTION_REDESIGN.md) · [UI/UX](docs/UI_UX.md) · [Brand](docs/BRAND.md) ·
-[Polish plan](docs/history/PLAN-polish.md) · [2.0 plan](docs/history/PLAN-2.0.md) ·
+**Current:** [Plan](PLAN.md) · [Final report](docs/FINAL_REPORT.md) ·
+[Architecture](docs/ARCHITECTURE.md) · [Validation](docs/VALIDATION.md) ·
+[Live validation](docs/LIVE_VALIDATION.md) · [Release process](docs/RELEASE_PROCESS.md) ·
+[Rust plan](RUST_PLAN.md) · [Tech debt](docs/TECH_DEBT.md)
+
+**Design and earlier passes:** [Quality report](docs/QUALITY_REPORT.md) ·
+[Polish report](docs/POLISH_REPORT.md) · [Trust audit](docs/TRUST_AUDIT.md) ·
+[Detection framework](docs/DETECTION_FRAMEWORK.md) · [Detection redesign](docs/DETECTION_REDESIGN.md) ·
+[UI/UX](docs/UI_UX.md) · [Brand](docs/BRAND.md) · [Plans](docs/history/) ·
 [2.0 implementation summary](docs/IMPLEMENTATION_SUMMARY.md)
 
 Inter typeface © The Inter Project Authors, SIL Open Font License 1.1 (`assets/fonts/LICENSE-Inter.txt`).

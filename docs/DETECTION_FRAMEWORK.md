@@ -34,6 +34,24 @@ WorldFrame (one per client tick, from game/sampler.cpp)
 | `Check` | `check.h` | Registers its settings, declares indicators and presets, implements `onTick` / `onCombat` / `onHitTaken` |
 | `Session` | `session.h` | `PlayerRecord`s with evidence, detections, timeline, per-check `CheckRecord`, `BehaviorStats` |
 
+## Behavioral envelopes (1.0-dev.9)
+
+Checks model legitimate play and report deviations from it. Each `EvidenceValue` has a role:
+**Measure** (the first one with a limit is what the observation is about), **Expected** (what
+vanilla play produces in this player's context) and **Context** (what shaped the expectation:
+movement multiplier, ping, data quality). `Engine::emit` derives `Evidence::envelope` from them
+(`deriveEnvelope`): quantity, expected, limit, observed, which side is legitimate, and context.
+Every observation sits at or beyond its limit; the inspector shows *expected vs observed* and how
+far beyond the limit it was. Envelopes describe evidence; they never change severity or
+thresholds.
+
+## User exemptions (1.0-dev.9)
+
+Players the user exempted (Records → Exempt, or a profile's More menu) are tracked and listed but
+`Engine::shouldAnalyze` returns false for them, like teammates: no evidence, no detections, no
+alerts. Marks are otherwise never read by detection. `Engine::playerState` reports how a listed
+player is treated (local, teammate, exempt, judged).
+
 ## Confidence model
 
 For an observation with indicator weight `w` (0–3, user-configurable) and severity `s` (0–1):

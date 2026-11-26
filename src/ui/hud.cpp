@@ -64,6 +64,12 @@ void Hud::clear() {
     briefingAt_ = -100.0;
 }
 
+void Hud::onSceneChanged() {
+    toasts_.clear();
+    briefingAt_ = -100.0;
+    briefing_ = Briefing{};
+}
+
 float Hud::lifeOf(const Toast& t, float base) const {
     float life = base + 1.5f * std::min<int>(3, static_cast<int>(t.checks.size()) - 1);
     if (t.confidence >= 90.f) life += 2.f;   // critical detections stay longer

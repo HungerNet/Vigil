@@ -55,6 +55,18 @@ void drawChecks(PageContext& ctx, const Rect& area) {
     textField(ui, hashId("check-search"), {list.x + 14.f, list.y + 14.f, list.w - 28.f, 34.f}, st.checkSearch, "Search checks");
     const Rect lv{list.x + 6.f, list.y + 58.f, list.w - 12.f, list.h - 64.f};
     const Id lsid = hashId("checks-list");
+    // Signals the game adapter could not provide, by the checks they feed (Status lists them too).
+    RuntimeStatus rs;
+    if (ctx.host) rs = ctx.host->runtimeStatus();
+    auto missingFor = [&](const std::string& checkName) {
+        std::string missing;
+        if (!rs.hosted || !rs.samplerResolved) return missing;
+        for (const auto& s : rs.signals) {
+            if (s.available || s.feeds.find(checkName) == std::string::npos) continue;
+            missing += (missing.empty() ? "" : ", ") + s.name;
+        }
+        return missing;
+    };
     const float loff = beginScroll(ui, lsid, lv);
     float y = lv.y + loff + 4.f;
     const std::string q = lowerCopy(st.checkSearch);
@@ -85,10 +97,34 @@ void drawChecks(PageContext& ctx, const Rect& area) {
             const Rect ic{row.x + 14.f, row.cy() - 16.f, 32.f, 32.f};
             ui.r.roundRect(ic, 9.f, (on ? t.accent : t.textFaint).withAlpha(t.light ? 0.10f : 0.13f));
             drawIcon(ui.r, checkIcon(c->id()), ic.x + 7.f, ic.y + 7.f, 18.f, on ? t.accent : t.textFaint);
-            ui.fonts.draw(ui.r, type::BodyStrong, row.x + 56.f, row.y + 11.f, c->name(), on ? t.text : t.textMuted, Align::Left, row.w - 120.f);
-            ui.fonts.draw(ui.r, type::Small, row.x + 56.f, row.y + 31.f, c->summary(), t.textFaint, Align::Left, row.w - 120.f);
+            // Indicators with one meaning each (PLAN.md U1): a number badge = observations this
+            // session (red only when the check also detected someone); a warning = a game signal
+            // this check needs is missing, so it runs with reduced accuracy.
             const int ev = sessionEvidence(ctx.engine.session(), c->index());
-            if (ev > 0) ui.r.circle(row.x + 44.f, row.y + 13.f, 3.f, t.severity(static_cast<float>(std::min(100, 30 + ev * 4))));
+            const int det = sessionDetections(ctx.engine.session(), c->index());
+            float nameW = row.w - 120.f;
+            if (ev > 0) {
+                const std::string n = ev > 999 ? "999+" : std::to_string(ev);
+                const float bw = std::max(22.f, ui.fonts.width(type::NumericCaption, n) + 12.f);
+                const Rect badge{toggleRect.x - 10.f - bw, row.y + 11.f, bw, 18.f};
+                const Color bc = det > 0 ? t.sevAlert : t.textMuted;
+                ui.r.roundRect(badge, 9.f, bc.withAlpha(det > 0 ? 0.18f : 0.12f));
+                ui.fonts.draw(ui.r, type::NumericCaption, badge.cx(), badge.cy() - ui.fonts.lineHeight(type::NumericCaption) * 0.5f, n,
+                              det > 0 ? (t.light ? bc.darker(0.15f) : bc.lighter(0.1f)) : t.textMuted, Align::Center);
+                ui.tooltip(mixId(rid, 5), badge,
+                           std::to_string(ev) + (ev == 1 ? " observation" : " observations") + " this session" +
+                               (det > 0 ? " \xC2\xB7 " + std::to_string(det) + (det == 1 ? " detection" : " detections") : std::string(" \xC2\xB7 no detections")));
+                nameW = badge.x - (row.x + 56.f) - 8.f;
+            }
+            const std::string missing = missingFor(c->name());
+            if (!missing.empty()) {
+                const Rect wr{row.x + 36.f, row.y + 6.f, 16.f, 16.f};
+                ui.r.circle(wr.cx(), wr.cy(), 8.f, t.surface);
+                drawIcon(ui.r, Icon::Warning, wr.x + 1.f, wr.y + 1.f, 14.f, t.sevNotice, 1.7f);
+                ui.tooltip(mixId(rid, 6), wr.inset(-3.f), "Missing game signal: " + missing + ". This check runs with reduced accuracy; see Status.");
+            }
+            ui.fonts.draw(ui.r, type::BodyStrong, row.x + 56.f, row.y + 11.f, c->name(), on ? t.text : t.textMuted, Align::Left, nameW);
+            ui.fonts.draw(ui.r, type::Small, row.x + 56.f, row.y + 31.f, c->summary(), t.textFaint, Align::Left, row.w - 120.f);
             Setting* en = Settings::instance().find(c->settingsPrefix() + "enabled");
             if (en && toggle(ui, mixId(rid, 2), toggleRect, en->b())) en->set(en->b() ? 0.0 : 1.0);
             y += 60.f;
@@ -227,8 +263,11 @@ void drawChecks(PageContext& ctx, const Rect& area) {
                 ind.weight->set(wv);
             }
             ui.tooltip(mixId(iid, 8), {sx, iy + 2.f, 120.f, 30.f}, ind.weight->tooltip);
-            ui.fonts.draw(ui.r, type::SmallStrong, sx + 134.f, iy + 9.f, formatNumber(ind.weight->value, 2) + "x",
-                          ind.weight->isDefault() ? t.text : t.accent);
+            double typed = ind.weight->value;
+            if (numberBox(ui, mixId(iid, 13), mixId(iid, 7), {sx + 128.f, iy + 4.f, 60.f, 24.f}, typed, ind.weight->range.min,
+                          ind.weight->range.max, ind.weight->range.step, formatNumber(ind.weight->value, 2) + "x", !ind.weight->isDefault())) {
+                ind.weight->set(typed);
+            }
             // Session observations from this indicator.
             if (i == 0) ui.fonts.draw(ui.r, type::Overline, ic.r() - 22.f, iy - 20.f, "THIS SESSION", t.textFaint, Align::Right);
             const std::string cnt = std::to_string(counts[i]);

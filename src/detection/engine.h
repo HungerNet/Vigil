@@ -35,6 +35,16 @@ struct EngineStats {
     int prunedRecords = 0;
 };
 
+// How Vigil treats a listed player right now (Status, tests, the Records page).
+struct PlayerState {
+    bool listed = false;       // has a record (players only; NPCs never do)
+    bool local = false;
+    bool teammate = false;
+    bool exempt = false;       // the user exempted them
+    bool inThisGame = false;
+    bool judged = false;       // checks would judge them in a phase that is analyzed
+};
+
 // An entity in the player list that Vigil does not treat as a player.
 struct FilteredEntity {
     int entityId = -1;
@@ -81,9 +91,10 @@ public:
     const std::vector<FilteredEntity>& filtered() const { return filtered_; }
     bool stalled() const { return tick_ < stallUntil_; }
 
-    // The user's marks (watch, confirmed by you).
+    // The user's marks (watch, confirmed by you, exempt).
     Marks& marks() { return marks_; }
     const Marks& marks() const { return marks_; }
+    PlayerState playerState(const PlayerRecord& r) const;
 
     // Persistence hooks (set by the host).
     void setHistoryPath(const std::string& p) { historyPath_ = p; session_.loadHistory(p); }

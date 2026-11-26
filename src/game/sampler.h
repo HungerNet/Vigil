@@ -28,8 +28,17 @@ struct SignalStatus {
     bool burning = false;         // Entity#isBurning (Velocity: damage without an attacker)
 };
 
+// What the sampler could bind in this client (Status → Diagnostics report).
+struct BindingReport {
+    int total = 0;
+    int missing = 0;
+    int obfuscated = 0;               // resolved through a confirmed obfuscated fallback name
+    std::vector<std::string> notes;   // "missing: isBurning", "posX → s"
+};
+
 class Sampler {
 public:
+    const BindingReport& bindings() const;
     // Fills `out` and returns true when a new client tick elapsed since the last call.
     bool sample(JNIEnv* env, jobject mc, detection::WorldFrame& out, bool& worldChanged);
     void reset(JNIEnv* env);

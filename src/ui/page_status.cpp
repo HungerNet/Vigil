@@ -8,6 +8,9 @@
 #include "pages.h"
 
 #include <algorithm>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
 
 namespace vigil::ui {
 namespace {
@@ -32,6 +35,183 @@ Rect systemCard(Ui& ui, const Rect& rc, Icon icon, const char* title) {
     drawIcon(ui.r, icon, rc.x + 20.f, rc.y + 17.f, 16.f, t.textMuted);
     ui.fonts.draw(ui.r, type::Overline, rc.x + 44.f, rc.y + 19.f, title, t.textFaint);
     return {rc.x + 20.f, rc.y + 48.f, rc.w - 40.f, rc.h - 56.f};
+}
+
+std::string yesNo(bool b) { return b ? "yes" : "no"; }
+
+std::string localStamp(const char* format) {
+    const std::time_t now = std::time(nullptr);
+    std::tm tmv{};
+    localtime_s(&tmv, &now);
+    char buf[64];
+    std::strftime(buf, sizeof(buf), format, &tmv);
+    return buf;
+}
+
+}  // namespace
+
+// Everything a developer needs to understand a live problem, without player names: versions,
+// hooks, signals and the bindings behind them, the engine, services, records counts, settings you
+// changed (never keys or secrets) and recent runtime log lines (docs/LIVE_VALIDATION.md).
+std::string buildDiagnosticsReport(const PageContext& ctx) {
+    const auto& e = ctx.engine;
+    RuntimeStatus rs;
+    if (ctx.host) rs = ctx.host->runtimeStatus();
+    const Health hl = computeHealth(ctx);
+    std::string r;
+    auto line = [&r](const std::string& s) { r += s + "\r\n"; };
+    line("Vigil diagnostics report");
+    line("Generated " + localStamp("%Y-%m-%d %H:%M:%S"));
+    line("Version " + std::string(VIGIL_VERSION_STRING) + " (build " + VIGIL_BUILD_ID + ")" +
+         (rs.hosted ? " \xC2\xB7 runtime " + rs.runtimeVersion + " (build " + rs.runtimeBuild + ")" : " \xC2\xB7 preview harness"));
+    line("Health: " + hl.title + " \xE2\x80\x94 " + hl.detail);
+    line("");
+    line("[Injection & hooks]");
+    if (rs.hosted) {
+        line("uptime " + formatDuration(rs.uptimeSec) + " \xC2\xB7 JVM attached " + yesNo(rs.jvmAttached) + " \xC2\xB7 client pump " +
+             (rs.clientPump ? formatNumber(rs.pumpsPerSecond, 0) + "/s" : "no"));
+        line("render hook " + (rs.presentHook ? std::to_string(rs.presentSlots) + " slot(s), " + formatNumber(rs.framesPerSecond, 0) + " fps" : "no") +
+             " \xC2\xB7 input hook " + yesNo(rs.inputHook) + " \xC2\xB7 menu host " + (rs.menuHost ? "ready" : "created on open"));
+        line("world hook " + std::string(!rs.worldHookWanted ? "not needed yet" : rs.worldHook ? "installed" : "retrying") + " \xC2\xB7 server " +
+             (rs.server.empty() ? "none" : rs.server) + (rs.hypixel ? " (Hypixel)" : ""));
+    } else {
+        line("preview (simulated)");
+    }
+    line("");
+    line("[Engine]");
+    int enabled = 0;
+    for (const auto& c : e.checks()) if (c->enabled()) ++enabled;
+    const auto& st = e.stats();
+    line("monitoring " + std::string(e.monitoringEnabled() ? "on" : "paused") + " \xC2\xB7 phase " + detection::gamePhaseName(e.phase()) +
+         (e.contextDetail().empty() ? "" : " (" + e.contextDetail() + ")") + " \xC2\xB7 checks " + std::to_string(enabled) + "/" +
+         std::to_string(e.checks().size()));
+    line("tick " + formatNumber(st.avgTickMicros / 1000.0, 2) + " ms avg, " + formatNumber(st.peakTickMicros / 1000.0, 1) + " ms peak \xC2\xB7 players " +
+         std::to_string(st.trackedPlayers) + " \xC2\xB7 NPCs ignored " + std::to_string(st.filteredEntities) + " \xC2\xB7 stalls " +
+         std::to_string(st.stalls) + " \xC2\xB7 skipped ticks " + std::to_string(st.skippedTicks) + " \xC2\xB7 combat events " +
+         std::to_string(st.combatEvents));
+    line("session: " + std::to_string(e.session().players().size()) + " players, " + std::to_string(e.session().totalEvidence()) +
+         " observations, " + std::to_string(e.session().totalDetections()) + " detections, matches " + std::to_string(e.match().matchCount()));
+    line("");
+    line("[Signals]");
+    if (rs.signals.empty()) line(rs.hosted ? "not resolved yet (no world loaded)" : "simulated");
+    for (const auto& s : rs.signals) line(std::string(s.available ? "  ok       " : "  MISSING  ") + s.name + "  (feeds " + s.feeds + ")");
+    if (rs.bindingsTotal > 0) {
+        line("bindings: " + std::to_string(rs.bindingsTotal) + " total, " + std::to_string(rs.bindingsMissing) + " missing, " +
+             std::to_string(rs.bindingsObfuscated) + " via obfuscated fallback names");
+        for (const auto& n : rs.bindingNotes) line("  " + n);
+    }
+    line("chat reader " + (rs.hosted ? (rs.chatReader ? "yes, " + std::to_string(rs.chatLines) + " lines" : "unavailable") : std::string("preview")));
+    line("");
+    line("[Records & data]");
+    const auto& marks = e.marks();
+    line(std::to_string(marks.confirmedCount()) + " confirmed \xC2\xB7 " + std::to_string(marks.watchedCount() - marks.confirmedCount()) +
+         " watching \xC2\xB7 " + std::to_string(marks.exemptCount()) + " exempt" + (marks.readOnly() ? " \xC2\xB7 " + marks.loadNote() : ""));
+    line("");
+    line("[Settings changed from defaults]");
+    int changed = 0;
+    for (const auto& sp : Settings::instance().all()) {
+        const Setting& s = *sp;
+        if (s.isDefault() || s.group.empty()) continue;
+        if (s.type == SettingType::Text) { line("  " + s.key + " = (text, not included)"); ++changed; continue; }
+        line("  " + s.key + " = " + (s.type == SettingType::Bool ? std::string(s.b() ? "on" : "off")
+                                     : s.type == SettingType::Choice && s.i() >= 0 && s.i() < static_cast<int>(s.choices.size())
+                                         ? s.choices[static_cast<std::size_t>(s.i())]
+                                         : formatSettingValue(s, s.value)));
+        ++changed;
+    }
+    if (changed == 0) line("  none");
+    line("");
+    line("[Recent runtime log] (detection lines omitted: they name players)");
+    for (const auto& l : log::recent(60)) {
+        if (l.find("  detections  ") != std::string::npos) continue;
+        line("  " + l);
+    }
+    return r;
+}
+
+namespace {
+
+// Diagnostics: copy or save the report; record a trace of what Vigil sees.
+float diagnosticsCard(PageContext& ctx, float x, float y, float w) {
+    Ui& ui = ctx.ui;
+    const Theme& t = ui.th();
+    RuntimeStatus rs;
+    if (ctx.host) rs = ctx.host->runtimeStatus();
+    const TraceInfo ti = ctx.host ? ctx.host->traceInfo() : TraceInfo{};
+    const Rect c{x, y, w, 178.f};
+    card(ui, c);
+    drawIcon(ui.r, Icon::Pulse, c.x + 20.f, c.y + 17.f, 16.f, t.textMuted);
+    ui.fonts.draw(ui.r, type::Overline, c.x + 44.f, c.y + 19.f, "DIAGNOSTICS", t.textFaint);
+    ui.fonts.draw(ui.r, type::Caption, c.r() - 22.f, c.y + 18.f, "for bug reports and live validation", t.textFaint, Align::Right);
+    float ry = c.y + 48.f;
+    const float cx = c.x + 20.f, cw = c.w * 0.5f - 30.f;
+    ry = statusRow(ui, cx, ry, cw, State::Info, "Version", std::string(VIGIL_VERSION_STRING) + " \xC2\xB7 build " + VIGIL_BUILD_ID);
+    if (rs.hosted && rs.bindingsTotal > 0) {
+        const State bs = rs.bindingsMissing > 0 ? State::Warn : State::Ok;
+        const std::string v = std::to_string(rs.bindingsTotal - rs.bindingsMissing) + "/" + std::to_string(rs.bindingsTotal) +
+                              (rs.bindingsObfuscated ? " \xC2\xB7 " + std::to_string(rs.bindingsObfuscated) + " via fallback" : "");
+        statusRow(ui, cx, ry, cw, bs, "Game bindings", v);
+        std::string tip = "Members of Minecraft that Vigil reads.";
+        for (std::size_t i = 0; i < rs.bindingNotes.size() && i < 12; ++i) tip += "\n" + rs.bindingNotes[i];
+        ui.tooltip(hashId("diag-bindings"), {cx, ry - 4.f, cw, 24.f}, tip);
+        ry += 26.f;
+    } else {
+        ry = statusRow(ui, cx, ry, cw, State::Off, "Game bindings", rs.hosted ? "resolved when a world loads" : "preview");
+    }
+    const std::string traceState = !ti.supported ? "in game only"
+                                 : ti.active    ? "recording \xC2\xB7 " + std::to_string(ti.frames) + " frames \xC2\xB7 " +
+                                                   formatNumber(static_cast<double>(ti.bytes) / (1024.0 * 1024.0), 1) + " MB"
+                                 : ti.path.empty() ? "off"
+                                                   : "last: " + std::filesystem::path(ti.path).filename().string() +
+                                                         (ti.stopReason.empty() ? "" : " (" + ti.stopReason + ")");
+    statusRow(ui, cx, ry, cw, ti.active ? State::Ok : State::Off, "Trace recording", traceState);
+
+    // Actions (right column).
+    const float bx = c.x + c.w * 0.5f + 10.f;
+    float by = c.y + 46.f;
+    static std::string s_note;
+    static double s_noteAt = -100.0;
+    const Icon copy = Icon::Copy, save = Icon::Save, rec = ti.active ? Icon::Close : Icon::Dot, folder = Icon::Folder;
+    const float b1 = buttonWidth(ui, "Copy report", true);
+    if (button(ui, hashId("diag-copy"), {bx, by, b1, 32.f}, "Copy report", ButtonKind::Secondary, &copy)) {
+        copyToClipboard(buildDiagnosticsReport(ctx));
+        s_note = "Report copied. Paste it into your bug report.";
+        s_noteAt = ui.time;
+    }
+    const float b2 = buttonWidth(ui, "Save report", true);
+    if (button(ui, hashId("diag-save"), {bx + b1 + 8.f, by, b2, 32.f}, "Save report", ButtonKind::Ghost, &save) && ctx.host) {
+        const std::filesystem::path dir = std::filesystem::path(ctx.host->dataDirectory()) / "diagnostics";
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        const std::filesystem::path file = dir / ("report-" + localStamp("%Y%m%d-%H%M%S") + ".txt");
+        std::ofstream out(file, std::ios::binary | std::ios::trunc);
+        out << buildDiagnosticsReport(ctx);
+        s_note = out ? "Saved " + file.filename().string() + " in the diagnostics folder." : "The report could not be saved.";
+        s_noteAt = ui.time;
+    }
+    by += 42.f;
+    if (ti.supported) {
+        const char* lbl = ti.active ? "Stop recording" : "Record a trace";
+        const float b3 = buttonWidth(ui, lbl, true);
+        if (button(ui, hashId("diag-trace"), {bx, by, b3, 32.f}, lbl, ti.active ? ButtonKind::Danger : ButtonKind::Secondary, &rec)) {
+            ctx.host->setTraceRecording(!ti.active);
+        }
+        ui.tooltip(hashId("diag-trace-tip"), {bx, by, b3, 32.f},
+                   "Records exactly what Vigil sees (positions, states, chat) so a developer can replay it. Stops by itself "
+                   "after 15 minutes or 64 MB. Traces include player names and stay in your data folder.");
+        if (iconButton(ui, hashId("diag-folder"), {bx + b3 + 8.f, by + 1.f, 30.f, 30.f}, Icon::Folder, "Open the traces folder") && ctx.host) {
+            const std::filesystem::path dir = std::filesystem::path(ctx.host->dataDirectory()) / "traces";
+            std::error_code ec;
+            std::filesystem::create_directories(dir, ec);
+            ctx.host->openFolder(dir.string());
+        }
+        (void)folder;
+    }
+    by += 42.f;
+    const bool noteFresh = ui.time - s_noteAt < 5.0;
+    ui.fonts.drawWrapped(ui.r, type::Caption, bx, by, c.r() - 20.f - bx,
+                         noteFresh ? s_note : "Reports never include player names, keys or your notes.", noteFresh ? t.sevClear : t.textFaint, 3.f, 2);
+    return c.h;
 }
 
 }  // namespace
@@ -211,6 +391,9 @@ void drawStatus(PageContext& ctx, const Rect& area) {
         }
     }
     y += ch + gap;
+
+    // ── Diagnostics ──
+    y += diagnosticsCard(ctx, area.x, y, w) + gap;
 
     // ── Runtime log ──
     {

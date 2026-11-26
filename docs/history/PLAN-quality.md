@@ -1,8 +1,8 @@
 # Vigil — Quality, Relevance & UX Plan (1.0-dev.8)
 
 > Written before any code changed in this pass. Earlier plans are kept in
-> [`docs/history/`](docs/history/) (2.0 rebuild, polish & maturity pass). Outcomes are recorded in
-> [`docs/QUALITY_REPORT.md`](docs/QUALITY_REPORT.md).
+> [`docs/history/`](./) (2.0 rebuild, polish & maturity pass). Outcomes are recorded in
+> [`docs/QUALITY_REPORT.md`](../QUALITY_REPORT.md).
 
 The overhaul made Vigil a product, and the polish pass made it feel finished. This pass asks a
 different question: **is Vigil looking at the right players, for the right reasons, and saying so

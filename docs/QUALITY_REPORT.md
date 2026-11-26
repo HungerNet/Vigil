@@ -1,6 +1,7 @@
 # Quality, relevance & UX pass — report (1.0-dev.8)
 
-The plan, with every audit as it stood before any code changed, is in [`PLAN.md`](../PLAN.md).
+The plan, with every audit as it stood before any code changed, is in
+[`history/PLAN-quality.md`](history/PLAN-quality.md).
 This report records what changed, how it was verified, and what still needs a live client.
 
 ![Players — confidence halos, Confirmed by you](images/players-glacier.png)

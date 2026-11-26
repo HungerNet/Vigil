@@ -1,31 +1,43 @@
-## Vigil 1.0-dev.8 — quality, relevance & UX
+## Vigil 1.0-dev.9 — records, keyboard, validation
 
-**Focused on the game you're in**
-- Vigil now knows lobbies, queues, matches and post-game. Players are judged during matches (and
-  replays); queue mates are listed but not judged; nothing is judged after the game ends.
-- Players → **This game** by default, with Session, Marked and Nicked one click away.
-- NPCs, Watchdog bots, the "your profile" NPC and duplicate entities are filtered out of every
-  list, notification, highlight and check.
-- **Match briefing:** a few seconds into each match, the players worth knowing about (confirmed,
-  watched, detected before, nicked). Nothing appears when nobody stands out.
-- Confidence now holds while a player is out of view, and carries into the next game at half.
+Download **`Vigil-1.0-dev.9.exe`** below; `SHA256SUMS` lets you verify it. It is still the only
+file you need.
 
-**Seeing suspicion**
-- Every player wears a **halo**: a circular face with a ring that fills and grows heavier with
-  Vigil's confidence. Tier words (Low · Elevated · High · Critical) replace bare percentages.
-- **Confirmed by you:** mark a player after investigating. It is your conclusion, shown in its own
-  color, never set by Vigil and never mixed into its confidence. Watch players to pin them.
-- Chat alerts carry shapes (`◆`, `⚠`, `✖`, `◎`) that read without colors. Suspect Highlight uses
-  your theme's colors and can show a small marker above the player.
+**Records** — a new page under Investigate
+- **Confirm, watch or exempt anyone**: a player from this game, from earlier in the session, or
+  any username. A name you add follows that player's real account once Vigil sees them.
+- **Exempt** friends and party members: they stay listed, but Vigil never judges them (no evidence,
+  alerts, briefing or highlight).
+- Search and review your confirmations: reasons you can edit, a private note, and what Vigil's
+  confidence was when you confirmed.
+- **Saved profiles**: save an investigation from a profile's More menu, export it to share, and
+  import profiles from a file you copied in Explorer or from the imports folder.
 
-**Fewer false positives** (no thresholds were loosened)
-- Velocity waits for the victim's latency before judging knockback.
-- Speed, BHop and NoSlow ignore lag catch-ups and server stalls, remember a Speed effect that just
-  ended, and see ceilings over the whole hitbox and walls in every direction.
+**Clearer evidence**
+- Each observation now says what was **expected** (vanilla, for this player's speed effects,
+  ping or terrain), what was **observed**, and how far beyond the limit it was.
+- Low-confidence findings read as "Unusual movement" or "Unusual combat" instead of naming a
+  check before Vigil is confident.
+- Detection notifications, the match briefing and "new detection" badges no longer follow you into
+  the next game.
 
-**Polish**
-- Interface scale no longer jumps while dragging: it applies when you release.
-- Themes crossfade instead of switching abruptly.
-- Clearer explanations; steadier numbers and spacing; refined icons.
-- Auto Who: turning it off cancels anything it had scheduled.
-- Better coexistence with other overlays and mods.
+**Use Vigil without a mouse**
+- Tab and Shift+Tab move through every control with a visible focus ring; Enter or Space activate;
+  arrows adjust sliders and choices and move through lists.
+- Type exact values: click a slider's number (or press Enter on the slider).
+- New **Accessibility** settings: higher text contrast, focus ring, motion, and optional quiet
+  interface sounds (off by default).
+
+**Tidier**
+- Denickers moved to **Utilities → Identity tools**, with their status and setup together.
+- Checks list: a number shows each check's observations this session; a warning appears when a
+  game signal it needs is missing.
+- Status → **Diagnostics**: copy or save a report (no player names) and record a trace for bug
+  reports.
+
+**Safer updates**
+- Vigil.exe verifies the runtime inside it and the copy it extracts, and tells you to restart Lunar
+  Client if a different Vigil version is already running in the game instead of loading a second one.
+- Settings written by another Vigil version are kept, and newer data files are never overwritten.
+- Releases are published only after the full validation suite passes, and a version is never
+  replaced once published.

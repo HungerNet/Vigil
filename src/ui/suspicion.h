@@ -30,12 +30,23 @@ inline constexpr const char* kGlyphWatching = "\xE2\x97\x8E";   // ◎
 inline constexpr const char* kGlyphConfirmed = "\xE2\x9C\x96";  // ✖
 inline constexpr const char* kGlyphNicked = "\xE2\x89\x88";     // ≈
 
+inline constexpr const char* kGlyphExempt = "\xE2\x8A\x98";      // ⊘
+
 struct PlayerMarks {
     bool watched = false;
     bool confirmed = false;
+    bool exempt = false;
     bool nicked = false;
 };
 PlayerMarks marksOf(const detection::Engine& e, const std::string& key);
+
+// ── Uncertain findings (PLAN.md §7.4) ────────────────────────────────────────────────────────
+// Below Elevated, Vigil has a hint, not a finding: summary surfaces name the kind of behavior
+// ("Unusual movement") instead of a check. From Elevated up they name the check.
+std::string categoryConcern(detection::CheckCategory c);   // "Unusual movement"
+// What to say about a player in one short phrase on a summary surface: a check name (Elevated
+// and up), a category phrase (Low), or empty (nothing observed). Pure: tested in ui_logic_tests.
+std::string concernLabel(const detection::Engine& e, const detection::PlayerRecord& r);
 
 struct HaloStyle {
     float confidence = 0.f;      // Vigil's confidence 0..100

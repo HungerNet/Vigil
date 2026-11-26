@@ -4,6 +4,7 @@
 #include "../identity/identity.h"
 #include "../utilities/utilities.h"
 #include "pages.h"
+#include "records.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -81,6 +82,7 @@ std::vector<Result> collect(PageContext& ctx, const std::string& query) {
         std::string kw = p->uuid;
         std::string sub = std::string(tierName(tierOf(p->suspicion))) + " \xC2\xB7 " + presenceLabel(ctx, *p);
         if (e.marks().confirmed(p->key)) { sub = "Confirmed by you \xC2\xB7 " + sub; kw += " confirmed marked"; }
+        else if (e.marks().exempt(p->key)) { sub = "Exempt \xC2\xB7 " + sub; kw += " exempt marked"; }
         else if (e.marks().watched(p->key)) { sub = "Watching \xC2\xB7 " + sub; kw += " watched marked"; }
         if (identity::Service::instance().find(p->key, ip) && ip.nicked) {
             kw += " nick nicked " + ip.realName;
@@ -121,6 +123,22 @@ std::vector<Result> collect(PageContext& ctx, const std::string& query) {
         const std::string key = p->key;
         add({gPages, Icon::Players, p->name + " \xE2\x80\xBA " + tname, "Profile tab", 0,
              [key, pt](PageContext& c) { c.openPlayer(key, pt); }}, "profile tab");
+    }
+    // Records: marked players not in this session, and saved profiles.
+    for (const auto& m : e.marks().all()) {
+        if (e.session().find(m.key)) continue;   // already listed as a player
+        const std::string key = m.key;
+        const int tab = m.confirmed ? 0 : m.exempt ? 2 : 1;
+        const std::string what = m.confirmed ? "Confirmed by you" : m.exempt ? "Exempt" : "Watching";
+        add({gPlayers, Icon::Records, m.name, what + " \xC2\xB7 Records" + (m.addedByName() ? " \xC2\xB7 added by name" : ""), 0,
+             [key, tab](PageContext& c) { c.openRecord(key, tab); }},
+            "record marked " + what + " " + m.note);
+    }
+    for (const auto& s : RecordsService::instance().store().list()) {
+        const std::string id = s.id;
+        add({gPlayers, Icon::Save, s.name, "Saved profile \xC2\xB7 " + epochAgoLabel(s.savedAtEpochMs), 0,
+             [id](PageContext& c) { c.openRecord(id, 3); }},
+            "saved profile snapshot " + s.note);
     }
     // Checks.
     for (const auto& c : e.checks()) {
@@ -200,6 +218,16 @@ std::vector<Result> collect(PageContext& ctx, const std::string& query) {
          [](PageContext& c) { revealSetting(c, "ui.menuKey"); }}, "hotkey keybind open shortcut right shift");
     add({gActions, Icon::Status, "Check Vigil's status", "Injection, hooks, engine and signals", 0,
          [](PageContext& c) { c.navigate(Page::Status); }}, "health diagnostics working injected");
+    add({gActions, Icon::UserPlus, "Confirm, watch or exempt a player by name", "Records", 0,
+         [](PageContext& c) { c.openRecord({}, 0); c.state.addOpen = true; c.ui.focus = hashId("picker-field"); c.ui.kbFocus = c.ui.focus; }},
+        "add player username confirm watch exempt friend party");
+    add({gActions, Icon::Import, "Import a profile", "Records \xE2\x80\xBA Saved", 0, [](PageContext& c) { c.openRecord({}, 3); }},
+        "import load file profile snapshot share");
+    add({gActions, Icon::Keyboard, "Keyboard shortcuts", "Tab, Enter, arrows and page shortcuts", 0,
+         [](PageContext& c) { c.navigate(Page::Settings); c.state.settingsSection = settingsSectionByName("Keybinds"); }},
+        "keyboard navigation focus tab accessibility shortcuts");
+    add({gActions, Icon::Pulse, "Copy a diagnostics report", "Status \xE2\x80\xBA Diagnostics", 0, [](PageContext& c) { c.navigate(Page::Status); }},
+        "diagnostics report bug support trace record log");
 
     std::stable_sort(out.begin(), out.end(), [](const Result& a, const Result& b) {
         if (a.score != b.score) return a.score > b.score;

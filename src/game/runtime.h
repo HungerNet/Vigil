@@ -5,6 +5,7 @@
 //   wndproc: input routing, shortcuts, Fast Buy
 
 #include "../detection/engine.h"
+#include "../detection/trace.h"
 #include "../ui/app.h"
 #include "chat.h"
 #include "context.h"
@@ -52,6 +53,8 @@ public:
     void newSession() override;
     ui::RuntimeStatus runtimeStatus() const override;
     bool playerFace(const std::string& playerKey, ui::FaceTexture& out) override;
+    ui::TraceInfo traceInfo() const override;
+    bool setTraceRecording(bool on) override;
 
 private:
     Runtime() = default;
@@ -71,6 +74,9 @@ private:
     HWND hwnd_ = nullptr;
 
     detection::Engine engine_;
+    detection::TraceWriter trace_;   // diagnostic recording (Status → Diagnostics), off by default
+    std::string lastTracePath_;
+    bool pendingWorldChange_ = false;
     Sampler sampler_;
     ContextDetector context_;
     ChatReader chat_;

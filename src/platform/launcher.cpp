@@ -9,6 +9,7 @@
 // The window uses the same renderer, typography and theme as the in-game interface.
 
 #include "../core/json.h"
+#include "../core/log.h"
 #include "../core/paths.h"
 #include "../ui/font.h"
 #include "../ui/gfx.h"
@@ -18,6 +19,7 @@
 #include "../ui/theme.h"
 #include "../ui/widgets.h"
 #include "core/version.h"
+#include "runtime_guard.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -95,31 +97,46 @@ void finish(bool success, const std::string& headline, const std::string& messag
 
 // ── Work ─────────────────────────────────────────────────────────────────────────────────────
 
-std::uint64_t fnv1a(const void* data, std::size_t n) {
-    std::uint64_t h = 1469598103934665603ull;
-    const auto* p = static_cast<const unsigned char*>(data);
-    for (std::size_t i = 0; i < n; ++i) { h ^= p[i]; h *= 1099511628211ull; }
-    return h;
-}
-
-bool extractRuntime(std::wstring& dllPath, std::string& error) {
+// The runtime embedded in this executable (resource 301).
+bool embeddedRuntime(const void*& bytes, DWORD& size) {
     HMODULE self = GetModuleHandleW(nullptr);
     HRSRC res = FindResourceW(self, MAKEINTRESOURCEW(VIGIL_RES_EMBEDDED_DLL), MAKEINTRESOURCEW(10));
     HGLOBAL data = res ? LoadResource(self, res) : nullptr;
-    const DWORD size = res ? SizeofResource(self, res) : 0;
-    const void* bytes = data ? LockResource(data) : nullptr;
-    if (!bytes || size == 0) { error = "This copy of Vigil.exe is incomplete. Download it again."; return false; }
+    size = res ? SizeofResource(self, res) : 0;
+    bytes = data ? LockResource(data) : nullptr;
+    return bytes && size > 0;
+}
+
+std::string fileSha256(const fs::path& p, std::uintmax_t expectedSize) {
+    std::error_code ec;
+    if (!fs::exists(p, ec) || fs::file_size(p, ec) != expectedSize) return {};
+    std::ifstream in(p, std::ios::binary);
+    std::vector<char> bytes(static_cast<std::size_t>(expectedSize));
+    if (!in.read(bytes.data(), static_cast<std::streamsize>(bytes.size()))) return {};
+    return platform::sha256Hex(bytes.data(), bytes.size());
+}
+
+// The version resource of a runtime file must name this executable's version and build.
+bool runtimeMatchesExe(const fs::path& p, platform::RuntimeInfo& info) {
+    return platform::readModuleVersion(p.wstring(), info) && info.version == VIGIL_VERSION_STRING && info.build == VIGIL_BUILD_ID;
+}
+
+// Writes the embedded runtime to runtime\Vigil-<version>.dll. Verified three ways (PLAN.md §10):
+// the embedded runtime names this exe's version and build, the file on disk has the embedded
+// bytes (SHA-256), and an existing file is reused only when both hold.
+bool extractRuntime(std::wstring& dllPath, std::string& error) {
+    const void* bytes = nullptr;
+    DWORD size = 0;
+    if (!embeddedRuntime(bytes, size)) { error = "This copy of Vigil.exe is incomplete. Download it again."; return false; }
+    const std::string embeddedSha = platform::sha256Hex(bytes, size);
     const fs::path dir = fs::path(paths::runtimeDirectory());
     std::error_code ec;
     fs::create_directories(dir, ec);
     const fs::path target = dir / ("Vigil-" + std::string(VIGIL_VERSION_STRING) + ".dll");
     dllPath = target.wstring();
+    platform::RuntimeInfo info;
     // Reuse an identical file; rewrite only when missing or different.
-    if (fs::exists(target, ec) && fs::file_size(target, ec) == size) {
-        std::ifstream in(target, std::ios::binary);
-        std::vector<char> existing(size);
-        if (in.read(existing.data(), size) && fnv1a(existing.data(), size) == fnv1a(bytes, size)) return true;
-    }
+    if (!embeddedSha.empty() && fileSha256(target, size) == embeddedSha && runtimeMatchesExe(target, info)) return true;
     const fs::path tmp = dir / ("Vigil-" + std::string(VIGIL_VERSION_STRING) + ".dll.partial");
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
@@ -128,11 +145,20 @@ bool extractRuntime(std::wstring& dllPath, std::string& error) {
             return false;
         }
     }
-    if (!MoveFileExW(tmp.wstring().c_str(), target.wstring().c_str(), MOVEFILE_REPLACE_EXISTING)) {
-        // The previous copy is loaded in a running game: that game already has Vigil.
+    if (!runtimeMatchesExe(tmp, info)) {
         fs::remove(tmp, ec);
-        if (fs::exists(target, ec)) return true;
-        error = "Vigil could not update its runtime file.";
+        log::writef("launcher", "embedded runtime mismatch: exe %s/%s, runtime %s/%s", VIGIL_VERSION_STRING, VIGIL_BUILD_ID,
+                    info.version.c_str(), info.build.c_str());
+        error = "This copy of Vigil.exe is damaged: the runtime inside it belongs to another build. Download it again.";
+        return false;
+    }
+    if (!MoveFileExW(tmp.wstring().c_str(), target.wstring().c_str(), MOVEFILE_REPLACE_EXISTING)) {
+        // The existing file is loaded by a running game. It is only usable if it is this build.
+        fs::remove(tmp, ec);
+        platform::RuntimeInfo existing;
+        if (fs::exists(target, ec) && runtimeMatchesExe(target, existing)) return true;
+        error = "Vigil could not update its runtime file because a game is using an older copy. Close Lunar Client and "
+                "start Vigil again.";
         return false;
     }
     // Remove runtimes of older versions that are no longer in use (ignore files in use).
@@ -165,20 +191,6 @@ HWND findGameWindow() {
     return ctx.best;
 }
 
-bool vigilLoaded(DWORD pid) {
-    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
-    if (snap == INVALID_HANDLE_VALUE) return false;
-    MODULEENTRY32W me{};
-    me.dwSize = sizeof(me);
-    bool found = false;
-    for (BOOL ok = Module32FirstW(snap, &me); ok && !found; ok = Module32NextW(snap, &me)) {
-        const std::wstring n = me.szModule;
-        found = _wcsicmp(n.c_str(), L"Vigil.dll") == 0 || (n.size() > 10 && _wcsnicmp(n.c_str(), L"Vigil-", 6) == 0);
-    }
-    CloseHandle(snap);
-    return found;
-}
-
 std::string menuKeyName() {
     std::ifstream in(fs::path(paths::dataDirectory()) / "config.json", std::ios::binary);
     std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -189,6 +201,8 @@ std::string menuKeyName() {
 }
 
 void work() {
+    log::init((fs::path(paths::dataDirectory()) / "logs").string());
+    log::writef("launcher", "Vigil.exe %s (build %s) starting", VIGIL_VERSION_STRING, VIGIL_BUILD_ID);
     // 1. Prepare.
     setStep(0, StepState::Active);
     std::wstring dll;
@@ -215,15 +229,29 @@ void work() {
     GetWindowThreadProcessId(hwnd, &pid);
     setStep(1, StepState::Done, "Found the game");
 
-    // 3. Start inside the game.
-    if (vigilLoaded(pid)) {
-        setStep(2, StepState::Done, "Already running");
-        setStep(3, StepState::Done);
-        {
-            std::lock_guard<std::mutex> lk(g.mu);
-            g.alreadyRunning = true;
+    // 3. Start inside the game — unless a Vigil runtime is already there (PLAN.md §10).
+    platform::RuntimeInfo running;
+    if (platform::findRunningRuntime(pid, running)) {
+        const auto match = platform::compareRuntime(running, VIGIL_VERSION_STRING, VIGIL_BUILD_ID);
+        log::writef("launcher", "a Vigil runtime is already loaded: %s (build %s)", running.version.c_str(),
+                    running.build.empty() ? "unknown" : running.build.c_str());
+        if (match == platform::RuntimeMatch::Same || match == platform::RuntimeMatch::Unknown) {
+            setStep(2, StepState::Done, "Already running");
+            setStep(3, StepState::Done);
+            {
+                std::lock_guard<std::mutex> lk(g.mu);
+                g.alreadyRunning = true;
+            }
+            finish(true, "Vigil is already running", "Press " + menuKeyName() + " in game, or type /vigil in chat.");
+            return;
         }
-        finish(true, "Vigil is already running", "Press " + menuKeyName() + " in game, or type /vigil in chat.");
+        // Never load a second runtime next to another version: restarting the game is the update.
+        setStep(2, StepState::Failed, "Vigil " + running.version + " is running");
+        const std::string what = match == platform::RuntimeMatch::OtherVersion
+                                     ? "Vigil " + running.version + " is running in this game."
+                                     : "A different build of Vigil " + running.version + " is running in this game.";
+        finish(false, "Restart Lunar Client to update", what + " Close Lunar Client, start it again, then run Vigil " +
+                                                             VIGIL_VERSION_STRING + ".");
         return;
     }
     setStep(2, StepState::Active);
@@ -232,6 +260,7 @@ void work() {
     swprintf_s(failName, L"Local\\Vigil.Failed.%lu", pid);
     HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, readyName);
     HANDLE failed = CreateEventW(nullptr, TRUE, FALSE, failName);
+    HANDLE reason = platform::createFailureChannel(pid);
     HANDLE proc = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
                                   PROCESS_VM_READ | SYNCHRONIZE,
                               FALSE, pid);
@@ -239,6 +268,7 @@ void work() {
         if (proc) CloseHandle(proc);
         if (ready) CloseHandle(ready);
         if (failed) CloseHandle(failed);
+        if (reason) CloseHandle(reason);
     };
     if (!proc) {
         setStep(2, StepState::Failed);
@@ -290,8 +320,12 @@ void work() {
         finish(true, "Vigil is active", "Press " + menuKeyName() + " in game, or type /vigil in chat.");
     } else {
         setStep(3, StepState::Failed);
+        // The runtime says why when it can (version conflict, JVM not found, …).
+        const std::string why = platform::readFailureReason(reason);
+        log::writef("launcher", "runtime did not come online (wait=%lu): %s", r, why.empty() ? "no reason given" : why.c_str());
         finish(false, r == WAIT_OBJECT_0 + 2 ? "The game closed" : "Vigil did not come online",
                r == WAIT_OBJECT_0 + 2 ? "Lunar Client exited before Vigil finished starting."
+               : !why.empty()         ? why
                                       : "Vigil started but could not finish setting up. The log explains why.");
     }
     cleanup();
@@ -368,9 +402,97 @@ void drawStep(Renderer& r, Fonts& f, const Theme& t, float x, float y, const Ste
     }
 }
 
+// ── Release validation (no window, no game, nothing written outside %TEMP%) ─────────────────
+//
+//   Vigil.exe --self-check <report.json>   verifies that this executable and the runtime embedded
+//                                           in it are the same version and build; exit code 0/1
+//   Vigil.exe --version <out.txt>          writes "<version> <build>"
+//
+// The workflow runs both before publishing (docs/RELEASE_PROCESS.md).
+int selfCheck(const std::wstring& reportPath) {
+    json::Value report = json::Value::object();
+    json::Value checks = json::Value::array();
+    bool ok = true;
+    auto check = [&](const char* name, bool pass, const std::string& detail) {
+        json::Value c = json::Value::object();
+        c["check"] = json::Value(name);
+        c["pass"] = json::Value(pass);
+        c["detail"] = json::Value(detail);
+        checks.push(c);
+        ok = ok && pass;
+    };
+    report["exeVersion"] = json::Value(VIGIL_VERSION_STRING);
+    report["exeBuild"] = json::Value(VIGIL_BUILD_ID);
+
+    wchar_t exe[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    platform::RuntimeInfo self;
+    const bool selfRead = platform::readModuleVersion(exe, self);
+    check("exe version resource", selfRead && self.version == VIGIL_VERSION_STRING && self.build == VIGIL_BUILD_ID,
+          selfRead ? self.version + " / " + self.build : "unreadable");
+
+    const void* bytes = nullptr;
+    DWORD size = 0;
+    const bool embedded = embeddedRuntime(bytes, size);
+    check("runtime embedded", embedded, embedded ? std::to_string(size) + " bytes" : "resource 301 missing");
+    if (embedded) {
+        const std::string sha = platform::sha256Hex(bytes, size);
+        report["runtimeSha256"] = json::Value(sha);
+        report["runtimeSize"] = json::Value(static_cast<double>(size));
+        // A 64-bit DLL: MZ header, PE signature, AMD64 machine, DLL characteristic.
+        const auto* b = static_cast<const unsigned char*>(bytes);
+        bool pe = size > 0x200 && b[0] == 'M' && b[1] == 'Z';
+        if (pe) {
+            const std::uint32_t off = *reinterpret_cast<const std::uint32_t*>(b + 0x3C);
+            pe = off + 24 < size && std::memcmp(b + off, "PE\0\0", 4) == 0 &&
+                 *reinterpret_cast<const std::uint16_t*>(b + off + 4) == IMAGE_FILE_MACHINE_AMD64 &&
+                 (*reinterpret_cast<const std::uint16_t*>(b + off + 22) & IMAGE_FILE_DLL) != 0;
+        }
+        check("runtime is a 64-bit DLL", pe, pe ? "x64 DLL" : "not an x64 DLL");
+        // Read the embedded runtime's version resource from a temporary copy.
+        wchar_t tmpDir[MAX_PATH] = {};
+        GetTempPathW(MAX_PATH, tmpDir);
+        const fs::path tmp = fs::path(tmpDir) / ("Vigil-selfcheck-" + std::to_string(GetCurrentProcessId()) + ".dll");
+        {
+            std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+            out.write(static_cast<const char*>(bytes), size);
+        }
+        platform::RuntimeInfo rt;
+        const bool rtRead = platform::readModuleVersion(tmp.wstring(), rt);
+        std::error_code ec;
+        fs::remove(tmp, ec);
+        report["runtimeVersion"] = json::Value(rt.version);
+        report["runtimeBuild"] = json::Value(rt.build);
+        check("runtime version matches exe", rtRead && rt.version == VIGIL_VERSION_STRING, rtRead ? rt.version : "unreadable");
+        check("runtime build matches exe", rtRead && rt.build == VIGIL_BUILD_ID, rtRead ? rt.build : "unreadable");
+        check("runtime hash computed", sha.size() == 64, sha);
+    }
+    report["checks"] = checks;
+    report["ok"] = json::Value(ok);
+    std::ofstream out(fs::path(reportPath), std::ios::binary | std::ios::trunc);
+    out << json::write(report, 2);
+    return ok ? 0 : 1;
+}
+
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
+    {
+        int argc = 0;
+        LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+        if (argv && argc >= 3 && std::wcscmp(argv[1], L"--self-check") == 0) {
+            const int code = selfCheck(argv[2]);
+            LocalFree(argv);
+            return code;
+        }
+        if (argv && argc >= 3 && std::wcscmp(argv[1], L"--version") == 0) {
+            std::ofstream out(fs::path(argv[2]), std::ios::binary | std::ios::trunc);
+            out << VIGIL_VERSION_STRING << " " << VIGIL_BUILD_ID << "\n";
+            LocalFree(argv);
+            return 0;
+        }
+        if (argv) LocalFree(argv);
+    }
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     g_clock0 = 0.0;
     g_clock0 = nowSec();

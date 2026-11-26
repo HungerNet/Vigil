@@ -416,16 +416,29 @@ Theme deriveCustomTheme(const CustomTheme& c) {
 
 const Theme& theme() { return g_active; }
 
-void setTheme(int index, int accentChoice, const CustomTheme& custom) {
+Theme withHigherContrast(Theme t) {
+    // Secondary and faint text move toward the primary text color, borders gain weight. Applied
+    // on top of any theme (Settings → Accessibility → Text contrast), so every design stays itself.
+    t.textMuted = t.textMuted.mix(t.text, 0.40f);
+    t.textFaint = t.textFaint.mix(t.text, 0.45f);
+    t.border = t.border.mix(t.text, 0.10f);
+    t.borderStrong = t.borderStrong.mix(t.text, 0.16f);
+    t.divider = t.divider.mix(t.text, 0.08f);
+    return t;
+}
+
+void setTheme(int index, int accentChoice, const CustomTheme& custom, bool higherContrast) {
     const auto& all = themes();
     index = std::clamp(index, 0, static_cast<int>(all.size()));
     accentChoice = std::clamp(accentChoice, 0, static_cast<int>(accentChoices().size()) - 1);
     const bool isCustom = index == static_cast<int>(all.size());
-    if (index == g_theme && accentChoice == g_accent && (!isCustom || sameCustom(custom, g_custom))) return;
+    static bool s_contrast = false;
+    if (index == g_theme && accentChoice == g_accent && higherContrast == s_contrast && (!isCustom || sameCustom(custom, g_custom))) return;
     const bool first = g_theme < 0;
     g_theme = index;
     g_accent = accentChoice;
     g_custom = custom;
+    s_contrast = higherContrast;
     Theme next = isCustom ? deriveCustomTheme(custom) : all[static_cast<std::size_t>(index)];
     if (accentChoice > 0 && !isCustom) {
         Color a = accentChoices()[static_cast<std::size_t>(accentChoice)].second;
@@ -433,6 +446,7 @@ void setTheme(int index, int accentChoice, const CustomTheme& custom) {
         next.accent = a;
         next.chart[0] = a;
     }
+    if (higherContrast) next = withHigherContrast(next);
     if (first) {
         g_active = g_from = g_target = next;
         return;

@@ -21,6 +21,9 @@ public:
     // Match briefing: who in the new game is worth knowing about (shown only when non-empty).
     void showBriefing(const Briefing& b, double now);
     void clear();
+    // A new world or match: detection cards and the briefing of the previous game leave at once
+    // (PLAN.md §7.5). The activation card stays (it is about Vigil, not the game).
+    void onSceneChanged();
 
     bool idle(double now) const;
     // Player of the newest notification still on screen (opening the menu investigates them).

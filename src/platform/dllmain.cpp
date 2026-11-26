@@ -12,7 +12,9 @@
 #include "../game/class_finder.h"
 #include "../game/jvm.h"
 #include "../game/runtime.h"
+#include "core/version.h"
 #include "hooks.h"
+#include "runtime_guard.h"
 
 #include <windows.h>
 #include <jni.h>
@@ -129,6 +131,20 @@ DWORD WINAPI mainThread(LPVOID module) {
     g_dllDir = path;
     g_dllDir = g_dllDir.substr(0, g_dllDir.find_last_of("\\/"));
     vigil::log::init(vigil::paths::dataDirectory(g_dllDir) + "\\logs");
+    vigil::log::writef("vigil", "runtime %s (build %s) loaded from %s", VIGIL_VERSION_STRING, VIGIL_BUILD_ID, path);
+
+    // One Vigil runtime per game: a second one (any version) would hook the same window twice.
+    {
+        vigil::platform::RuntimeInfo holder;
+        if (!vigil::platform::claimRuntime(VIGIL_VERSION_STRING, VIGIL_BUILD_ID, holder)) {
+            const std::string running = holder.known() ? "Vigil " + holder.version : std::string("Another Vigil runtime");
+            const std::string why = running + " is already running in this game. Restart Lunar Client to use Vigil " +
+                                    VIGIL_VERSION_STRING + ".";
+            vigil::platform::publishFailureReason(GetCurrentProcessId(), why);
+            reportFailure(("startup refused: " + why).c_str(), why.c_str());
+            FreeLibraryAndExitThread(static_cast<HMODULE>(module), 1);
+        }
+    }
 
     JNIEnv* env = attachJvm();
     if (!env) {

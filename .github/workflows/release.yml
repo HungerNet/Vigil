@@ -1,72 +1,122 @@
-name: Build and release
+# Release — publishes Vigil-<version>.exe, only after the Validate workflow succeeded in this same
+# run, and only from the exact artifact Validate built and checked.
+#
+#   validate   the full Validate workflow (workflow_call): lint, metadata, build, tests, self-check
+#   gate       decides whether to publish: version.yaml `run: true`, and the tag does not exist yet
+#              (a published version is never overwritten with different binaries)
+#   publish    re-verifies the downloaded artifact, names it, writes SHA256SUMS, publishes, and
+#              checks what GitHub now serves
+#
+# See docs/RELEASE_PROCESS.md.
+name: Release
 
 on:
   push:
     branches: [main, master]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: windows-latest
+  validate:
+    name: Validate
+    uses: ./.github/workflows/validate.yml
+
+  gate:
+    name: Release gate
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          RUN: ${{ needs.validate.outputs.run }}
+        run: |
+          if [ "$RUN" != "true" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "### Not published: version.yaml has \`run: false\`" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Not published: ${VERSION} already exists"
+              echo "A published version is never replaced. Bump \`version\` in version.yaml (and the release notes) to publish this build."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "### Publishing ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Set up JDK (JNI headers only)
-        uses: actions/setup-java@v4
+  publish:
+    name: Publish
+    needs: [validate, gate]
+    if: needs.gate.outputs.publish == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+      ASSET: ${{ needs.validate.outputs.asset }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the validated build
+        uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: '17'
+          name: vigil-validated
+          path: validated
 
-      - name: Configure
-        run: cmake -S . -B build -A x64
-
-      - name: Build
-        run: cmake --build build --config Release --parallel
-
-      - name: Tests (detection, utilities, identity)
-        run: ctest --test-dir build -C Release --output-on-failure
-
-      - name: Verify embedded Java shims are reproducible
-        # Informational: javac output can differ across JDK patch releases.
-        continue-on-error: true
+      - name: Re-verify and package
         shell: pwsh
         run: |
-          python tools/build_java.py --javac "$env:JAVA_HOME\bin\javac.exe"
-          git diff --exit-code -- src/game/bytecode
-
-      - name: Read version
-        if: github.event_name == 'push'
-        shell: pwsh
-        run: |
-          $yaml = Get-Content version.yaml -Raw
-          $run = if ($yaml -match '(?m)^run:\s*(\w+)') { $Matches[1] } else { 'false' }
-          $version = if ($yaml -match "(?m)^version:\s*'?([^'\r\n]+)'?") { $Matches[1] } else { '0.0.0' }
-          "RUN=$run" >> $env:GITHUB_ENV
-          "VERSION=$version" >> $env:GITHUB_ENV
-
-      - name: Package
-        if: github.event_name == 'push' && env.RUN == 'true'
-        shell: pwsh
-        run: |
-          # Users download one file. Vigil.exe carries the runtime and writes it to
-          # %LOCALAPPDATA%\Vigil\runtime on first run.
-          $exe = "build/Release/Vigil.exe"
-          Copy-Item $exe "Vigil.exe"
-          $hash = (Get-FileHash Vigil.exe -Algorithm SHA256).Hash.ToLower()
-          "$hash  Vigil.exe" | Set-Content -Encoding ascii "Vigil.exe.sha256"
+          # The artifact must still be what Validate checked: run its self-check again here.
+          $report = Join-Path $PWD 'recheck.json'
+          $p = Start-Process -FilePath ./validated/Vigil.exe -ArgumentList '--self-check', "`"$report`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $report; throw "Self-check failed on the downloaded artifact." }
+          $before = Get-Content ./validated/selfcheck.json -Raw | ConvertFrom-Json
+          $after = Get-Content $report -Raw | ConvertFrom-Json
+          if ($before.runtimeSha256 -ne $after.runtimeSha256 -or $after.exeVersion -ne $env:VERSION) { throw "Artifact changed after validation." }
+          Copy-Item ./validated/Vigil.exe $env:ASSET
+          $hash = (Get-FileHash $env:ASSET -Algorithm SHA256).Hash.ToLower()
+          "$hash  $env:ASSET" | Set-Content -Encoding ascii SHA256SUMS
           "SHA256=$hash" >> $env:GITHUB_ENV
+          Get-Content SHA256SUMS
 
       - name: Publish release
-        if: github.event_name == 'push' && env.RUN == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           name: Vigil ${{ env.VERSION }}
           body_path: docs/RELEASE_NOTES.md
+          fail_on_unmatched_files: true
           files: |
-            Vigil.exe
-            Vigil.exe.sha256
+            ${{ env.ASSET }}
+            SHA256SUMS
+
+      - name: Verify the published release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh release view $env:VERSION --json assets | ConvertFrom-Json
+          $names = $rel.assets | ForEach-Object { $_.name }
+          foreach ($want in @($env:ASSET, 'SHA256SUMS')) {
+            if ($names -notcontains $want) { throw "Release is missing $want (has: $($names -join ', '))." }
+          }
+          $exe = $rel.assets | Where-Object { $_.name -eq $env:ASSET }
+          if ($exe.size -ne (Get-Item $env:ASSET).Length) { throw "Published $env:ASSET has a different size." }
+          "### Published Vigil $env:VERSION" >> $env:GITHUB_STEP_SUMMARY
+          "``$env:ASSET`` SHA-256 ``$env:SHA256``" >> $env:GITHUB_STEP_SUMMARY

@@ -67,6 +67,7 @@ public:
                          "(eyes to the nearest point of the hitbox) is %.2f blocks beyond it.",
                          ev.reach - mc::kVanillaReach),
                      {{"Compensated reach", ev.reach, "blocks", limit, true},
+                      {"Vanilla reach", mc::kVanillaReach, "blocks", 0.0, false, EvidenceValue::Role::Expected},
                       {"Uncompensated reach", ev.reachRaw, "blocks"},
                       {"Aim outside hitbox", ev.aimOutside, "°"}},
                      victim.name());

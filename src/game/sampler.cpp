@@ -20,12 +20,37 @@ jclass globalClass(JNIEnv* env, const char* name) {
     return g;
 }
 
+// Binding report for live validation (docs/LIVE_VALIDATION.md): which members could not be
+// resolved, and which resolved only through their obfuscated (confirmed) fallback name.
+BindingReport g_report;
+
+void note(bool resolved, bool byName, const char* name, const char* obf) {
+    ++g_report.total;
+    if (!resolved) {
+        ++g_report.missing;
+        g_report.notes.push_back(std::string("missing: ") + name);
+    } else if (!byName) {
+        ++g_report.obfuscated;
+        g_report.notes.push_back(std::string(name) + " \xE2\x86\x92 " + (obf ? obf : "?"));
+    }
+}
+
 jfieldID field(JNIEnv* env, jclass cls, const char* name, const char* sig, const char* obf = nullptr) {
-    return cls ? JniResolveFieldID(env, cls, sig, name, obf) : nullptr;
+    if (!cls) { note(false, false, name, obf); return nullptr; }
+    jfieldID byName = env->GetFieldID(cls, name, sig);
+    if (env->ExceptionCheck()) { env->ExceptionClear(); byName = nullptr; }
+    jfieldID id = byName ? byName : JniResolveFieldID(env, cls, sig, name, obf);
+    note(id != nullptr, byName != nullptr, name, obf);
+    return id;
 }
 
 jmethodID method(JNIEnv* env, jclass cls, const char* name, const char* sig, const char* obf = nullptr) {
-    return cls ? JniResolveInstanceMethod(env, cls, sig, name, obf) : nullptr;
+    if (!cls) { note(false, false, name, obf); return nullptr; }
+    jmethodID byName = env->GetMethodID(cls, name, sig);
+    if (env->ExceptionCheck()) { env->ExceptionClear(); byName = nullptr; }
+    jmethodID id = byName ? byName : JniResolveInstanceMethod(env, cls, sig, name, obf);
+    note(id != nullptr, byName != nullptr, name, obf);
+    return id;
 }
 
 bool callBool(JNIEnv* env, jobject o, jmethodID m) {
@@ -36,8 +61,11 @@ bool callBool(JNIEnv* env, jobject o, jmethodID m) {
 
 }  // namespace
 
+const BindingReport& Sampler::bindings() const { return g_report; }
+
 bool Sampler::resolve(JNIEnv* env, jobject mc) {
     if (resolved_) return true;
+    g_report = BindingReport{};
     clsEntity_ = globalClass(env, "net/minecraft/entity/Entity");
     clsLiving_ = globalClass(env, "net/minecraft/entity/EntityLivingBase");
     clsPlayer_ = globalClass(env, "net/minecraft/entity/player/EntityPlayer");

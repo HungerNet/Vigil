@@ -197,8 +197,13 @@ void writeImpl(const Value& v, std::string& out, int indent, int level) {
             const double d = v.asNumber();
             if (!std::isfinite(d)) { out += "0"; break; }
             char buf[64];
+            // Shortest form that reads back as the same double: traces and saved profiles replay
+            // bit-for-bit (docs/VALIDATION.md), and settings stay readable ("0.4", not "0.40000000000000002").
             if (std::floor(d) == d && std::fabs(d) < 1e15) std::snprintf(buf, sizeof(buf), "%.0f", d);
-            else std::snprintf(buf, sizeof(buf), "%.6g", d);
+            else {
+                std::snprintf(buf, sizeof(buf), "%.15g", d);
+                if (std::strtod(buf, nullptr) != d) std::snprintf(buf, sizeof(buf), "%.17g", d);
+            }
             out += buf;
             break;
         }

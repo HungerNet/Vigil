@@ -19,6 +19,8 @@
 #include "../../src/identity/identity.h"
 #include "../../src/ui/app.h"
 #include "../../src/ui/gfx.h"
+#include "../../src/ui/records.h"
+#include "../../src/ui/sound.h"
 #include "../../src/utilities/utilities.h"
 
 #include <algorithm>
@@ -609,9 +611,20 @@ int main(int argc, char** argv) {
         const std::string marks = (std::filesystem::path(tmp) / "marks.json").string();
         std::remove(marks.c_str());
         engine.setMarksPath(marks);
-        engine.marks().confirm(Arena::uuidOf(4), "Kestrel", {"KillAura"});
+        engine.marks().confirm(Arena::uuidOf(4), "Kestrel", {"KillAura"}, 82.f);
+        engine.marks().setNote(Arena::uuidOf(4), "Snaps onto targets every fight; reported after game 2.");
         engine.marks().setWatch(Arena::uuidOf(7), "Morrow", true);
         engine.marks().setWatch("5f1c0063-7a2b-4c3d-9e8f-000000999999", "Halloway", true);   // not seen this session
+        engine.marks().setExempt(Arena::uuidOf(8), "", true);                                  // a friend in the arena
+        engine.marks().addByName("Vexley", detection::MarkKind::Confirm);                       // added by name, never seen
+    }
+    // Interface sounds are never played by the harness; records live in a scratch folder.
+    ui::setSoundOutputEnabled(false);
+    {
+        const std::string rec = (std::filesystem::path(tmp) / "records").string();
+        std::error_code ec;
+        std::filesystem::remove_all(rec, ec);
+        ui::RecordsService::instance().configure(rec);
     }
 
     // Window + GL context.
@@ -651,6 +664,10 @@ int main(int argc, char** argv) {
         if (tick == 20 * 60) arena.endPreviousGame();
         arena.step(tick);
         engine.onFrame(arena.frame(tick, start + tick * 50.0));
+    }
+    // A saved profile for Records → Saved.
+    for (const auto& pr : engine.session().players()) {
+        if (pr.name == "Kestrel") ui::RecordsService::instance().save(engine, pr);
     }
 
     if (!o.hud && !o.activation) app.open();

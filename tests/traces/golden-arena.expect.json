@@ -1,0 +1,37 @@
+{
+  "kind": "vigil-outcome",
+  "format": 1,
+  "frames": 600,
+  "players": {
+    "LowHopper": {
+      "suspicion": 99.5,
+      "peak": 99.61,
+      "evidence": {
+        "bhop": 76,
+        "speed": 26
+      },
+      "detections": {
+        "bhop": 2,
+        "speed": 2
+      }
+    },
+    "Observer": {
+      "suspicion": 0,
+      "peak": 0,
+      "evidence": {},
+      "detections": {}
+    },
+    "Sprinter": {
+      "suspicion": 0,
+      "peak": 0,
+      "evidence": {},
+      "detections": {}
+    },
+    "Walker": {
+      "suspicion": 0,
+      "peak": 0,
+      "evidence": {},
+      "detections": {}
+    }
+  }
+}

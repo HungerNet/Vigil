@@ -27,6 +27,7 @@ BEGIN
       VALUE "OriginalFilename", "Vigil.dll"
       VALUE "ProductName", "Vigil"
       VALUE "ProductVersion", VIGIL_VERSION_RC_STRING
+      VALUE "VigilBuild", VIGIL_BUILD_ID_RC_STRING
       VALUE "LegalCopyright", "Vigil. Inter typeface (c) The Inter Project Authors, SIL OFL 1.1."
     END
   END

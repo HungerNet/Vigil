@@ -87,6 +87,7 @@ public:
                          "with nothing overhead.",
                          seg.airTicks, seg.apexY - seg.takeoffY),
                      {{"Air time", static_cast<double>(seg.airTicks), "ticks", static_cast<double>(maxAir_->i()), true},
+                      {"Vanilla flat jump", static_cast<double>(mc::kFlatJumpAirTicks), "ticks", 0.0, false, EvidenceValue::Role::Expected},
                       {"Apex", seg.apexY - seg.takeoffY, "blocks"},
                       {"Height change", seg.landY - seg.takeoffY, "blocks"}});
         }
@@ -117,6 +118,7 @@ public:
                                  "the limit here is %.1f m/s.",
                                  st->chain, avg * 20.0, limit * 20.0),
                              {{"Average speed", avg, "b/tick", limit, true},
+                              {"Vanilla sprint-jump", mc::kSprintJumpAverage * mult, "b/tick", 0.0, false, EvidenceValue::Role::Expected},
                               {"Hops in chain", static_cast<double>(st->chain), ""},
                               {"Movement multiplier", mult, "x"},
                               {"Data quality", q * 100.0, "%"}});

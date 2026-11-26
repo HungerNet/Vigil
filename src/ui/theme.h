@@ -70,7 +70,9 @@ Color hsv(float hueDeg, float s, float v);
 // Changing the theme starts a transition: the active theme is interpolated from what was on screen
 // to the new target by tickTheme(), so a theme change is a crossfade rather than a cut.
 const Theme& theme();
-void setTheme(int index, int accentChoice, const CustomTheme& custom);
+// `higherContrast` lifts secondary text and borders on top of any theme (Accessibility).
+void setTheme(int index, int accentChoice, const CustomTheme& custom, bool higherContrast = false);
+Theme withHigherContrast(Theme t);
 // Advances the transition (call once per frame). `motion` 0 = instant.
 void tickTheme(double nowSec, float motion);
 bool themeTransitioning();

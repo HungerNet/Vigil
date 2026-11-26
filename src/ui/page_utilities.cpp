@@ -2,6 +2,7 @@
 // Detector). Each card says what the utility does, whether it is doing anything right now, how
 // to toggle it from the game, and what it did recently.
 
+#include "../identity/identity.h"
 #include "../utilities/utilities.h"
 #include "pages.h"
 
@@ -99,6 +100,63 @@ float utilityCard(PageContext& ctx, const UtilityInfo& u, const Rect& rc, const 
     return y;
 }
 
+// Identity tools: the denickers, with their status and setup in one place (PLAN.md X6). They
+// were split between Settings → Identity, Status and the profile's Identity tab.
+float identityTools(PageContext& ctx, float x, float y, float w) {
+    Ui& ui = ctx.ui;
+    const Theme& t = ui.th();
+    const auto& is = identity::settings();
+    const auto st = identity::Service::instance().stats();
+    const int nicked = static_cast<int>(identity::Service::instance().nicked().size());
+    sectionHeader(ui, x + 4.f, y, "IDENTITY TOOLS", "denickers \xC2\xB7 only for nicked players, only when you turn them on");
+    y += 24.f;
+    const float gap = 14.f;
+    const float cw = (w - gap) * 0.5f;
+    struct Tool { const char* name; Icon icon; Setting* enabled; std::vector<Setting*> options; std::string status; bool problem; };
+    const bool skinOn = is.skinDenick && is.skinDenick->b();
+    const bool numOn = is.numberDenick && is.numberDenick->b();
+    const bool hasKey = is.bordicKey && !is.bordicKey->text.empty();
+    const std::vector<Tool> tools = {
+        {"Skin denicker", Icon::Mask, is.skinDenick, {is.autoLookup, is.announce},
+         !skinOn ? "Off" : nicked == 0 ? "Ready \xC2\xB7 no nicked players yet" : std::to_string(nicked) + " nicked this session", false},
+        {"Number denicker", Icon::Identity, is.numberDenick, {is.bordicKey},
+         !numOn ? "Off" : !hasKey ? "Needs your Bordic API key" : "Ready \xC2\xB7 watches Bed Wars counters", numOn && !hasKey},
+    };
+    float tallest = 0.f;
+    for (std::size_t i = 0; i < tools.size(); ++i) {
+        const Tool& tool = tools[i];
+        float optH = 0.f;
+        for (Setting* s : tool.options) if (s) optH += settingRowHeight(*s);
+        const float ch = 150.f + optH;
+        tallest = std::max(tallest, ch);
+        const Rect rc{x + (cw + gap) * static_cast<float>(i), y, cw, ch};
+        const bool on = tool.enabled && tool.enabled->b();
+        const Id id = hashId(tool.name, 6161);
+        card(ui, rc);
+        if (on) ui.r.roundRectStroke(rc, t.radiusCard, 1.f, t.accent.withAlpha(0.35f));
+        const Rect ic{rc.x + 20.f, rc.y + 20.f, 40.f, 40.f};
+        ui.r.roundRect(ic, 11.f, (on ? t.accent : t.textFaint).withAlpha(t.light ? 0.10f : 0.13f));
+        drawIcon(ui.r, tool.icon, ic.x + 10.f, ic.y + 10.f, 20.f, on ? t.accent : t.textMuted);
+        ui.fonts.draw(ui.r, type::Title, ic.r() + 14.f, rc.y + 20.f, tool.name, t.text);
+        statusDot(ui, ic.r() + 18.f, rc.y + 50.f, !on ? t.textFaint : tool.problem ? t.sevNotice : t.sevClear, false);
+        ui.fonts.draw(ui.r, type::Small, ic.r() + 28.f, rc.y + 43.f, tool.status, on ? t.text : t.textFaint, Align::Left, rc.w - 160.f);
+        if (tool.enabled && toggle(ui, mixId(id, 2), {rc.r() - 60.f, rc.y + 26.f, 40.f, 22.f}, on)) tool.enabled->set(on ? 0.0 : 1.0);
+        float yy = rc.y + 74.f;
+        if (tool.enabled) yy += ui.fonts.drawWrapped(ui.r, type::Small, rc.x + 20.f, yy, rc.w - 40.f, tool.enabled->tooltip, t.textMuted, 3.f, 2) + 10.f;
+        for (Setting* s : tool.options) if (s) yy += settingRow(ui, *s, rc.x + 10.f, yy, rc.w - 30.f);
+    }
+    y += tallest + 10.f;
+    const std::string lookups = std::to_string(st.requests) + (st.requests == 1 ? " lookup" : " lookups") + " this session" +
+                                (st.failures ? " \xC2\xB7 " + std::to_string(st.failures) + " failed" : "") +
+                                (!st.lastError.empty() ? " (" + st.lastError + ")" : "");
+    drawIcon(ui.r, Icon::Globe, x + 6.f, y + 1.f, 13.f, t.textFaint, 1.4f);
+    ui.fonts.draw(ui.r, type::Caption, x + 26.f, y + 2.f,
+                  lookups + " \xC2\xB7 Mojang's public profile service and (with your key) Bordic, nothing else. Results appear in each "
+                            "player's Identity tab.",
+                  t.textFaint, Align::Left, w - 30.f);
+    return y + 30.f;
+}
+
 }  // namespace
 
 void drawUtilities(PageContext& ctx, const Rect& area) {
@@ -125,6 +183,9 @@ void drawUtilities(PageContext& ctx, const Rect& area) {
         utilityCard(ctx, list[i], rc, live);
     }
     y += (ch + gap) * 2.f;
+
+    // Identity tools (denickers).
+    y = identityTools(ctx, area.x, y + 6.f, area.w - 8.f) + gap;
 
     // Shared option + combined activity log.
     if (us.announceInChat) {

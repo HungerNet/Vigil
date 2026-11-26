@@ -5,6 +5,8 @@
 #include "../utilities/utilities.h"
 #include "hud.h"
 #include "pages.h"
+#include "records.h"
+#include "sound.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -26,6 +28,7 @@ struct RailItem {
 constexpr RailItem kRail[] = {
     {Page::Overview, "MONITOR"},
     {Page::Players, "INVESTIGATE"},
+    {Page::Records, nullptr},
     {Page::Checks, "CONFIGURE"},
     {Page::Utilities, nullptr},
     {Page::Settings, nullptr},
@@ -73,6 +76,12 @@ struct App::Impl {
     Setting* briefing = nullptr;
     std::uint64_t briefedMatch = 0;
     double briefingDueMs = -1.0;
+    int briefingScene = -1;
+    int lastScene = -1;                  // match cleanup (PLAN.md §7.5)
+    Setting* focusRing = nullptr;
+    Setting* contrast = nullptr;
+    int pendingTabs = 0;                 // preview harness: simulated Tab presses
+    bool pendingEdit = false;            // preview harness: press Enter on the focused control
     Setting* menuKey = nullptr;
     Setting* onboarded = nullptr;
     Setting* customBase = nullptr;
@@ -99,7 +108,16 @@ struct App::Impl {
         uiScale->deferred = true;
         motionSetting = &grp(S.addChoice("ui.motion", "Motion", 0, {"Full", "Reduced", "Off"},
                                          "Reduced keeps state changes but removes travel and overshoot. Off disables animation."),
-                             "Appearance");
+                             "Accessibility");
+        contrast = &grp(S.addChoice("ui.contrast", "Text contrast", 0, {"Standard", "Higher"},
+                                    "Higher lifts secondary text, captions and borders in every theme, for readability on "
+                                    "bright screens or at a distance."),
+                        "Accessibility");
+        focusRing = &grp(S.addChoice("ui.focusRing", "Keyboard focus ring", 0, {"When using the keyboard", "Always"},
+                                     "Tab and Shift+Tab move through every control; Enter or Space activates it; arrows adjust "
+                                     "sliders, choices and lists. The ring shows where you are."),
+                         "Accessibility");
+        registerSoundSettings();
         blur = &grp(S.addFloat("ui.blur", "Backdrop blur", 1.0, {0.0, 1.0, 0.05, 2, ""},
                                "How strongly the game behind Vigil is blurred while the menu is open."), "Appearance");
         toastSeconds = &grp(S.addFloat("ui.toastSeconds", "Notification duration", 6.0, {2.0, 20.0, 0.5, 1, "s"},
@@ -150,13 +168,28 @@ struct App::Impl {
 
     void applySettings(double nowSec) {
         setMotionLevel(motionSetting->i() == 0 ? 1.f : motionSetting->i() == 1 ? 0.35f : 0.f);
-        setTheme(theme->i(), accent->i(), customParams());
+        setTheme(theme->i(), accent->i(), customParams(), contrast->i() == 1);
         tickTheme(nowSec, motionLevel());
+        ui.focusRingAlways = focusRing->i() == 1;
     }
 
     PageContext context() { return PageContext{ui, *engine, host, state, engine->lastTimeMs()}; }
 
     void pullAlerts(bool toasts) {
+        // Match cleanup (PLAN.md §7.5): what belonged to the previous game doesn't follow you into
+        // the next one. Detections stay in the profiles; only the transient signals go.
+        const int scene = engine->scene();
+        if (lastScene >= 0 && scene != lastScene) {
+            hud.onSceneChanged();
+            for (auto it = state.unseenPlayers.begin(); it != state.unseenPlayers.end();) {
+                const detection::PlayerRecord* r = engine->session().find(*it);
+                if (!r || !engine->inThisGame(*r)) it = state.unseenPlayers.erase(it);
+                else ++it;
+            }
+            state.confirmKey.clear();
+            state.moreKey.clear();
+        }
+        lastScene = scene;
         for (const auto& a : engine->alerts()) {
             if (a.seq <= alertSeq) continue;
             alertSeq = a.seq;
@@ -165,17 +198,28 @@ struct App::Impl {
                 state.unseenPlayers.insert(a.playerKey);
                 state.detectionPulseAt = ui.time;
             }
-            if (!open && toasts) hud.onAlert(a, ui.time);
+            if (!open && toasts) {
+                hud.onAlert(a, ui.time);
+                playSound(Sound::Notify);
+            }
         }
-        // Match briefing, three seconds into each match (the roster has loaded by then).
+        // Match briefing, three seconds into each match (the roster has loaded by then). It
+        // belongs to that match: a world change before it is due cancels it.
         const auto& m = engine->match();
         if (m.matchCount() != briefedMatch) {
             briefedMatch = m.matchCount();
             briefingDueMs = m.matchStartedMs() + 3000.0;
+            briefingScene = m.matchScene();
         }
         if (briefingDueMs > 0.0 && engine->lastTimeMs() >= briefingDueMs) {
             briefingDueMs = -1.0;
-            if (briefing->i() > 0 && !open && m.inMatch()) hud.showBriefing(buildBriefing(*engine), ui.time);
+            if (briefing->i() > 0 && !open && m.inMatch() && engine->scene() == briefingScene) {
+                const Briefing b = buildBriefing(*engine);
+                if (!b.entries.empty()) {
+                    hud.showBriefing(b, ui.time);
+                    playSound(Sound::Briefing);
+                }
+            }
         }
     }
 
@@ -322,6 +366,7 @@ struct App::Impl {
         state.searchIndex = 0;
         state.searchChangedAt = ui.time;
         ui.focus = hashId("search-field");
+        ui.kbFocus = ui.focus;
         ui.popup = 0;
     }
 
@@ -388,6 +433,7 @@ struct App::Impl {
         switch (shownPage) {
             case Page::Overview: drawOverview(ctx, content); break;
             case Page::Players: drawPlayers(ctx, content); break;
+            case Page::Records: drawRecords(ctx, content); break;
             case Page::Checks: drawChecks(ctx, content); break;
             case Page::Utilities: drawUtilities(ctx, content); break;
             case Page::Settings: drawSettings(ctx, content); break;
@@ -406,7 +452,9 @@ struct App::Impl {
     }
 
     void handleKeys(PageContext& ctx) {
-        bool ctrl = false;
+        bool ctrl = false, shift = false;
+        // Tab / Shift+Tab: move through every control on screen, in reading order (PLAN.md §8).
+        if (!ui.captureKey && ui.consumeKey(VK_TAB, &ctrl, &shift)) ui.moveFocus(shift ? -1 : 1);
         for (int i = 0; i < kPageCount; ++i) {
             if (ui.consumeKey('1' + i, &ctrl)) {
                 if (ctrl && !state.searchOpen && !state.onboardingOpen) ctx.navigate(static_cast<Page>(i));
@@ -445,6 +493,7 @@ void App::initialize(Host* host, detection::Engine* engine) {
     d_->host = host;
     d_->engine = engine;
     d_->registerSettings();
+    if (host) RecordsService::instance().configure(host->dataDirectory());
     d_->ready = true;
 }
 
@@ -458,6 +507,9 @@ void App::open() {
     d.closeDone = false;
     d.openedAt = d.ui.time;
     d.ui.in = InputState{};
+    d.ui.kbFocus = 0;
+    d.ui.focusVisible = false;
+    d.ui.editingNumber = 0;
     // Opening while a detection notification is on screen investigates that player.
     const std::string focus = d.hud.focusCandidate(d.ui.time);
     if (!focus.empty() && d.engine) {
@@ -521,6 +573,20 @@ void App::previewOption(const std::string& option) {
     if (option.rfind("scope=", 0) == 0) {
         st.rosterScope = std::clamp(std::atoi(option.c_str() + 6), 0, 3);
         st.earlierOpen = true;
+    } else if (option.rfind("records=", 0) == 0) {
+        st.recordsTab = std::clamp(std::atoi(option.c_str() + 8), 0, 3);
+        st.selectedRecord.clear();
+    } else if (option == "add") {
+        st.addOpen = true;
+        d_->ui.focus = hashId("picker-field");
+        d_->ui.kbFocus = d_->ui.focus;
+    } else if (option == "more") {
+        st.moreKey = st.selectedPlayer;
+    } else if (option.rfind("tab=", 0) == 0) {
+        // Keyboard focus demo: Tab pressed N times (one per frame).
+        for (int i = 0; i < std::atoi(option.c_str() + 4); ++i) d_->pendingTabs++;
+    } else if (option == "edit") {
+        d_->pendingEdit = true;
     } else if (option == "confirm") {
         st.confirmKey = st.selectedPlayer;
     } else if (option == "details") {
@@ -603,6 +669,13 @@ void App::render(int width, int height, double nowMs, bool inGameHud) {
     }
     d.ui.r.begin(width, height, d.scale, !g_previewFramebuffer);
     d.ui.fonts.setScale(d.scale);
+    if (d.pendingTabs > 0) {
+        --d.pendingTabs;
+        d.ui.in.keys.push_back({VK_TAB, true, false, false});
+    } else if (d.pendingEdit) {
+        d.pendingEdit = false;
+        d.ui.in.keys.push_back({VK_RETURN, true, false, false});
+    }
     d.ui.beginFrame(nowSec);
     d.ui.flashKey = d.state.focusSetting;
     d.ui.flashAt = d.state.focusAt;

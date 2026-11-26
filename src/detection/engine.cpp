@@ -123,6 +123,8 @@ void Engine::onWorldChanged() {
     filtered_.clear();
     localId_ = -1;
     noUpdateRun_ = 0;
+    // A stall window belongs to the world it was measured in (PLAN.md §7.5).
+    stallUntil_ = -1;
     match_.onWorldChanged();
     for (PlayerRecord& r : session_.players()) {
         if (r.present) {
@@ -295,7 +297,7 @@ void Engine::pruneRecords() {
     const int scene = match_.scene();
     stats_.prunedRecords += session_.prune([&](const PlayerRecord& r) {
         return !r.present && !r.local && r.scene < scene - 1 && r.evidence.empty() && r.detections.empty() &&
-               !marks_.watched(r.key);
+               !marks_.find(r.key);
     });
 }
 
@@ -303,7 +305,20 @@ bool Engine::shouldAnalyze(const Tracked& t) const {
     const PlayerFrame& f = t.track.cur();
     if (f.isLocal && !analyzeSelf_->b()) return false;
     if (f.isTeammate && ignoreTeammates_->b() && context_ != GameContext::Replay) return false;
+    // Exempt by the user: listed, never judged (marks.h).
+    if (!t.recordKey.empty() && marks_.exempt(t.recordKey)) return false;
     return true;
+}
+
+PlayerState Engine::playerState(const PlayerRecord& r) const {
+    PlayerState s;
+    s.listed = true;
+    s.local = r.local;
+    s.teammate = r.teammate;
+    s.exempt = marks_.exempt(r.key);
+    s.inThisGame = inThisGame(r);
+    s.judged = !s.exempt && (!r.local || analyzeSelf_->b()) && (!r.teammate || !ignoreTeammates_->b() || context_ == GameContext::Replay);
+    return s;
 }
 
 void Engine::refreshSuspicion(PlayerRecord& r) {
@@ -339,6 +354,8 @@ PlayerRecord& Engine::recordFor(Tracked& t) {
         r.scene = scene;
         r.participant = false;
         ++r.scenesSeen;
+        // A player the user added by name before Vigil saw them: the mark now follows this account.
+        marks_.bindName(r.key, r.name, r.uuid);
         marks_.rememberName(r.key, r.name);
     }
     if (!r.present) {
@@ -651,6 +668,7 @@ void Engine::emit(const PlayerTrack& subject, int indicator, float severity, std
     ev.detail = std::move(detail);
     ev.target = std::move(target);
     ev.values = std::move(values);
+    ev.envelope = deriveEnvelope(ev.values);
 
     cr.evidence++;
     cr.indicatorCounts[static_cast<std::size_t>(indicator)]++;
