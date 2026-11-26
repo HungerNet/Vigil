@@ -80,9 +80,9 @@ public:
         if (st->placements >= placed_->i() && std::fabs(gain) <= maxGain_->value && speed >= speed_->value) {
             ctx.emit(t, iJump_, static_cast<float>(std::clamp(st->placements / (placed_->value * 1.6), 0.4, 1.0)),
                      fmt("Placed %d blocks in one jump at %.2f b/tick", st->placements, speed),
-                     fmt("%s jumped while looking %.0f° down, placed %d blocks in the air and landed %.2f blocks from "
-                         "the takeoff height, moving %.2f blocks per tick.",
-                         t.name().c_str(), f.pitch, st->placements, gain, speed),
+                     fmt("Placed %d blocks during one jump and landed level (%+.2f), moving %.2f b/tick while looking "
+                         "%.0f° down. Keeping height and pace while placing mid-jump needs instant, perfect aim.",
+                         st->placements, gain, speed, f.pitch),
                      {{"Placements", static_cast<double>(st->placements), "", static_cast<double>(placed_->i()), true},
                       {"Speed", speed, "b/tick", speed_->value, true},
                       {"Height change", gain, "blocks"}});
@@ -150,9 +150,9 @@ public:
         st->lastEvidence = ctx.tick();
         ctx.emit(t, iFast_, static_cast<float>(std::clamp((sp / speed_->value - 1.0) / 0.3 + 0.4, 0.4, 1.0)),
                  fmt("Bridged %d blocks at %.2f b/tick", static_cast<int>(st->placements.size()), sp),
-                 fmt("%s stayed on the ground without sneaking, looked %.0f° down on average and placed %d blocks in "
-                     "one second while moving %.2f blocks per tick.",
-                     t.name().c_str(), pitch, static_cast<int>(st->placements.size()), sp),
+                 fmt("%d blocks in one second at %.2f b/tick, on the ground and never sneaking, looking %.0f° down. "
+                     "Bridging this fast by hand needs sneaking or jump timing at the edge.",
+                     static_cast<int>(st->placements.size()), sp, pitch),
                  {{"Speed", sp, "b/tick", speed_->value, true},
                   {"Placements per second", static_cast<double>(st->placements.size()), ""},
                   {"Average pitch", pitch, "°"}});
@@ -243,9 +243,9 @@ public:
         if (cv <= maxCv_->value) {
             ctx.emit(t, iTaps_, static_cast<float>(std::clamp(1.0 - cv / (maxCv_->value * 2.0), 0.4, 1.0)),
                      fmt("%d minimal sneak taps, %.1f%% timing variation", n, cv * 100.0),
-                     fmt("While bridging, %s tapped sneak %d times for at most %d ticks each, right at block "
-                         "placements, with intervals varying by only %.1f%% (every %.1f ticks).",
-                         t.name().c_str(), n, maxTap_->i(), cv * 100.0, mean),
+                     fmt("%d sneak taps of at most %d ticks, each right at a placement, with timing varying only %.1f%%. "
+                         "Human sneak-bridging varies far more.",
+                         n, maxTap_->i(), cv * 100.0),
                      {{"Interval variation", cv * 100.0, "%", maxCv_->value * 100.0, true},
                       {"Mean interval", mean, "ticks"},
                       {"Taps", static_cast<double>(n), ""}});

@@ -86,6 +86,9 @@ public:
     void openTo(const std::string& page, const std::string& playerKey = {}, const std::string& tab = {},
                 const std::string& section = {});
     void openSearch(const std::string& query = {});
+    // Preview harness only: "scope=N" (roster scope), "confirm" (open the confirm popover for the
+    // selected player), "details" (expand the inspector's details).
+    void previewOption(const std::string& option);
 
     // In-game activation card ("Vigil is active"), shown once after injection.
     void showActivation();

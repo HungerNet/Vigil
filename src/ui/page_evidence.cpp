@@ -62,7 +62,7 @@ void timeline(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     // Threshold guide (50%).
     ui.r.rect({chart.x, chart.b() - chart.h * 0.5f, chart.w, 1.f}, t.sevNotice.withAlpha(0.18f));
     ui.fonts.draw(ui.r, type::Caption, rc.x + 22.f, chart.y + 2.f, "Suspicion", t.textMuted);
-    ui.fonts.draw(ui.r, type::Caption, rc.x + 22.f, chart.y + 18.f, formatNumber(p.suspicion, 0) + "% now", t.severity(p.suspicion));
+    ui.fonts.draw(ui.r, type::NumericCaption, rc.x + 22.f, chart.y + 18.f, formatNumber(p.suspicion, 0) + "% now", t.severity(p.suspicion));
     ui.r.pushClip(chart.inset(0, -2.f));
     sparkline(ui, chart, p.suspicionHistory, t0, t1, t.severity(std::max(p.suspicion, p.peakSuspicion * 0.7f)), true);
     ui.r.popClip();
@@ -186,8 +186,8 @@ void evidenceList(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
             const std::string cn = checks[static_cast<std::size_t>(e->check)]->name();
             ui.fonts.draw(ui.r, type::SmallStrong, row.x + 84.f, row.y + 7.f, cn, t.text, Align::Left, 110.f);
             ui.fonts.draw(ui.r, type::Small, row.x + 84.f, row.y + 25.f, e->summary, t.textMuted, Align::Left, row.w - 150.f);
-            ui.fonts.draw(ui.r, type::Caption, row.r() - 14.f, row.y + 8.f, "+" + formatNumber(e->contribution, 1), t.textFaint, Align::Right);
-            ui.fonts.draw(ui.r, type::SmallStrong, row.r() - 14.f, row.y + 24.f, formatNumber(e->confidenceAfter, 0) + "%", c, Align::Right);
+            ui.fonts.draw(ui.r, type::NumericCaption, row.r() - 14.f, row.y + 8.f, "+" + formatNumber(e->contribution, 1), t.textFaint, Align::Right);
+            ui.fonts.draw(ui.r, type::Numeric, row.r() - 14.f, row.y + 24.f, formatNumber(e->confidenceAfter, 0) + "%", c, Align::Right);
         }
         y += 46.f;
     }
@@ -218,7 +218,8 @@ float valueTable(Ui& ui, const Evidence& e, float x, float y, float w) {
     return y;
 }
 
-// How one observation moved confidence: strength, headroom, gain → points.
+// How one observation moved confidence. The one-line answer is always visible; the formula
+// (strength, headroom, gain) is under Details.
 float formation(PageContext& ctx, const Evidence& ev, float x, float y, float w) {
     Ui& ui = ctx.ui;
     const Theme& t = ui.th();
@@ -228,19 +229,30 @@ float formation(PageContext& ctx, const Evidence& ev, float x, float y, float w)
     const float strength = ev.weight * ev.severity;
     const float headroom = 100.f - before;
     const float fraction = headroom > 0.01f ? ev.contribution / headroom : 0.f;
-    ui.fonts.draw(ui.r, type::Overline, x, y, "HOW CONFIDENCE FORMED", t.textFaint);
+    ui.fonts.draw(ui.r, type::Overline, x, y, "CONFIDENCE", t.textFaint);
     y += 20.f;
     // Stacked bar: before | added | headroom left.
-    const Rect bar{x, y, w, 10.f};
-    ui.r.roundRect(bar, 5.f, t.inset);
+    const Rect bar{x, y, w, 8.f};
+    ui.r.roundRect(bar, 4.f, t.inset);
     ui.r.pushClip(bar);
     ui.r.rect({bar.x, bar.y, bar.w * before / 100.f, bar.h}, t.severity(before).alpha(0.55f));
     ui.r.rect({bar.x + bar.w * before / 100.f, bar.y, bar.w * ev.contribution / 100.f, bar.h}, t.severity(ev.confidenceAfter));
     ui.r.popClip();
-    y += 18.f;
-    ui.fonts.draw(ui.r, type::Caption, x, y, formatNumber(before, 1) + "% before", t.textFaint);
-    ui.fonts.draw(ui.r, type::Caption, x + w, y, formatNumber(ev.confidenceAfter, 1) + "% after", t.text, Align::Right);
-    y += 22.f;
+    y += 16.f;
+    float lx = x + ui.fonts.draw(ui.r, type::Numeric, x, y, "+" + formatNumber(ev.contribution, 1), t.text);
+    lx += ui.fonts.draw(ui.r, type::Small, lx, y, " \xE2\x86\x92 ", t.textFaint);
+    lx += ui.fonts.draw(ui.r, type::Numeric, lx, y, formatNumber(ev.confidenceAfter, 0) + "%", t.text);
+    ui.fonts.draw(ui.r, type::Small, lx + 8.f, y, std::string(tierName(tierOf(ev.confidenceAfter))), tierColor(t, tierOf(ev.confidenceAfter)));
+    y += 26.f;
+    // Details disclosure.
+    const std::string lbl = ctx.state.inspectorDetails ? "Hide details" : "How this was calculated";
+    const Rect dr{x - 4.f, y - 4.f, ui.fonts.width(type::SmallStrong, lbl) + 30.f, 24.f};
+    bool dh = false;
+    if (ui.pressable(hashId("insp-details"), dr, &dh)) ctx.state.inspectorDetails = !ctx.state.inspectorDetails;
+    drawIcon(ui.r, ctx.state.inspectorDetails ? Icon::ChevronDown : Icon::ChevronRight, x, y, 14.f, dh ? t.text : t.accent);
+    ui.fonts.draw(ui.r, type::SmallStrong, x + 18.f, y - 1.f, lbl, dh ? t.text : t.accent);
+    y += 26.f;
+    if (!ctx.state.inspectorDetails) return y + 4.f;
     struct Line { std::string label, value; };
     const Line lines[] = {
         {"Strength = weight \xC3\x97 severity", formatNumber(ev.weight, 2) + " \xC3\x97 " + formatNumber(ev.severity, 2) + " = " + formatNumber(strength, 2)},
@@ -255,11 +267,9 @@ float formation(PageContext& ctx, const Evidence& ev, float x, float y, float w)
     }
     y += 4.f;
     y += ui.fonts.drawWrapped(ui.r, type::Caption, x, y, w,
-                              "Each observation adds a share of the remaining headroom, so repeated evidence approaches 100% "
-                              "without reaching it, and confidence halves every " + formatNumber(params.halfLifeSec, 0) +
-                                  " s without new evidence. A detection needs " + formatNumber(params.alertThreshold, 0) +
-                                  "% and at least " + std::to_string(params.minEvidence) + " observations within " +
-                                  formatNumber(params.windowSec, 0) + " s.",
+                              "Confidence halves every " + formatNumber(params.halfLifeSec, 0) + " s of normal play. A detection "
+                                  "needs " + formatNumber(params.alertThreshold, 0) + "% and " + std::to_string(params.minEvidence) +
+                                  " observations within " + formatNumber(params.windowSec, 0) + " s.",
                               t.textFaint, 3.f) + 12.f;
     return y;
 }
@@ -341,12 +351,12 @@ void inspector(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
         y += 26.f;
         ui.fonts.draw(ui.r, type::Overline, x, y, "WHY IT MATTERS", t.textFaint);
         y += 18.f;
-        y += ui.fonts.drawWrapped(ui.r, type::Small, x, y, w, ev->detail, t.textMuted, 3.f) + 14.f;
-        y = formation(ctx, *ev, x, y, w);
+        y += ui.fonts.drawWrapped(ui.r, type::Small, x, y, w, ev->detail, t.textMuted, 4.f) + 16.f;
         ui.fonts.draw(ui.r, type::Overline, x, y, "MEASURED", t.textFaint);
         y += 20.f;
         y = valueTable(ui, *ev, x, y, w);
-        y += 4.f;
+        y += 8.f;
+        y = formation(ctx, *ev, x, y, w);
     } else {
         emptyState(ui, view, Icon::Layers, "Select an observation", "Choose a marker on the timeline or a row in the list.");
     }

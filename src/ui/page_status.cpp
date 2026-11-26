@@ -113,7 +113,7 @@ void drawStatus(PageContext& ctx, const Rect& area) {
             ry = statusRow(ui, in.x, ry, in.w, rs.inputHook ? State::Ok : State::Warn, "Input hook", rs.inputHook ? "window procedure" : "missing");
             ry = statusRow(ui, in.x, ry, in.w, rs.menuHost ? State::Ok : State::Off, "Menu host screen", rs.menuHost ? "ready" : "created on open");
             ry = statusRow(ui, in.x, ry, in.w, !rs.worldHookWanted ? State::Off : rs.worldHook ? State::Ok : State::Warn, "World render hook",
-                           !rs.worldHookWanted ? "Suspect Highlight off" : rs.worldHook ? "Suspect Highlight" : "retrying");
+                           !rs.worldHookWanted ? "installed when first needed" : rs.worldHook ? "Suspect Highlight" : "retrying");
             ry = statusRow(ui, in.x, ry, in.w, rs.hypixel ? State::Ok : State::Info, "Server", rs.server.empty() ? "not connected" : rs.server);
         }
     }
@@ -125,14 +125,17 @@ void drawStatus(PageContext& ctx, const Rect& area) {
         const auto& st = e.stats();
         float ry = in.y;
         ry = statusRow(ui, in.x, ry, in.w, e.monitoringEnabled() ? State::Ok : State::Off, "Monitoring", e.monitoringEnabled() ? "on" : "paused");
-        ry = statusRow(ui, in.x, ry, in.w, e.active() ? State::Ok : State::Info, "Context",
-                       e.contextDetail().empty() ? detection::gameContextName(e.context()) : e.contextDetail());
+        const std::string phase = std::string(detection::gamePhaseName(e.phase())) +
+                                  (e.contextDetail().empty() ? std::string() : " \xC2\xB7 " + e.contextDetail());
+        ry = statusRow(ui, in.x, ry, in.w, e.active() ? State::Ok : State::Info, "Game phase",
+                       phase + (e.active() ? "" : e.recording() ? " \xC2\xB7 listing only" : " \xC2\xB7 idle"));
         ry = statusRow(ui, in.x, ry, in.w, enabled > 0 ? State::Ok : State::Warn, "Checks enabled",
                        std::to_string(enabled) + " of " + std::to_string(e.checks().size()));
         ry = statusRow(ui, in.x, ry, in.w, st.avgTickMicros < 2000.0 ? State::Ok : State::Warn, "Tick cost (avg / peak)",
                        formatNumber(st.avgTickMicros / 1000.0, 2) + " / " + formatNumber(st.peakTickMicros / 1000.0, 1) + " ms");
-        ry = statusRow(ui, in.x, ry, in.w, State::Info, "Players tracked", std::to_string(st.trackedPlayers));
-        ry = statusRow(ui, in.x, ry, in.w, State::Info, "Ticks analysed", std::to_string(st.ticksProcessed));
+        ry = statusRow(ui, in.x, ry, in.w, State::Info, "Players \xC2\xB7 NPCs ignored",
+                       std::to_string(st.trackedPlayers) + " \xC2\xB7 " + std::to_string(st.filteredEntities));
+        ry = statusRow(ui, in.x, ry, in.w, State::Info, "Server stalls skipped", std::to_string(st.stalls));
         ry = statusRow(ui, in.x, ry, in.w, st.skippedTicks < 200 ? State::Info : State::Warn, "Skipped ticks", std::to_string(st.skippedTicks));
     }
     // ── Signals ──
@@ -142,10 +145,19 @@ void drawStatus(PageContext& ctx, const Rect& area) {
         if (rs.signals.empty()) {
             ry = statusRow(ui, in.x, ry, in.w, State::Info, rs.hosted ? "Waiting for the game world" : "Simulated signals", "");
         }
+        // Missing signals first, as full rows that say what they feed; available ones in two columns.
         for (const auto& s : rs.signals) {
+            if (s.available || ry > in.b() - 10.f) continue;
+            ry = statusRow(ui, in.x, ry, in.w, rs.samplerResolved ? State::Warn : State::Off, s.name, "feeds " + s.feeds);
+        }
+        int col = 0;
+        const float colW = (in.w - 12.f) * 0.5f;
+        for (const auto& s : rs.signals) {
+            if (!s.available) continue;
             if (ry > in.b() - 10.f) break;
-            ry = statusRow(ui, in.x, ry, in.w, s.available ? State::Ok : (rs.samplerResolved ? State::Warn : State::Off), s.name,
-                           s.available ? "" : "feeds " + s.feeds);
+            statusRow(ui, in.x + col * (colW + 12.f), ry, colW, State::Ok, s.name, "");
+            if (!s.feeds.empty()) ui.tooltip(hashId("sig", hashId(s.name)), {in.x + col * (colW + 12.f), ry - 4.f, colW, 24.f}, "Feeds " + s.feeds);
+            if (++col == 2) { col = 0; ry += 26.f; }
         }
     }
     y += ch + gap;

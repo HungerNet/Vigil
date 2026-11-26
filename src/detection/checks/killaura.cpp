@@ -38,11 +38,9 @@ public:
     KillAura()
         : Check("killaura", "KillAura", CheckCategory::Combat,
                 "Automated aiming and target selection",
-                "Evaluates every hit Vigil can attribute to a player. It reconstructs where the attacker was looking "
-                "when the victim's hurt animation began, compensating for latency and the 1.4° precision of "
-                "rotation packets, and looks for behavior a human hand cannot produce: hits outside the field of "
-                "view, several targets struck in the same instant, instantaneous snaps that land exactly on the "
-                "hitbox, and tracking that stays locked to a moving target with machine precision.") {
+                "For every attributed hit, Vigil reconstructs where the attacker was looking, allowing for latency "
+                "and rotation precision, and looks for what a hand cannot do: hits outside the view, two targets in "
+                "an instant, snaps that stop dead on the hitbox, and aim locked to a moving target.") {
         defAlert_ = 70.f;
         defHalfLife_ = 45.f;
         defMinEvidence_ = 3;
@@ -101,10 +99,9 @@ public:
         if (ev.aimOutside > limit) {
             const float sev = static_cast<float>(std::clamp((ev.aimOutside - limit) / 40.0 + 0.5, 0.4, 1.0));
             ctx.emit(attacker, iOutside_, sev, fmt("Hit %s while aiming %.0f° away", victim.name().c_str(), ev.aimOutside),
-                     fmt("At the moment %s's hurt animation began, %s was looking %.0f° outside the hitbox. Vigil "
-                         "searched the whole latency window for any aim that could explain the hit. A vanilla hit "
-                         "needs the crosshair on the hitbox.",
-                         victim.name().c_str(), attacker.name().c_str(), ev.aimOutside),
+                     fmt("A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the "
+                         "closest aim was still %.0f° off.",
+                         ev.aimOutside),
                      {{"Aim outside hitbox", ev.aimOutside, "°", limit, true},
                       {"Yaw error to center", ev.yawError, "°"},
                       {"Distance", ev.reach, "blocks"}},
@@ -123,9 +120,9 @@ public:
             ctx.emit(attacker, iMulti_, sev,
                      fmt("Hit %s and %s %lld tick%s apart, %.0f° apart", h.victimName.c_str(), victim.name().c_str(),
                          static_cast<long long>(gap), gap == 1 ? "" : "s", sep),
-                     fmt("Two different players were struck %.0f ms apart while standing %.0f° apart in %s's view. "
-                         "Turning that far and landing both hits within %lld tick%s is not achievable by hand.",
-                         gap * 50.0, sep, attacker.name().c_str(), static_cast<long long>(gap), gap == 1 ? "" : "s"),
+                     fmt("Two players %.0f° apart were hit %.0f ms apart. Turning that far and landing both hits "
+                         "that quickly is not achievable by hand.",
+                         sep, gap * 50.0),
                      {{"Angle between targets", sep, "°", multiSeparation_->value, true},
                       {"Time between hits", gap * 50.0, "ms"}},
                      victim.name());
@@ -142,9 +139,9 @@ public:
             if (before >= snapAngle_->value && ev.yawError <= snapError_->value && after <= 3.0) {
                 const float sev = static_cast<float>(std::clamp(before / 120.0, 0.35, 1.0));
                 ctx.emit(attacker, iSnap_, sev, fmt("Snapped %.0f° onto %s", before, victim.name().c_str()),
-                         fmt("%s rotated %.0f° in the 100 ms before hitting %s, landed %.1f° from the center of the "
-                             "hitbox and then stopped (%.1f° over the next 100 ms). Human flicks overshoot or keep moving.",
-                             attacker.name().c_str(), before, victim.name().c_str(), ev.yawError, after),
+                         fmt("Turned %.0f° in 100 ms, landed %.1f° from the hitbox center, then stopped dead. Human "
+                             "flicks overshoot or keep moving.",
+                             before, ev.yawError),
                          {{"Rotation before hit", before, "°", snapAngle_->value, true},
                           {"Landing error", ev.yawError, "°", snapError_->value, true},
                           {"Rotation after hit", after, "°"}},
@@ -196,10 +193,9 @@ public:
                 st->lastTrackingEvidence = ctx.tick();
                 const float sev = static_cast<float>(std::clamp((trackError_->value - meanErr) / trackError_->value + 0.4, 0.4, 1.0));
                 ctx.emit(subject, iTrack_, sev, fmt("Locked onto %s (%.1f° average error)", victim->name().c_str(), meanErr),
-                         fmt("For one second %s's aim stayed within %.1f° of %s's center on average while %s moved "
-                             "%.1f° per tick across the view. Rotation packets are only 1.4° precise, so this is as "
-                             "close to perfect as the data can show.",
-                             subject.name().c_str(), meanErr, victim->name().c_str(), victim->name().c_str(), meanMotion),
+                         fmt("For a second, aim stayed within %.1f° of a target moving %.1f° per tick. Rotations are "
+                             "only 1.4° precise, so this is as close to perfect as the data can show.",
+                             meanErr, meanMotion),
                          {{"Average aim error", meanErr, "°", trackError_->value, true},
                           {"Target angular speed", meanMotion, "°/tick", trackMotion_->value, true},
                           {"Samples", static_cast<double>(st->samples), "ticks"}},

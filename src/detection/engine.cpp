@@ -4,6 +4,7 @@
 #include "../core/log.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -23,8 +24,10 @@ void Engine::registerGlobalSettings() {
                                   "Analyze players during matches (Bed Wars, Duels, SkyWars and similar)."), "Where checks run");
     runReplay_ = &group(S.addBool("general.runIn.replay", "Replays & Atlas", true,
                                   "Analyze players while watching Hypixel replays or reviewing Atlas reports."), "Where checks run");
-    runPregame_ = &group(S.addBool("general.runIn.pregame", "Pre-game lobbies", false,
-                                   "Analyze players while waiting for a match to start."), "Where checks run");
+    runPregame_ = &group(S.addBool("general.runIn.pregame", "Pre-game queues", false,
+                                   "Analyze players while waiting for a match to start. They are always listed under "
+                                   "This game; this decides whether checks judge them before the match."),
+                         "Where checks run");
     runLobby_ = &group(S.addBool("general.runIn.lobby", "Main lobbies", false,
                                  "Analyze players in main lobbies. Lobbies contain parkour, launch pads and other "
                                  "mechanics that resemble cheats."), "Where checks run");
@@ -66,10 +69,10 @@ void Engine::registerGlobalSettings() {
                           "Hit attribution", true);
 
     journal_ = &group(S.addBool("data.journal", "Session journal", true,
-                                "Write every detection and its evidence to vigil/sessions/ as JSON lines."), "Data");
+                                "Write every detection and its evidence to sessions/ as JSON lines."), "Data");
     history_ = &group(S.addBool("data.history", "Player history", true,
                                 "Remember players with evidence across sessions (name, sessions, detections, peak "
-                                "suspicion) in vigil/history/players.json."), "Data");
+                                "suspicion) in history/players.json."), "Data");
 }
 
 void Engine::initialize() {
@@ -89,12 +92,26 @@ Check* Engine::checkById(const std::string& id) const {
 
 bool Engine::monitoringEnabled() const { return monitoring_ && monitoring_->b(); }
 
-bool Engine::contextAllowed(GameContext c) const {
-    switch (c) {
-        case GameContext::InGame: return runInGame_->b();
-        case GameContext::Replay: return runReplay_->b();
-        case GameContext::Pregame: return runPregame_->b();
-        case GameContext::Lobby: return runLobby_->b();
+// Where checks judge players.
+bool Engine::phaseAnalyzed(GamePhase p) const {
+    switch (p) {
+        case GamePhase::Match: return runInGame_->b();
+        case GamePhase::Replay: return runReplay_->b();
+        case GamePhase::Queue: return runPregame_->b();
+        case GamePhase::Lobby: return runLobby_->b();
+        // Post-game: winners celebrate, spectators fly, fireworks launch players. Never judged.
+        default: return false;
+    }
+}
+
+// Where players are recorded (listed, remembered, briefed) even when nobody is judged.
+bool Engine::phaseRecorded(GamePhase p) const {
+    switch (p) {
+        case GamePhase::Queue:
+        case GamePhase::Match:
+        case GamePhase::PostGame:
+        case GamePhase::Replay: return true;
+        case GamePhase::Lobby: return runLobby_->b();   // main lobbies are crowds, not opponents
         default: return false;
     }
 }
@@ -103,7 +120,10 @@ void Engine::onWorldChanged() {
     tracked_.clear();
     combat_.reset();
     recentCombat_.clear();
+    filtered_.clear();
     localId_ = -1;
+    noUpdateRun_ = 0;
+    match_.onWorldChanged();
     for (PlayerRecord& r : session_.players()) {
         if (r.present) {
             r.present = false;
@@ -160,11 +180,123 @@ void Engine::computeExemptions(Tracked& t) {
     e.slime = tick_ - tr.lastSlimeTick() <= 20;
     e.fresh = tick_ - tr.firstTick() < freshTicks_->i();
     e.dead = f.dead || f.health == 0.f;
-    // Sustained airborne without descending → flight (spectator/creative/server flight).
+    e.stall = tick_ < stallUntil_;
+    // Sustained airborne without descending → flight (spectator/creative/server flight). Invisible
+    // players are usually spectators waiting to respawn, so they qualify after half a second; a
+    // visible player must hover for two seconds (a jump lasts 12 ticks).
     e.flying = false;
-    if (tr.airborne() && tr.airTicks() > 40 && tr.size() > 20) {
-        e.flying = tr.back(0).pos.y >= tr.back(20).pos.y - 0.5;
+    const int flightTicks = f.invisible ? 10 : 40;
+    const int lookBack = f.invisible ? 10 : 20;
+    if (tr.airborne() && tr.airTicks() > flightTicks && tr.size() > lookBack) {
+        e.flying = tr.back(0).pos.y >= tr.back(lookBack).pos.y - (f.invisible ? 0.3 : 0.5);
     }
+}
+
+// World-level stall: when nearly every moving player stops receiving positions at once and then
+// jumps, the server (or our connection) stalled. Everyone looks fast for a moment; nobody is.
+void Engine::detectStall() {
+    int movers = 0, updated = 0;
+    for (auto& kv : tracked_) {
+        const Tracked& t = kv.second;
+        if (t.lastSeen != tick_ || !t.isPlayer() || t.track.cur().isLocal || t.track.size() < 14) continue;
+        if (t.track.horizontalSpeed(12) < 0.06) continue;
+        ++movers;
+        if (t.track.positionUpdated()) ++updated;
+    }
+    if (movers < 2) {
+        noUpdateRun_ = 0;
+        return;
+    }
+    if (updated == 0) {
+        ++noUpdateRun_;
+    } else {
+        if (noUpdateRun_ >= 4) {
+            stallUntil_ = std::max(stallUntil_, tick_ + 25);
+            ++stats_.stalls;
+        }
+        noUpdateRun_ = 0;
+    }
+}
+
+void Engine::freshStates(Tracked& t) {
+    t.states.clear();
+    t.states.resize(checks_.size());
+    for (std::size_t i = 0; i < checks_.size(); ++i) t.states[i] = checks_[i]->createState();
+}
+
+// Who is a player: NPC rules per entity, then duplicates (one person, two entities) and name
+// collisions (an NPC wearing a listed player's name).
+void Engine::classifyAll(const std::string& localName) {
+    const bool replay = context_ == GameContext::Replay;
+    for (auto& kv : tracked_) {
+        Tracked& t = kv.second;
+        if (t.lastSeen != tick_) continue;
+        const PlayerFrame& f = t.track.cur();
+        t.verdict = classifyEntity(f, t.obs, localName, replay);
+        t.pending = !replay && !f.isLocal && f.tabKnown && !f.tabListed && t.obs.ticksUnlisted < kUnlistedGraceTicks &&
+                    t.verdict.kind == EntityKind::Player;
+    }
+    // Same UUID on several entities: the one updated most recently is the player.
+    std::unordered_map<std::string, Tracked*> byUuid;
+    for (auto& kv : tracked_) {
+        Tracked& t = kv.second;
+        if (t.lastSeen != tick_ || !t.isPlayer() || t.track.uuid().empty()) continue;
+        auto [it, inserted] = byUuid.emplace(t.track.uuid(), &t);
+        if (inserted) continue;
+        Tracked* other = it->second;
+        const bool newer = t.track.updateTickAt(0) > other->track.updateTickAt(0) ||
+                           (t.track.updateTickAt(0) == other->track.updateTickAt(0) && t.obs.ticksTracked > other->obs.ticksTracked);
+        Tracked* loser = newer ? other : &t;
+        loser->verdict = {EntityKind::Duplicate, "Second entity for the same player"};
+        it->second = newer ? &t : other;
+    }
+    // Same name, different UUIDs: a listed player beats an unlisted entity wearing their name.
+    std::unordered_map<std::string, std::vector<Tracked*>> byName;
+    for (auto& kv : tracked_) {
+        Tracked& t = kv.second;
+        if (t.lastSeen != tick_ || !t.isPlayer()) continue;
+        std::string n = t.track.name();
+        for (char& c : n) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        byName[n].push_back(&t);
+    }
+    for (auto& kv : byName) {
+        auto& group = kv.second;
+        if (group.size() < 2) {
+            if (!group.empty()) {
+                if (PlayerRecord* r = session_.find(group.front()->recordKey)) r->displaySuffix.clear();
+            }
+            continue;
+        }
+        bool anyListed = false;
+        for (Tracked* t : group) if (t->track.cur().tabKnown && t->track.cur().tabListed) anyListed = true;
+        for (Tracked* t : group) {
+            const PlayerFrame& f = t->track.cur();
+            if (anyListed && f.tabKnown && !f.tabListed) {
+                t->verdict = {EntityKind::Npc, "Name collision with a listed player"};
+            } else if (PlayerRecord* r = session_.find(t->recordKey)) {
+                // Two genuine players with one name (rare): keep both, tell them apart.
+                const std::string id = f.uuid.size() >= 4 ? f.uuid.substr(0, 4) : std::to_string(f.entityId);
+                r->displaySuffix = " \xC2\xB7 " + id;
+            }
+        }
+    }
+    filtered_.clear();
+    for (auto& kv : tracked_) {
+        const Tracked& t = kv.second;
+        if (t.lastSeen != tick_ || t.isPlayer() || t.pending) continue;
+        filtered_.push_back({t.track.entityId(), t.track.name(), t.verdict.kind, t.verdict.reason});
+    }
+    stats_.filteredEntities = static_cast<int>(filtered_.size());
+}
+
+// Records of earlier scenes with nothing to show are dropped once the session grows large.
+void Engine::pruneRecords() {
+    if (session_.players().size() <= 400) return;
+    const int scene = match_.scene();
+    stats_.prunedRecords += session_.prune([&](const PlayerRecord& r) {
+        return !r.present && !r.local && r.scene < scene - 1 && r.evidence.empty() && r.detections.empty() &&
+               !marks_.watched(r.key);
+    });
 }
 
 bool Engine::shouldAnalyze(const Tracked& t) const {
@@ -174,14 +306,51 @@ bool Engine::shouldAnalyze(const Tracked& t) const {
     return true;
 }
 
+void Engine::refreshSuspicion(PlayerRecord& r) {
+    float combined = 1.f;
+    for (const CheckRecord& cr : r.checks) combined *= (1.f - cr.model.value() / 100.f);
+    r.suspicion = 100.f * (1.f - combined);
+}
+
 PlayerRecord& Engine::recordFor(Tracked& t) {
     const PlayerFrame& f = t.track.cur();
     std::string key = !f.uuid.empty() ? f.uuid : ("name:" + f.name);
     t.recordKey = key;
     PlayerRecord& r = session_.record(key, f.uuid, f.name, timeMs_);
+    const int scene = match_.scene();
+    if (r.scene != scene) {
+        // First sight in this scene. Confidence from an earlier game is relevant but must not let
+        // this game's first observations complete a detection: it is halved and the evidence gate
+        // starts empty.
+        // A queue and the match it became are one game.
+        const bool sameGame = r.scene >= 0 && r.scene == match_.queueScene() && scene == match_.matchScene();
+        if (r.scene >= 0) {
+            bool carried = false;
+            for (CheckRecord& cr : r.checks) {
+                if (cr.model.value() > 0.f) carried = true;
+                cr.model.resume(timeMs_, sameGame ? 1.f : 0.5f);
+            }
+            refreshSuspicion(r);
+            if (carried && !sameGame) {
+                r.timeline.push_back({TimelineKind::Carried, timeMs_, tick_, -1, 0, r.suspicion,
+                                      "Carried over from an earlier game (halved)"});
+            }
+        }
+        r.scene = scene;
+        r.participant = false;
+        ++r.scenesSeen;
+        marks_.rememberName(r.key, r.name);
+    }
     if (!r.present) {
         r.present = true;
         r.timeline.push_back({TimelineKind::Seen, timeMs_, tick_, -1, 0, 0.f, "Entered view"});
+        // Nothing was observed while away: the decay clock resumes now (no charge for the absence).
+        for (CheckRecord& cr : r.checks) cr.model.resume(timeMs_);
+    }
+    const GamePhase ph = match_.phase();
+    if (ph == GamePhase::Queue || ph == GamePhase::Match || ph == GamePhase::PostGame) {
+        r.participant = true;
+        if (ph != GamePhase::Queue) r.matchScene = scene;
     }
     r.entityId = f.entityId;
     r.local = f.isLocal;
@@ -228,7 +397,9 @@ void Engine::updateStats(Tracked& t, PlayerRecord& r) {
     }
 }
 
-void Engine::sampleHistory(PlayerRecord& r) {
+// `observing`: checks are judging this player, so time without evidence is evidence of normal
+// play and confidence decays. While not observing (queue, post-game, paused checks) it holds.
+void Engine::sampleHistory(PlayerRecord& r, bool observing) {
     auto push = [](std::vector<ConfidencePoint>& h, double t, float v) {
         h.push_back({t, v});
         if (h.size() > 720) {
@@ -245,7 +416,8 @@ void Engine::sampleHistory(PlayerRecord& r) {
     float combined = 1.f;
     for (std::size_t i = 0; i < r.checks.size(); ++i) {
         CheckRecord& cr = r.checks[i];
-        cr.model.decayTo(timeMs_, checks_[i]->confidenceParams().halfLifeSec);
+        if (observing) cr.model.decayTo(timeMs_, checks_[i]->confidenceParams().halfLifeSec);
+        else cr.model.resume(timeMs_);
         const float v = cr.model.value();
         combined *= (1.f - v / 100.f);
         if (v > 0.f || cr.lastSampled > 0.f) {
@@ -273,64 +445,94 @@ void Engine::onFrame(const WorldFrame& frame) {
         session_.setJournal({});
     }
 
+    if (frame.worldChanged) onWorldChanged();   // tests and the preview signal it in the frame
     if (frame.context != context_) {
         context_ = frame.context;
         session_.bump();
     }
     contextDetail_ = frame.contextDetail;
-    active_ = monitoringEnabled() && contextAllowed(context_);
+    const MatchTracker::Update phaseUpdate = match_.onFrame(frame.context, frame.chat, timeMs_);
+    if (phaseUpdate.sceneChanged) {
+        session_.bump();
+        pruneRecords();
+    }
+    const GamePhase phase = match_.phase();
+    recording_ = monitoringEnabled() && phaseRecorded(phase);
+    active_ = monitoringEnabled() && phaseAnalyzed(phase);
     stats_.skippedTicks += frame.skippedTicks;
+    // A long hitch on our side delivers several ticks of everyone's movement at once.
+    if (frame.skippedTicks >= 5) stallUntil_ = std::max(stallUntil_, tick_ + 20);
 
-    // Update tracks.
+    // Update tracks (every entity in the player list; classification decides who is a player).
     localId_ = -1;
+    std::string localName;
     for (const PlayerFrame& pf : frame.players) {
         if (pf.entityId < 0) continue;
+        if (pf.isLocal) localName = pf.name;
         Tracked& t = tracked_[pf.entityId];
-        if (t.states.empty()) {
-            t.states.resize(checks_.size());
-            for (std::size_t i = 0; i < checks_.size(); ++i) t.states[i] = checks_[i]->createState();
-        }
+        if (t.states.empty()) freshStates(t);
         // Entity id reuse with a different identity → start fresh.
         if (!t.track.empty() && !pf.uuid.empty() && t.track.cur().uuid != pf.uuid) {
             t = Tracked{};
-            t.states.resize(checks_.size());
-            for (std::size_t i = 0; i < checks_.size(); ++i) t.states[i] = checks_[i]->createState();
+            freshStates(t);
         }
+        if (t.track.empty()) t.firstPos = pf.pos;
         t.track.push(pf, tick_, timeMs_);
         t.lastSeen = tick_;
+        ++t.obs.ticksTracked;
+        if (pf.tabKnown) t.obs.ticksUnlisted = pf.tabListed ? 0 : t.obs.ticksUnlisted + 1;
+        t.obs.maxDisplacement = std::max(t.obs.maxDisplacement, (pf.pos - t.firstPos).length());
+        if (pf.invisible) t.obs.everInvisible = true;
         if (pf.isLocal) localId_ = pf.entityId;
     }
-    // Drop players no longer in the world.
+    // Drop entities no longer in the world.
     for (auto it = tracked_.begin(); it != tracked_.end();) {
         if (tick_ - it->second.lastSeen > 40) {
             if (PlayerRecord* r = session_.find(it->second.recordKey)) {
-                r->present = false;
-                r->timeline.push_back({TimelineKind::Left, timeMs_, tick_, -1, 0, 0.f, "Left view"});
-                session_.bump();
+                if (r->present) {
+                    r->present = false;
+                    r->timeline.push_back({TimelineKind::Left, timeMs_, tick_, -1, 0, 0.f, "Left view"});
+                    session_.bump();
+                }
             }
             it = tracked_.erase(it);
         } else {
             ++it;
         }
     }
-    stats_.trackedPlayers = static_cast<int>(tracked_.size());
+    classifyAll(localName);
+    // An entity reclassified as a non-player (e.g. a name collision) leaves the roster.
+    for (auto& kv : tracked_) {
+        Tracked& t = kv.second;
+        if (t.lastSeen != tick_ || t.isPlayer() || t.recordKey.empty()) continue;
+        if (PlayerRecord* r = session_.find(t.recordKey)) {
+            if (r->present && r->entityId == t.track.entityId()) {
+                r->present = false;
+                session_.bump();
+            }
+        }
+    }
+    int players = 0;
+    for (const auto& kv : tracked_) if (kv.second.lastSeen == tick_ && kv.second.isPlayer()) ++players;
+    stats_.trackedPlayers = players;
 
-    if (!active_) {
+    if (!recording_) {
         // Tracks keep updating (cheap, keeps history warm) but nothing is judged or recorded.
         recentCombat_.clear();
         return;
     }
 
+    detectStall();
     std::vector<PlayerTrack*> all;
     all.reserve(tracked_.size());
     for (auto& kv : tracked_) {
-        if (kv.second.lastSeen != tick_) continue;
+        if (kv.second.lastSeen != tick_ || !kv.second.isPlayer()) continue;
         computeExemptions(kv.second);
         updateRelayFloor(kv.second.track);
         all.push_back(&kv.second.track);
     }
     for (auto& kv : tracked_) {
-        if (kv.second.lastSeen != tick_) continue;
+        if (kv.second.lastSeen != tick_ || !kv.second.isPlayer()) continue;
         double best = 1e9;
         const Vec3 p = kv.second.track.cur().pos;
         for (const PlayerTrack* o : all) {
@@ -340,14 +542,15 @@ void Engine::onFrame(const WorldFrame& frame) {
         kv.second.ex.nearestOpponent = best;
     }
 
-    // Per-tick checks.
+    // Records, then checks (only where the phase allows judging).
     const PlayerTrack* local = localTrack();
     for (auto& kv : tracked_) {
         Tracked& t = kv.second;
-        if (t.lastSeen != tick_) continue;
+        if (t.lastSeen != tick_ || !t.isPlayer()) continue;
         PlayerRecord& rec = recordFor(t);
         updateStats(t, rec);
-        if (shouldAnalyze(t)) {
+        const bool judged = active_ && shouldAnalyze(t);
+        if (judged) {
             for (std::size_t i = 0; i < checks_.size(); ++i) {
                 Check* c = checks_[i].get();
                 if (!c->enabled()) continue;
@@ -360,17 +563,18 @@ void Engine::onFrame(const WorldFrame& frame) {
             }
             current_ = nullptr;
         }
-        if (tick_ % 10 == 0) sampleHistory(rec);
+        if (tick_ % 10 == 0) sampleHistory(rec, judged);
     }
 
-    // Combat events.
+    // Combat events (players only: an NPC never attacks, and hits on NPCs are not evidence).
     CombatSettings cs;
     cs.swingWindowTicks = swingWindow_->i();
     cs.settleTicks = settleTicks_->i();
     cs.compensationTicks = compTicks_->i();
     cs.candidateRange = combatRange_->value;
-    combat_.update(tick_, timeMs_, all, cs);
-    for (const CombatEvent& ev : combat_.ready()) {
+    if (active_) combat_.update(tick_, timeMs_, all, cs);
+    else recentCombat_.clear();
+    for (const CombatEvent& ev : active_ ? combat_.ready() : std::vector<CombatEvent>{}) {
         auto ia = tracked_.find(ev.attacker);
         auto iv = tracked_.find(ev.victim);
         if (ia == tracked_.end() || iv == tracked_.end()) continue;

@@ -47,7 +47,15 @@ struct App::Impl {
     bool closing = false;
     bool closeDone = false;
     double openedAt = 0.0, closingAt = 0.0;
+
+    // Interface scale. The mouse is kept in window pixels and converted with the scale of the
+    // frame that uses it; the user's scale is applied only when no drag on its slider is in
+    // progress, and the effective scale moves in 1/20 steps (stable glyph sizes and layout).
     float scale = 1.f;
+    float appliedUserScale = -1.f;
+    float rawMx = -1e5f, rawMy = -1e5f;
+    int lastW = 0, lastH = 0;
+    double scaleChangedAt = -10.0;
 
     Page shownPage = Page::Overview;
     double pageChangedAt = -10.0;
@@ -62,6 +70,9 @@ struct App::Impl {
     Setting* blur = nullptr;
     Setting* toastSeconds = nullptr;
     Setting* toastPosition = nullptr;
+    Setting* briefing = nullptr;
+    std::uint64_t briefedMatch = 0;
+    double briefingDueMs = -1.0;
     Setting* menuKey = nullptr;
     Setting* onboarded = nullptr;
     Setting* customBase = nullptr;
@@ -85,6 +96,7 @@ struct App::Impl {
                       "Appearance");
         uiScale = &grp(S.addFloat("ui.scale", "Interface scale", 1.0, {0.8, 1.4, 0.05, 2, "x"},
                                   "Size of the Vigil interface relative to the game window."), "Appearance");
+        uiScale->deferred = true;
         motionSetting = &grp(S.addChoice("ui.motion", "Motion", 0, {"Full", "Reduced", "Off"},
                                          "Reduced keeps state changes but removes travel and overshoot. Off disables animation."),
                              "Appearance");
@@ -96,6 +108,11 @@ struct App::Impl {
         toastPosition = &grp(S.addChoice("ui.toastPosition", "Notification position", 0,
                                          {"Top right", "Top left", "Bottom right", "Bottom left"},
                                          "Where detection notifications appear on screen."), "Alerts");
+        briefing = &grp(S.addChoice("alerts.briefing", "Match briefing", 1, {"Off", "On screen", "Screen and chat"},
+                                    "A few seconds into each match, lists the players worth knowing about: those you "
+                                    "confirmed or watch, players detected before, and nicked players. Nothing is shown "
+                                    "when nobody stands out."),
+                        "Alerts");
         menuKey = &grp(S.addKey("ui.menuKey", "Open Vigil", VK_RSHIFT,
                                 "Opens Vigil while no other screen is open. Pressing it while a detection notification is "
                                 "visible opens that player. You can also type /vigil in chat."), "Keybinds");
@@ -131,9 +148,10 @@ struct App::Impl {
         return c;
     }
 
-    void applySettings() {
-        setTheme(theme->i(), accent->i(), customParams());
+    void applySettings(double nowSec) {
         setMotionLevel(motionSetting->i() == 0 ? 1.f : motionSetting->i() == 1 ? 0.35f : 0.f);
+        setTheme(theme->i(), accent->i(), customParams());
+        tickTheme(nowSec, motionLevel());
     }
 
     PageContext context() { return PageContext{ui, *engine, host, state, engine->lastTimeMs()}; }
@@ -148,6 +166,16 @@ struct App::Impl {
                 state.detectionPulseAt = ui.time;
             }
             if (!open && toasts) hud.onAlert(a, ui.time);
+        }
+        // Match briefing, three seconds into each match (the roster has loaded by then).
+        const auto& m = engine->match();
+        if (m.matchCount() != briefedMatch) {
+            briefedMatch = m.matchCount();
+            briefingDueMs = m.matchStartedMs() + 3000.0;
+        }
+        if (briefingDueMs > 0.0 && engine->lastTimeMs() >= briefingDueMs) {
+            briefingDueMs = -1.0;
+            if (briefing->i() > 0 && !open && m.inMatch()) hud.showBriefing(buildBriefing(*engine), ui.time);
         }
     }
 
@@ -317,10 +345,13 @@ struct App::Impl {
 
         ui.r.backdrop(p, t.backdropBlur * blur->f(), t.backdropTint);
 
+        // After a scale change the window settles in place, so the change reads as intentional.
+        const float settle = ease::outCubic(motion::progress(now, scaleChangedAt, 0.26f));
         const float W = std::min(1180.f, ui.r.width() - 48.f);
         const float H = std::min(780.f, ui.r.height() - 48.f);
-        Rect win{(ui.r.width() - W) * 0.5f, (ui.r.height() - H) * 0.5f + (1.f - p) * motion::travel(14.f), W, H};
-        ui.r.pushAlpha(p);
+        Rect win{(ui.r.width() - W) * 0.5f,
+                 (ui.r.height() - H) * 0.5f + (1.f - p) * motion::travel(14.f) + (1.f - settle) * motion::travel(5.f), W, H};
+        ui.r.pushAlpha(p * (0.72f + 0.28f * settle));
         if (t.shadowStrength > 0.f) {
             ui.r.shadow(win, t.radiusWindow, 70.f, Color(0, 0, 0, (t.light ? 0.18f : 0.55f) * t.shadowStrength), 24.f);
         }
@@ -485,13 +516,27 @@ void App::openSearch(const std::string& query) {
     d_->state.searchQuery = query;
 }
 
+void App::previewOption(const std::string& option) {
+    AppState& st = d_->state;
+    if (option.rfind("scope=", 0) == 0) {
+        st.rosterScope = std::clamp(std::atoi(option.c_str() + 6), 0, 3);
+        st.earlierOpen = true;
+    } else if (option == "confirm") {
+        st.confirmKey = st.selectedPlayer;
+    } else if (option == "details") {
+        st.inspectorDetails = true;
+    }
+}
+
 void App::showActivation() { d_->pendingActivation = true; }
 
 void App::notify(const std::string& title, const std::string& body) { d_->hud.notify(title, body, d_->ui.time); }
 
 void App::onMouseMove(int x, int y) {
-    d_->ui.in.mx = x / d_->scale;
-    d_->ui.in.my = y / d_->scale;
+    d_->rawMx = static_cast<float>(x);
+    d_->rawMy = static_cast<float>(y);
+    d_->ui.in.mx = d_->rawMx / d_->scale;
+    d_->ui.in.my = d_->rawMy / d_->scale;
 }
 
 void App::onMouseButton(int button, bool down, int x, int y) {
@@ -529,8 +574,33 @@ void App::render(int width, int height, double nowMs, bool inGameHud) {
         d.pullAlerts(inGameHud);
         if (d.hud.idle(nowSec)) return;
     }
-    d.applySettings();
-    d.scale = std::clamp(height / 920.f, 0.8f, 1.8f) * d.uiScale->f();
+    d.applySettings(nowSec);
+    {
+        // Dragging the scale slider must not rescale the interface under the cursor (the slider
+        // would move, changing the value again). Keyboard and wheel steps apply immediately.
+        const Id scaleSlider = mixId(hashId("ui.scale"), 2);
+        const bool dragging = d.ui.active == scaleSlider && d.ui.in.down[0];
+        if (d.appliedUserScale < 0.f || !dragging) {
+            const bool userChanged = d.appliedUserScale >= 0.f && std::fabs(d.appliedUserScale - d.uiScale->f()) > 1e-4f;
+            d.appliedUserScale = d.uiScale->f();
+            // Keep the control the user just used in view, and flash it, after the layout grows or shrinks.
+            if (userChanged && d.open && d.state.page == Page::Settings) {
+                d.state.focusSetting = "ui.scale";
+                d.state.focusAt = nowSec;
+            }
+        }
+        const float raw = std::clamp(height / 920.f, 0.8f, 1.8f) * d.appliedUserScale;
+        const float scale = std::max(0.5f, std::round(raw * 20.f) / 20.f);
+        if (std::fabs(scale - d.scale) > 1e-4f || width != d.lastW || height != d.lastH) {
+            if (d.lastW != 0 && std::fabs(scale - d.scale) > 1e-4f) d.scaleChangedAt = nowSec;
+            d.ui.snapSprings();
+            d.scale = scale;
+            d.lastW = width;
+            d.lastH = height;
+        }
+        d.ui.in.mx = d.rawMx / d.scale;
+        d.ui.in.my = d.rawMy / d.scale;
+    }
     d.ui.r.begin(width, height, d.scale, !g_previewFramebuffer);
     d.ui.fonts.setScale(d.scale);
     d.ui.beginFrame(nowSec);
@@ -552,6 +622,7 @@ void App::render(int width, int height, double nowMs, bool inGameHud) {
         else d.requestClose();
     }
     d.ui.endFrame();
+    d.ui.fonts.collect();
     d.ui.r.end();
 }
 

@@ -16,6 +16,15 @@ void ConfidenceModel::decayTo(double nowMs, float halfLifeSec) {
     if (value_ < 0.05f) value_ = 0.f;
 }
 
+void ConfidenceModel::resume(double nowMs, float carry) {
+    lastMs_ = nowMs;
+    if (carry < 1.f) {
+        value_ *= std::clamp(carry, 0.f, 1.f);
+        if (value_ < 0.05f) value_ = 0.f;
+        recent_.clear();
+    }
+}
+
 float ConfidenceModel::add(double nowMs, float weight, float severity, int indicator, const ConfidenceParams& p) {
     decayTo(nowMs, p.halfLifeSec);
     const float strength = std::clamp(weight, 0.f, 4.f) * std::clamp(severity, 0.f, 1.f);

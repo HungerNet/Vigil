@@ -39,8 +39,9 @@ public:
         if (held < minBlock_->i()) return;
         ctx.emit(t, iSwing_, std::clamp(static_cast<float>(held) / 10.f, 0.5f, 1.f),
                  fmt("Swung after blocking for %lld ticks", static_cast<long long>(held)),
-                 fmt("%s started a swing while their sword had been raised for %lld ticks (%lld ms) without release.",
-                     t.name().c_str(), static_cast<long long>(held), static_cast<long long>(held * 50)),
+                 fmt("Swung with the sword still raised after %lld ms. In vanilla the block has to be released before "
+                     "an attack.",
+                     static_cast<long long>(held * 50)),
                  {{"Block held", static_cast<double>(held), "ticks", static_cast<double>(minBlock_->i()), true}});
     }
 

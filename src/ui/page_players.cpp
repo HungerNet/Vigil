@@ -22,129 +22,387 @@ bool isNicked(const std::string& key) {
 }
 
 // ── Roster ───────────────────────────────────────────────────────────────────────────────────
+//
+// Scopes: This game (default) · Session (this game, then earlier) · Marked (watched and confirmed,
+// including players not seen this session) · Nicked. NPCs never appear; a footer counts them.
+
+struct RosterItem {
+    enum Kind { Header, Player, Mark } kind = Player;
+    const PlayerRecord* player = nullptr;
+    detection::Mark mark;
+    std::string title;      // Header
+    Icon icon = Icon::Players;
+    int count = 0;
+    bool collapsible = false;
+};
+
+void rosterPlayerRow(PageContext& ctx, const PlayerRecord& p, const Rect& row) {
+    Ui& ui = ctx.ui;
+    const Theme& t = ui.th();
+    const Id rid = hashId(p.key, 9001);
+    const bool sel = ctx.state.selectedPlayer == p.key;
+    bool h = false;
+    if (ui.pressable(rid, row, &h) && !sel) {
+        ctx.state.selectedPlayer = p.key;
+        ctx.state.selectedEvidence = 0;
+        ctx.state.selectedDetection = 0;
+        ctx.state.unseenPlayers.erase(p.key);
+        ctx.state.confirmKey.clear();
+    }
+    const float hv = ui.anim(mixId(rid, 1), sel ? 1.f : (h ? 0.5f : 0.f), motion::kHover);
+    if (hv > 0.01f) ui.r.roundRect(row.inset(4.f, 2.f), 10.f, (sel ? t.accentSoft() : t.surfaceHover).alpha(sel ? 1.f : hv * 1.6f));
+    playerAvatar(ctx, p, {row.x + 10.f, row.cy() - 17.f, 34.f, 34.f}, sel ? t.surface.mix(t.accent, 0.12f) : t.surface);
+    const float nx = row.x + 54.f;
+    const float maxName = row.w - 54.f - 58.f;
+    const float nw = ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 8.f, p.name + p.displaySuffix + (p.local ? " (you)" : ""),
+                                   p.present ? t.text : t.textMuted, Align::Left, maxName);
+    float ix = nx + nw + 6.f;
+    if (ctx.state.unseenPlayers.count(p.key)) {
+        ui.r.circle(ix + 3.f, row.y + 16.f, 3.2f, t.sevAlert);
+        ix += 12.f;
+    }
+    if (isNicked(p.key)) {
+        drawIcon(ui.r, Icon::Mask, ix, row.y + 9.f, 14.f, t.chart[4], 1.6f);
+        ui.tooltip(mixId(rid, 3), {ix - 2.f, row.y + 6.f, 18.f, 18.f}, "Nicked");
+    }
+    // Second line: what matters about them, in words.
+    std::string sub;
+    const int top = p.topCheck();
+    if (top >= 0) sub = ctx.engine.checks()[static_cast<std::size_t>(top)]->name();
+    else if (!p.detections.empty()) sub = std::to_string(p.detections.size()) + (p.detections.size() == 1 ? " detection" : " detections");
+    const std::string presence = presenceLabel(ctx, p);
+    const Tier tier = tierOf(p.suspicion);
+    float sx = nx;
+    if (tier != Tier::Clear) {
+        sx += ui.fonts.draw(ui.r, type::Caption, sx, row.y + 28.f, tierName(tier), tierColor(t, tier));
+        sx += ui.fonts.draw(ui.r, type::Caption, sx, row.y + 28.f, " \xC2\xB7 ", t.textFaint);
+    }
+    ui.fonts.draw(ui.r, type::Caption, sx, row.y + 28.f, sub.empty() ? presence : sub + " \xC2\xB7 " + presence, t.textFaint, Align::Left,
+                  row.r() - 16.f - sx);
+    // The number is available, but secondary: the halo carries the signal.
+    if (tier != Tier::Clear) {
+        ui.fonts.draw(ui.r, type::Numeric, row.r() - 14.f, row.y + 9.f, formatNumber(p.suspicion, 0) + "%", t.textMuted, Align::Right);
+        trendLabel(ui, row.r() - 14.f, row.y + 27.f, confidenceTrend(p.suspicionHistory, p.suspicion, ctx.nowMs), true);
+    }
+}
+
+void rosterMarkRow(PageContext& ctx, const detection::Mark& m, const Rect& row) {
+    Ui& ui = ctx.ui;
+    const Theme& t = ui.th();
+    HaloStyle s;
+    s.marks.confirmed = m.confirmed;
+    s.marks.watched = m.watch || m.confirmed;
+    s.present = false;
+    playerHalo(ui, ctx.host, hashId(m.key, 9102), m.key, m.name, {row.x + 10.f, row.cy() - 17.f, 34.f, 34.f}, s);
+    const float nx = row.x + 54.f;
+    ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 8.f, m.name.empty() ? m.key.substr(0, 8) : m.name, t.textMuted, Align::Left,
+                  row.w - 100.f);
+    std::string sub = m.confirmed ? "Confirmed " + epochAgoLabel(m.confirmedAtEpochMs) : "Watching";
+    if (m.confirmed && !m.reasons.empty()) sub += " \xC2\xB7 " + m.reasons.front();
+    ui.fonts.draw(ui.r, type::Caption, nx, row.y + 28.f, sub + " \xC2\xB7 not seen this session", t.textFaint, Align::Left, row.w - 100.f);
+    float& armed = ui.value(hashId("mark-remove-armed", hashId(m.key)), -100.f);
+    const bool isArmed = ui.time - armed < 3.0;
+    if (iconButton(ui, hashId("mark-remove", hashId(m.key)), {row.r() - 40.f, row.cy() - 14.f, 28.f, 28.f}, isArmed ? Icon::Check : Icon::Close,
+                   isArmed ? "Click again to remove" : (m.confirmed ? "Remove confirmation and watch" : "Stop watching"), isArmed)) {
+        if (isArmed) { ctx.engine.marks().remove(m.key); armed = -100.f; }
+        else armed = static_cast<float>(ui.time);
+    }
+}
 
 void roster(PageContext& ctx, const Rect& rc) {
     Ui& ui = ctx.ui;
     const Theme& t = ui.th();
+    const auto& engine = ctx.engine;
     card(ui, rc);
     textField(ui, hashId("roster-search"), {rc.x + 14.f, rc.y + 14.f, rc.w - 28.f, 34.f}, ctx.state.playerSearch, "Find a player");
-    static const std::vector<std::string> filters = {"All", "Flagged", "In view", "Nicked"};
-    segmented(ui, hashId("roster-filter"), {rc.x + 14.f, rc.y + 56.f, rc.w - 28.f, 28.f}, filters, ctx.state.rosterFilter);
-    auto players = sortedPlayers(ctx.engine.session(), ctx.state.playersSort, ctx.state.playerSearch, true);
-    players.erase(std::remove_if(players.begin(), players.end(),
-                                 [&](const PlayerRecord* p) {
-                                     switch (ctx.state.rosterFilter) {
-                                         case 1: return p->suspicion < 20.f && p->detections.empty();
-                                         case 2: return !p->present;
-                                         case 3: return !isNicked(p->key);
-                                         default: return false;
-                                     }
-                                 }),
-                  players.end());
-    // Sort control.
-    static const char* kSorts[] = {"Suspicion", "Recent", "Name"};
+    static const std::vector<std::string> scopes = {"Game", "Session", "Marked", "Nicked"};
+    const Rect scopeR{rc.x + 14.f, rc.y + 56.f, rc.w - 28.f, 28.f};
+    segmented(ui, hashId("roster-scope"), scopeR, scopes, ctx.state.rosterScope);
+    static const char* kScopeTips[] = {"Players in the current game, including its queue", "Everyone this session: this game first, then earlier games",
+                                       "Players you watch or have confirmed, including those not seen this session", "Nicked players this session"};
+    for (int i = 0; i < 4; ++i) {
+        ui.tooltip(hashId("roster-scope-tip", static_cast<Id>(i)), {scopeR.x + scopeR.w / 4.f * i, scopeR.y, scopeR.w / 4.f, scopeR.h}, kScopeTips[i]);
+    }
+
+    const auto all = sortedPlayers(engine, ctx.state.playersSort, ctx.state.playerSearch, true);
+    std::vector<RosterItem> items;
+    int earlier = 0, players = 0;
+    auto addPlayers = [&](auto pred) {
+        int n = 0;
+        for (const PlayerRecord* p : all) {
+            if (!pred(*p)) continue;
+            RosterItem it;
+            it.player = p;
+            items.push_back(it);
+            ++n;
+        }
+        return n;
+    };
+    switch (ctx.state.rosterScope) {
+        case 0:
+            players = addPlayers([&](const PlayerRecord& p) { return engine.inThisGame(p); });
+            for (const PlayerRecord* p : all) if (!engine.inThisGame(*p) && !p->local) ++earlier;
+            break;
+        case 1: {
+            items.push_back({RosterItem::Header, nullptr, {}, "THIS GAME", Icon::Players});
+            const std::size_t h0 = items.size() - 1;
+            items[h0].count = addPlayers([&](const PlayerRecord& p) { return engine.inThisGame(p); });
+            items.push_back({RosterItem::Header, nullptr, {}, "EARLIER THIS SESSION", Icon::History});
+            const std::size_t h1 = items.size() - 1;
+            items[h1].collapsible = true;
+            int n = 0;
+            for (const PlayerRecord* p : all) if (!engine.inThisGame(*p)) ++n;
+            items[h1].count = n;
+            if (ctx.state.earlierOpen) addPlayers([&](const PlayerRecord& p) { return !engine.inThisGame(p); });
+            players = items[h0].count + n;
+            break;
+        }
+        case 2: {
+            std::set<std::string> listed;
+            players = addPlayers([&](const PlayerRecord& p) {
+                const bool m = engine.marks().watched(p.key);
+                if (m) listed.insert(p.key);
+                return m;
+            });
+            std::vector<detection::Mark> unseen;
+            for (const auto& m : engine.marks().all()) {
+                if (listed.count(m.key)) continue;
+                if (!ctx.state.playerSearch.empty()) {
+                    std::string n = m.name, f = ctx.state.playerSearch;
+                    for (char& c : n) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    for (char& c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    if (n.find(f) == std::string::npos) continue;
+                }
+                unseen.push_back(m);
+            }
+            if (!unseen.empty()) {
+                items.push_back({RosterItem::Header, nullptr, {}, "NOT SEEN THIS SESSION", Icon::History, static_cast<int>(unseen.size())});
+                for (auto& m : unseen) {
+                    RosterItem it;
+                    it.kind = RosterItem::Mark;
+                    it.mark = m;
+                    items.push_back(it);
+                }
+            }
+            players += static_cast<int>(unseen.size());
+            break;
+        }
+        default:
+            players = addPlayers([&](const PlayerRecord& p) { return isNicked(p.key); });
+            break;
+    }
+
+    // Sort control and count.
+    static const char* kSorts[] = {"Relevance", "Recent", "Name"};
     const std::string sortLbl = std::string("Sorted by ") + kSorts[ctx.state.playersSort];
     const Rect sortR{rc.x + 18.f, rc.y + 92.f, ui.fonts.width(type::Caption, sortLbl) + 18.f, 18.f};
     bool sh = false;
     if (ui.pressable(hashId("roster-sort"), sortR, &sh)) ctx.state.playersSort = (ctx.state.playersSort + 1) % 3;
     ui.fonts.draw(ui.r, type::Caption, sortR.x, sortR.y + 2.f, sortLbl, sh ? t.text : t.textFaint);
     drawIcon(ui.r, Icon::ChevronDown, sortR.r() - 14.f, sortR.y + 3.f, 12.f, sh ? t.text : t.textFaint);
-    ui.fonts.draw(ui.r, type::Caption, rc.r() - 18.f, rc.y + 94.f, std::to_string(players.size()), t.textFaint, Align::Right);
+    ui.fonts.draw(ui.r, type::NumericCaption, rc.r() - 18.f, rc.y + 94.f, std::to_string(players), t.textFaint, Align::Right);
 
-    const Rect view{rc.x + 6.f, rc.y + 116.f, rc.w - 12.f, rc.h - 122.f};
-    if (players.empty()) {
-        emptyState(ui, view, Icon::Players, ctx.engine.session().players().empty() ? "No players yet" : "No matches",
-                   ctx.engine.session().players().empty() ? "Players appear once Vigil observes them in a game or replay."
-                                                          : "Try another filter or search.");
+    // Footer: NPCs ignored (game scope) and the way to earlier players.
+    const auto& npcs = engine.filtered();
+    const bool footer = ctx.state.rosterScope == 0 && (!npcs.empty() || earlier > 0);
+    const float footerH = footer ? 34.f : 0.f;
+    const Rect view{rc.x + 6.f, rc.y + 116.f, rc.w - 12.f, rc.h - 122.f - footerH};
+    if (footer) {
+        const float fy = rc.b() - footerH - 2.f;
+        divider(ui, rc.x + 14.f, rc.r() - 14.f, fy);
+        float fx = rc.x + 16.f;
+        if (!npcs.empty()) {
+            const std::string lbl = std::to_string(npcs.size()) + (npcs.size() == 1 ? " NPC ignored" : " NPCs ignored");
+            drawIcon(ui.r, Icon::Bot, fx, fy + 10.f, 14.f, t.textFaint, 1.5f);
+            const float w = ui.fonts.draw(ui.r, type::Caption, fx + 19.f, fy + 10.f, lbl, t.textFaint);
+            std::string tip = "Not players, so never analyzed or listed:";
+            int shown = 0;
+            for (const auto& n : npcs) {
+                if (shown++ == 6) { tip += "\n\xE2\x80\xA6"; break; }
+                tip += "\n" + n.name + " \xE2\x80\x94 " + n.reason;
+            }
+            ui.tooltip(hashId("roster-npcs"), {fx, fy + 6.f, w + 22.f, 20.f}, tip);
+            fx += w + 34.f;
+        }
+        if (earlier > 0) {
+            const std::string lbl = std::to_string(earlier) + " earlier";
+            const float w = ui.fonts.width(type::Caption, lbl) + 22.f;
+            const Rect link{rc.r() - 16.f - w, fy + 6.f, w, 20.f};
+            bool lh = false;
+            if (ui.pressable(hashId("roster-earlier"), link, &lh)) { ctx.state.rosterScope = 1; ctx.state.earlierOpen = true; }
+            drawIcon(ui.r, Icon::History, link.x, link.y + 3.f, 14.f, lh ? t.text : t.accent, 1.5f);
+            ui.fonts.draw(ui.r, type::Caption, link.x + 19.f, link.y + 4.f, lbl, lh ? t.text : t.accent);
+            ui.tooltip(hashId("roster-earlier-tip"), link, "Players from earlier games this session");
+        }
+    }
+
+    if (items.empty() || (players == 0 && ctx.state.rosterScope != 1)) {
+        const bool none = engine.session().players().empty();
+        const char* title = ctx.state.rosterScope == 2 ? "No marked players" : none ? "No players yet" : "No matches";
+        const char* body = ctx.state.rosterScope == 2 ? "Watch or confirm a player from their profile. Marks stay across sessions."
+                         : ctx.state.rosterScope == 0 && !none ? "Nobody from the current game yet. Earlier players are under Session."
+                         : none ? "Players appear once Vigil observes them in a game or replay." : "Try another scope or search.";
+        emptyState(ui, view, ctx.state.rosterScope == 2 ? Icon::Pin : Icon::Players, title, body);
         return;
     }
-    const Id sid = hashId("roster-list");
+    const Id sid = hashId("roster-list", static_cast<Id>(ctx.state.rosterScope));
     const float off = beginScroll(ui, sid, view);
     float y = view.y + off + 2.f;
-    for (const PlayerRecord* p : players) {
-        const Rect row{view.x, y, view.w, 52.f};
+    for (const RosterItem& it : items) {
+        const float h = it.kind == RosterItem::Header ? 30.f : 54.f;
+        const Rect row{view.x, y, view.w, h};
         if (row.b() >= view.y && row.y <= view.b()) {
-            const Id rid = hashId(p->key, 9001);
-            const bool sel = ctx.state.selectedPlayer == p->key;
-            bool h = false;
-            if (ui.pressable(rid, row, &h) && !sel) {
-                ctx.state.selectedPlayer = p->key;
-                ctx.state.selectedEvidence = 0;
-                ctx.state.selectedDetection = 0;
-                ctx.state.unseenPlayers.erase(p->key);
+            if (it.kind == RosterItem::Header) {
+                bool hh = false;
+                if (it.collapsible && ui.pressable(hashId("roster-hdr", hashId(it.title)), row, &hh)) ctx.state.earlierOpen = !ctx.state.earlierOpen;
+                drawIcon(ui.r, it.icon, row.x + 12.f, row.y + 10.f, 13.f, hh ? t.text : t.textFaint, 1.5f);
+                const float tw = ui.fonts.draw(ui.r, type::Overline, row.x + 31.f, row.y + 11.f, it.title, hh ? t.text : t.textFaint);
+                ui.fonts.draw(ui.r, type::NumericCaption, row.x + 39.f + tw, row.y + 10.f, std::to_string(it.count), t.textFaint);
+                if (it.collapsible) {
+                    drawIcon(ui.r, ctx.state.earlierOpen ? Icon::ChevronDown : Icon::ChevronRight, row.r() - 26.f, row.y + 9.f, 13.f,
+                             hh ? t.text : t.textFaint);
+                }
+            } else if (it.kind == RosterItem::Player) {
+                rosterPlayerRow(ctx, *it.player, row);
+            } else {
+                rosterMarkRow(ctx, it.mark, row);
             }
-            const float hv = ui.anim(mixId(rid, 1), sel ? 1.f : (h ? 0.5f : 0.f), motion::kHover);
-            if (hv > 0.01f) ui.r.roundRect(row.inset(4.f, 2.f), 10.f, (sel ? t.accentSoft() : t.surfaceHover).alpha(sel ? 1.f : hv * 1.6f));
-            playerAvatar(ctx, *p, {row.x + 12.f, row.cy() - 15.f, 30.f, 30.f});
-            if (p->present) {
-                ui.r.circle(row.x + 41.f, row.cy() + 13.f, 4.6f, t.surface);
-                ui.r.circle(row.x + 41.f, row.cy() + 13.f, 3.2f, t.sevClear);
-            }
-            const float nx = row.x + 52.f;
-            const float nw = ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 8.f, p->name + (p->local ? " (you)" : ""),
-                                           p->present ? t.text : t.textMuted, Align::Left, row.w - 120.f);
-            if (ctx.state.unseenPlayers.count(p->key)) ui.r.circle(nx + nw + 7.f, row.y + 16.f, 3.2f, t.sevAlert);
-            if (isNicked(p->key)) drawIcon(ui.r, Icon::Mask, nx + nw + (ctx.state.unseenPlayers.count(p->key) ? 14.f : 6.f), row.y + 9.f, 14.f, t.textFaint, 1.5f);
-            const std::string sub = !p->detections.empty() ? std::to_string(p->detections.size()) + " detections"
-                                  : !p->evidence.empty() ? std::to_string(p->evidence.size()) + " observations"
-                                                         : (p->present ? "In view" : "Left");
-            ui.fonts.draw(ui.r, type::Caption, nx, row.y + 28.f, sub, t.textFaint, Align::Left, row.w - 130.f);
-            ui.fonts.draw(ui.r, type::SmallStrong, row.r() - 14.f, row.y + 9.f, formatNumber(p->suspicion, 0) + "%",
-                          t.severity(p->suspicion), Align::Right);
-            trendLabel(ui, row.r() - 14.f, row.y + 27.f, confidenceTrend(p->suspicionHistory, p->suspicion, ctx.nowMs), true);
         }
-        y += 54.f;
+        y += h + (it.kind == RosterItem::Header ? 0.f : 2.f);
     }
     endScroll(ui, sid, view, y - (view.y + off) + 6.f);
 }
 
 // ── Profile header ───────────────────────────────────────────────────────────────────────────
 
+// Confirm flow: a popover anchored to the Confirm action. Vigil never confirms anyone; only this.
+void confirmPopover(PageContext& ctx, const PlayerRecord& p, const Rect& anchor) {
+    Ui& ui = ctx.ui;
+    const Id pid = hashId("confirm-popover", hashId(p.key));
+    float& shown = ui.value(mixId(pid, 7), 0.f);
+    if (ctx.state.confirmKey != p.key) { shown = 0.f; return; }
+    if (shown > 0.5f && ui.popup != pid) {
+        // Closed elsewhere (Escape, another popup).
+        ctx.state.confirmKey.clear();
+        shown = 0.f;
+        return;
+    }
+    ui.popup = pid;
+    shown = 1.f;
+    const bool confirmed = ctx.engine.marks().confirmed(p.key);
+    std::vector<std::string> reasons;
+    for (std::size_t i = 0; i < p.checks.size(); ++i) {
+        if (p.checks[i].evidence > 0) reasons.push_back(ctx.engine.checks()[i]->name());
+    }
+    reasons.push_back("Other");
+    const float w = 340.f;
+    float h = confirmed ? 168.f : 196.f;
+    const Rect pop{std::max(anchor.r() - w + ui.r.offsetX(), 8.f), anchor.b() + 8.f + ui.r.offsetY(), w, h};
+    ui.popupRect = pop;
+    // Click outside closes (the overlay below also handles its own buttons).
+    if (ui.in.pressed[0] && !pop.contains(ui.in.mx, ui.in.my) && !ui.hoverRaw(anchor)) {
+        ctx.state.confirmKey.clear();
+        ui.popup = 0;
+        return;
+    }
+    detection::Engine* engine = &ctx.engine;
+    AppState* state = &ctx.state;
+    const std::string key = p.key, name = p.name;
+    std::string when;
+    std::string why;
+    if (const detection::Mark* m = engine->marks().find(key)) {
+        when = epochAgoLabel(m->confirmedAtEpochMs);
+        for (std::size_t i = 0; i < m->reasons.size(); ++i) why += (i ? ", " : "") + m->reasons[i];
+    }
+    const float openT = ui.anim(mixId(pid, 1), 1.f, 3.f / motion::kPopover);
+    ui.addOverlay([&ui, engine, state, pop, pid, key, name, confirmed, reasons, when, why, openT]() {
+        const Theme& t = ui.th();
+        ui.r.pushClip({0, 0, ui.r.width(), ui.r.height()});
+        ui.r.pushAlpha(openT);
+        const Rect b = pop.offset(0, (1.f - openT) * -motion::travel(motion::kPopoverTravel));
+        ui.r.shadow(b, 14.f, 28.f, Color(0, 0, 0, t.light ? 0.16f : 0.5f), 10.f);
+        ui.r.roundRect(b, 14.f, t.surfaceRaised);
+        ui.r.roundRectStroke(b, 14.f, 1.f, t.verdict.withAlpha(0.45f));
+        const float x = b.x + 18.f, iw = b.w - 36.f;
+        float y = b.y + 16.f;
+        drawIcon(ui.r, Icon::ShieldCheck, x, y, 18.f, t.verdict, 1.7f);
+        if (confirmed) {
+            ui.fonts.draw(ui.r, type::Title, x + 26.f, y, "Confirmed by you", t.text);
+            y += 30.f;
+            ui.fonts.draw(ui.r, type::Small, x, y, "Confirmed " + when + (why.empty() ? std::string() : " \xC2\xB7 " + why), t.textMuted,
+                          Align::Left, iw);
+            y += 24.f;
+            y += ui.fonts.drawWrapped(ui.r, type::Small, x, y, iw,
+                                      "Your conclusion. Vigil's confidence is shown separately and is not affected.", t.textFaint, 3.f) + 14.f;
+            const float bw = buttonWidth(ui, "Remove confirmation");
+            if (button(ui, mixId(pid, 10), {b.r() - 18.f - bw, b.b() - 50.f, bw, 34.f}, "Remove confirmation", ButtonKind::Danger)) {
+                engine->marks().unconfirm(key);
+                state->confirmKey.clear();
+                ui.popup = 0;
+            }
+            if (button(ui, mixId(pid, 11), {b.r() - 26.f - bw - 80.f, b.b() - 50.f, 80.f, 34.f}, "Close", ButtonKind::Ghost)) {
+                state->confirmKey.clear();
+                ui.popup = 0;
+            }
+        } else {
+            ui.fonts.draw(ui.r, type::Title, x + 26.f, y, "Confirm " + name + " as a cheater?", t.text, Align::Left, iw - 26.f);
+            y += 30.f;
+            y += ui.fonts.drawWrapped(ui.r, type::Small, x, y, iw,
+                                      "Your conclusion, kept apart from Vigil's confidence and stored only on this computer.",
+                                      t.textMuted, 3.f) + 12.f;
+            ui.fonts.draw(ui.r, type::Overline, x, y, "WHY (OPTIONAL)", t.textFaint);
+            y += 18.f;
+            float cx = x;
+            for (std::size_t i = 0; i < reasons.size(); ++i) {
+                const float cw = chipWidth(ui, reasons[i]) + 4.f;
+                if (cx + cw > x + iw) break;
+                const Rect cr{cx, y, cw, 24.f};
+                bool ch = false;
+                const bool on = state->confirmReasons.count(reasons[i]) > 0;
+                if (ui.pressable(mixId(pid, 100 + i), cr, &ch)) {
+                    if (on) state->confirmReasons.erase(reasons[i]); else state->confirmReasons.insert(reasons[i]);
+                }
+                ui.r.roundRect(cr, 12.f, on ? t.verdict.withAlpha(0.22f) : (ch ? t.surfaceHover : t.inset));
+                ui.r.roundRectStroke(cr, 12.f, 1.f, on ? t.verdict.withAlpha(0.7f) : t.border);
+                ui.fonts.draw(ui.r, type::Caption, cr.cx(), cr.cy() - ui.fonts.lineHeight(type::Caption) * 0.5f, reasons[i],
+                              on ? t.text : t.textMuted, Align::Center);
+                cx += cw + 6.f;
+            }
+            const float bw = buttonWidth(ui, "Confirm", true);
+            const Rect cb{b.r() - 18.f - bw, b.b() - 50.f, bw, 34.f};
+            bool ch = false;
+            if (ui.pressable(mixId(pid, 12), cb, &ch)) {
+                std::vector<std::string> picked;
+                for (const auto& r : reasons) if (state->confirmReasons.count(r)) picked.push_back(r);
+                engine->marks().confirm(key, name, picked);
+                state->confirmKey.clear();
+                state->confirmReasons.clear();
+                ui.popup = 0;
+            }
+            ui.r.roundRect(cb, t.radiusControl, t.verdict.lighter(ch ? 0.08f : 0.f));
+            drawIcon(ui.r, Icon::ShieldCheck, cb.x + 12.f, cb.cy() - 8.f, 16.f, t.textOnAccent, 1.7f);
+            ui.fonts.draw(ui.r, type::BodyStrong, cb.x + 34.f, cb.cy() - ui.fonts.lineHeight(type::BodyStrong) * 0.5f, "Confirm", t.textOnAccent);
+            if (button(ui, mixId(pid, 13), {cb.x - 88.f, cb.y, 80.f, 34.f}, "Cancel", ButtonKind::Ghost)) {
+                state->confirmKey.clear();
+                state->confirmReasons.clear();
+                ui.popup = 0;
+            }
+        }
+        ui.r.popAlpha();
+        ui.r.popClip();
+    });
+}
+
 void profileHeader(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     Ui& ui = ctx.ui;
     const Theme& t = ui.th();
     card(ui, rc);
-    playerAvatar(ctx, p, {rc.x + 20.f, rc.y + 18.f, 52.f, 52.f});
-    const float nx = rc.x + 88.f;
-    // Right-hand cluster (ring + actions) has a fixed width; the identity block gets the rest.
-    const float clusterW = 300.f + (!p.local && ctx.host ? 0.f : -90.f);
-    const float textMax = std::max(120.f, rc.w - (nx - rc.x) - clusterW - 24.f);
-    const float nw = ui.fonts.draw(ui.r, type::Heading, nx, rc.y + 14.f, p.name, t.text, Align::Left, textMax);
-    float cx = nx + nw + 12.f;
-    auto addChip = [&](const std::string& s, Color c) {
-        const float cw = chipWidth(ui, s);
-        if (cx + cw > nx + textMax) return;
-        chip(ui, {cx, rc.y + 20.f, cw, 20.f}, s, c);
-        cx += cw + 6.f;
-    };
-    addChip(p.present ? "In view" : "Left view", p.present ? t.sevClear : t.textMuted);
-    if (p.local) addChip("You", t.accent);
-    if (p.teammate) addChip("Teammate", t.textMuted);
-    identity::Profile ip;
-    if (identity::Service::instance().find(p.key, ip) && ip.nicked) {
-        std::string nick = "Nicked";
-        if (!ip.realName.empty()) nick += " \xC2\xB7 skin of " + ip.realName;
-        else if (ip.candidates.size() == 1) nick += " \xC2\xB7 likely " + ip.candidates.front();
-        addChip(nick, t.chart[4]);
-    }
-    const double observed = p.stats.ticksObserved * 0.05;
-    std::string sub = "Observed " + formatDuration(observed) + " \xC2\xB7 " + std::to_string(p.evidence.size()) + " evidence \xC2\xB7 " +
-                      std::to_string(p.detections.size()) + " detections \xC2\xB7 peak " + formatNumber(p.peakSuspicion, 0) + "%";
-    if (p.priorSessions > 0) {
-        sub += " \xC2\xB7 seen in " + std::to_string(p.priorSessions) + " earlier session" + (p.priorSessions == 1 ? "" : "s");
-    }
-    ui.fonts.draw(ui.r, type::Small, nx, rc.y + 50.f, sub, t.textMuted, Align::Left, textMax);
+    playerAvatar(ctx, p, {rc.x + 16.f, rc.cy() - 31.f, 62.f, 62.f});
+    const PlayerMarks marks = marksOf(ctx.engine, p.key);
 
-    // Confidence ring + trend.
-    const float ringX = rc.r() - clusterW + 10.f;
-    confidenceRing(ui, hashId("profile-ring", hashId(p.key)), ringX, rc.cy(), 25.f, p.suspicion, 5.f, true);
-    ui.fonts.draw(ui.r, type::Caption, ringX + 34.f, rc.cy() - 16.f, "SUSPICION", t.textFaint);
-    const float trend = confidenceTrend(p.suspicionHistory, p.suspicion, ctx.nowMs);
-    if (std::fabs(trend) >= 1.f) trendLabel(ui, ringX + 34.f, rc.cy() + 2.f, trend);
-    else ui.fonts.draw(ui.r, type::Caption, ringX + 34.f, rc.cy() + 2.f, "steady", t.textFaint);
-
-    // Actions.
-    float ax = rc.r() - 18.f;
+    // Actions on the right: Copy · Watch · Confirm · Report, one group with uniform hit areas.
+    float ax = rc.r() - 16.f;
+    const float ay = rc.y + 16.f;
     if (!p.local && ctx.host) {
         float& armedAt = ui.value(hashId("report-armed", hashId(p.key)), -100.f);
         const bool armed = ui.time - armedAt < 3.0;
@@ -152,22 +410,83 @@ void profileHeader(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
         const Icon ic = Icon::Report;
         const float bw = buttonWidth(ui, label, true);
         ax -= bw;
-        const Rect br{ax, rc.cy() - 17.f, bw, 34.f};
+        const Rect br{ax, ay, bw, 34.f};
         if (button(ui, hashId("report", hashId(p.key)), br, label, armed ? ButtonKind::Danger : ButtonKind::Secondary, &ic)) {
             if (armed) { ctx.host->reportPlayer(p.name); armedAt = -100.f; }
             else armedAt = static_cast<float>(ui.time);
         }
         ui.tooltip(hashId("report-tip", hashId(p.key)), br, "Sends /wdr " + p.name + " to Hypixel. Click twice to confirm.");
-        ax -= 8.f;
+        ax -= 10.f;
     }
-    const bool watched = ctx.state.watched.count(p.key) > 0;
+    if (!p.local) {
+        ax -= 34.f;
+        const Rect cr{ax, ay, 34.f, 34.f};
+        const Id cid = hashId("confirm", hashId(p.key));
+        bool ch = false;
+        if (ui.pressable(cid, cr, &ch)) {
+            ctx.state.confirmKey = ctx.state.confirmKey == p.key ? std::string() : p.key;
+            ctx.state.confirmReasons.clear();
+            if (ctx.state.confirmKey.empty()) ui.popup = 0;
+        }
+        const float chv = ui.anim(mixId(cid, 1), ch || marks.confirmed || ctx.state.confirmKey == p.key ? 1.f : 0.f, motion::kHover);
+        if (chv > 0.01f) ui.r.roundRect(cr, t.radiusControl, (marks.confirmed ? t.verdict.withAlpha(0.18f) : t.surfaceHover).alpha(chv));
+        drawIcon(ui.r, marks.confirmed ? Icon::ShieldCheck : Icon::Shield, cr.x + 8.f, cr.y + 8.f, 18.f,
+                 marks.confirmed ? t.verdict : t.textMuted.mix(t.text, chv), 1.6f);
+        ui.tooltip(mixId(cid, 2), cr, marks.confirmed ? "Confirmed by you \xC2\xB7 manage" : "Confirm as a cheater (your conclusion)");
+        ax -= 6.f;
+        ax -= 34.f;
+        const char* watchTip = marks.confirmed ? "Watching \xC2\xB7 confirmed players are always watched"
+                             : marks.watched ? "Stop watching"
+                                             : "Watch: keep on the watchlist and announce in future games";
+        if (iconButton(ui, hashId("watch", hashId(p.key)), {ax, ay, 34.f, 34.f}, Icon::Pin, watchTip, marks.watched) && !marks.confirmed) {
+            ctx.engine.marks().setWatch(p.key, p.name, !marks.watched);
+        }
+        ax -= 6.f;
+    }
     ax -= 34.f;
-    if (iconButton(ui, hashId("watch", hashId(p.key)), {ax, rc.cy() - 17.f, 34.f, 34.f}, Icon::Pin,
-                   watched ? "Unpin from the watchlist" : "Pin to the watchlist", watched)) {
-        if (watched) ctx.state.watched.erase(p.key); else ctx.state.watched.insert(p.key);
+    if (iconButton(ui, hashId("copy", hashId(p.key)), {ax, ay, 34.f, 34.f}, Icon::Copy, "Copy name")) copyToClipboard(p.name);
+    if (!p.local) confirmPopover(ctx, p, {ax + 34.f + 6.f + 34.f + 6.f, ay, 34.f, 34.f});
+
+    // Identity: name and marks on the first line.
+    const float nx = rc.x + 94.f;
+    const float nameMax = std::max(100.f, ax - 12.f - nx);
+    const float nw = ui.fonts.draw(ui.r, type::Heading, nx, rc.y + 12.f, p.name + p.displaySuffix, t.text, Align::Left, nameMax);
+    float cx = nx + nw + 12.f;
+    const float chipY = rc.y + 12.f + ui.fonts.ascent(type::Heading) - 15.f;
+    if (marks.confirmed || marks.watched) {
+        if (cx + markChipWidth(ui, marks) <= ax - 8.f) cx += markChip(ui, cx, chipY, marks) + 6.f;
     }
-    ax -= 38.f;
-    if (iconButton(ui, hashId("copy", hashId(p.key)), {ax, rc.cy() - 17.f, 34.f, 34.f}, Icon::Copy, "Copy name")) copyToClipboard(p.name);
+    auto addChip = [&](const std::string& s, Color c) {
+        const float cw = chipWidth(ui, s);
+        if (cx + cw > ax - 8.f) return;
+        chip(ui, {cx, chipY, cw, 20.f}, s, c);
+        cx += cw + 6.f;
+    };
+    if (p.local) addChip("You", t.accent);
+    if (p.teammate) addChip("Teammate", t.textMuted);
+    identity::Profile ip;
+    if (identity::Service::instance().find(p.key, ip) && ip.nicked) {
+        std::string nick = "Nicked";
+        if (!ip.realName.empty()) nick += " \xC2\xB7 " + ip.realName + "?";
+        else if (ip.candidates.size() == 1) nick += " \xC2\xB7 " + ip.candidates.front() + "?";
+        addChip(nick, t.chart[4]);
+    }
+
+    // Second line: Vigil's assessment in words, then where they are.
+    float sx = nx;
+    const float sy = rc.y + 50.f;
+    sx += suspicionLabel(ui, sx, sy, p.suspicion) + 8.f;
+    const float trend = confidenceTrend(p.suspicionHistory, p.suspicion, ctx.nowMs);
+    if (std::fabs(trend) >= 1.f) sx += trendLabel(ui, sx, sy + 1.f, trend) + 4.f;
+    std::string sub = presenceLabel(ctx, p);
+    if (!p.present && !p.local && p.suspicion > 0.f) sub += " \xC2\xB7 held while away";
+    if (p.peakSuspicion >= 15.f && p.peakSuspicion > p.suspicion + 5.f) sub += " \xC2\xB7 peak " + formatNumber(p.peakSuspicion, 0) + "%";
+    if (!p.detections.empty()) sub += " \xC2\xB7 " + std::to_string(p.detections.size()) + (p.detections.size() == 1 ? " detection" : " detections");
+    if (p.priorSessions > 0) sub += " \xC2\xB7 " + std::to_string(p.priorSessions) + " earlier session" + (p.priorSessions == 1 ? "" : "s");
+    ui.fonts.draw(ui.r, type::Small, sx, sy, "\xC2\xB7 " + sub, t.textMuted, Align::Left, rc.r() - 18.f - sx);
+    ui.tooltip(hashId("profile-susp", hashId(p.key)), {nx, sy - 4.f, sx - nx, 22.f},
+               "Vigil's confidence that this player is cheating, combined across checks. It rises with evidence and "
+               "fades while Vigil watches normal play; it holds while the player is out of view.");
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────────────────────
@@ -209,8 +528,13 @@ std::vector<Milestone> milestones(PageContext& ctx, const PlayerRecord& p) {
                        "Detection \xC2\xB7 " + checks[static_cast<std::size_t>(d.check)]->name() + " at " + formatNumber(d.confidence, 0) + "%"});
     }
     if (peakAt >= 0.0 && peak >= 20.f) out.push_back({peakAt, Icon::TrendUp, t.severity(peak), "Peak suspicion " + formatNumber(peak, 0) + "%"});
-    if (p.peakSuspicion >= 50.f && p.suspicion < p.peakSuspicion * 0.4f) {
+    if (p.peakSuspicion >= 50.f && p.suspicion < p.peakSuspicion * 0.4f && p.present) {
         out.push_back({ctx.nowMs, Icon::TrendDown, t.sevClear, "Settled to " + formatNumber(p.suspicion, 0) + "% \xE2\x80\x94 behavior has normalized"});
+    }
+    for (const auto& e : p.timeline) {
+        if (e.kind == detection::TimelineKind::Carried) {
+            out.push_back({e.timeMs, Icon::History, t.textMuted, "Carried into a new game at " + formatNumber(e.value, 0) + "%"});
+        }
     }
     std::sort(out.begin(), out.end(), [](const Milestone& a, const Milestone& b) { return a.timeMs < b.timeMs; });
     if (out.size() > 8) out.erase(out.begin() + 1, out.begin() + static_cast<std::ptrdiff_t>(out.size() - 7));
@@ -263,8 +587,8 @@ void drivers(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
     float y = rc.y + 46.f;
     if (rows.empty()) {
         ui.fonts.drawWrapped(ui.r, type::Small, rc.x + 20.f, y, rc.w - 40.f,
-                             "No check has evidence for this player. Suspicion is the highest confidence across checks, so "
-                             "it stays at 0% until behavior departs from vanilla.", t.textFaint, 3.f);
+                             "No check has evidence for this player. Suspicion combines every check's confidence, so it "
+                             "stays at 0% until behavior departs from vanilla.", t.textFaint, 3.f);
         return;
     }
     for (int ci : rows) {
@@ -349,7 +673,7 @@ void topEvidence(PageContext& ctx, const PlayerRecord& p, const Rect& rc) {
         const auto& chk = *checks[static_cast<std::size_t>(e->check)];
         ui.fonts.draw(ui.r, type::SmallStrong, row.x + 28.f, row.y + 6.f, chk.indicators()[static_cast<std::size_t>(e->indicator)].name,
                       t.text, Align::Left, row.w - 130.f);
-        ui.fonts.draw(ui.r, type::Small, row.x + 28.f, row.y + 23.f, e->summary, t.textMuted, Align::Left, row.w - 90.f);
+        ui.fonts.draw(ui.r, type::Small, row.x + 28.f, row.y + 23.f, e->summary, t.textMuted, Align::Left, row.w - 36.f);
         ui.fonts.draw(ui.r, type::Caption, row.r() - 10.f, row.y + 7.f, "strength " + formatNumber(e->weight * e->severity, 2), t.textFaint,
                       Align::Right);
         y += 46.f;
@@ -682,11 +1006,11 @@ void drawPlayers(PageContext& ctx, const Rect& area) {
 
     const PlayerRecord* p = ctx.state.selectedPlayer.empty() ? nullptr : ctx.engine.session().find(ctx.state.selectedPlayer);
     if (!p) {
-        auto players = sortedPlayers(ctx.engine.session(), 0, {}, false);
-        if (!players.empty()) {
-            p = players.front();
-            ctx.state.selectedPlayer = p->key;
-        }
+        // Default to the most relevant player in this game, then anyone.
+        auto players = sortedPlayers(ctx.engine, 0, {}, false);
+        for (const PlayerRecord* c : players) if (ctx.engine.inThisGame(*c)) { p = c; break; }
+        if (!p && !players.empty()) p = players.front();
+        if (p) ctx.state.selectedPlayer = p->key;
     }
     if (!p) {
         card(ui, main);

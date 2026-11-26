@@ -18,11 +18,9 @@ class Reach final : public Check {
 public:
     Reach()
         : Check("reach", "Reach", CheckCategory::Combat, "Melee hits from beyond vanilla range",
-                "For every hit Vigil can attribute to a single attacker, it measures the distance from the attacker's "
-                "eyes to the nearest point of the victim's hitbox (grown by 0.1 blocks, exactly as the game does). "
-                "Because the attacker saw the victim slightly in the past, Vigil takes the closest the two players "
-                "were over a latency window, so the reported distance is the most charitable possible reading. "
-                "Vanilla reach is 3.00 blocks.") {
+                "Measures every attributed hit from the attacker's eyes to the nearest point of the victim's hitbox, "
+                "taking the closest the two were over the latency window, so the reading is always the most "
+                "charitable one. Vanilla reach is 3.00 blocks.") {
         defAlert_ = 70.f;
         defHalfLife_ = 40.f;
         defMinEvidence_ = 3;
@@ -65,10 +63,9 @@ public:
         if (ev.reach > limit) {
             const float sev = static_cast<float>(std::clamp((ev.reach - limit) / 0.5 + 0.35, 0.35, 1.0));
             ctx.emit(attacker, iDist_, sev, fmt("Hit %s from %.2f blocks", victim.name().c_str(), ev.reach),
-                     fmt("Measured from %s's eyes to the nearest point of %s's hitbox, using the closest the two were "
-                         "over the latency window. Even this most favorable reading is %.2f blocks beyond vanilla reach "
-                         "(3.00).",
-                         attacker.name().c_str(), victim.name().c_str(), ev.reach - mc::kVanillaReach),
+                     fmt("Vanilla reach is 3.00 blocks. Even the most favorable reading across the latency window "
+                         "(eyes to the nearest point of the hitbox) is %.2f blocks beyond it.",
+                         ev.reach - mc::kVanillaReach),
                      {{"Compensated reach", ev.reach, "blocks", limit, true},
                       {"Uncompensated reach", ev.reachRaw, "blocks"},
                       {"Aim outside hitbox", ev.aimOutside, "°"}},

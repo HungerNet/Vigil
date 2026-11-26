@@ -61,6 +61,7 @@ private:
     void runCommand(JNIEnv* env, jobject mc, const std::string& raw);
     void ensureHooks(JNIEnv* env, jobject mc);
     void readChat(JNIEnv* env, jobject mc, double now);
+    void announceMatch(JNIEnv* env, jobject mc, double now);   // match briefing chat line
     void updateRates(double now);
     void signalLauncher();
 
@@ -75,6 +76,9 @@ private:
     ChatReader chat_;
     UtilitiesRuntime utilities_;
     std::uint64_t alertSeq_ = 0;
+    std::vector<std::string> pendingChat_;   // chat lines for the next engine frame
+    std::uint64_t briefedMatch_ = 0;         // last match announced in chat
+    double briefingChatDueMs_ = -1.0;
     double lastPumpMs_ = 0.0;
     double lastHookTryMs_ = 0.0;
     double lastChatMs_ = 0.0;
@@ -119,6 +123,10 @@ private:
     Setting* highlight_ = nullptr;
     Setting* highlightAt_ = nullptr;
     Setting* highlightFill_ = nullptr;
+    Setting* highlightConfirmed_ = nullptr;
+    Setting* highlightMarkers_ = nullptr;
+    // The RenderGlobal hook is installed the first time someone needs highlighting, not at startup.
+    bool worldHookNeeded_ = false;
     Setting* anyServer_ = nullptr;
 };
 

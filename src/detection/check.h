@@ -50,9 +50,12 @@ struct Exemptions {
     bool flying = false;      // sustained airborne without falling (spectator/creative/flight)
     bool fresh = false;       // tracked too briefly to judge
     bool dead = false;
+    // The server (or our client) stalled: positions of everyone arrive in bursts for a moment,
+    // which makes every moving player look fast. World-level, not per player.
+    bool stall = false;
     double nearestOpponent = 1e9;  // distance to the nearest other player (blocks)
 
-    bool movement() const { return knockback || teleport || riding || liquid || climbing || web || flying || fresh || dead; }
+    bool movement() const { return knockback || teleport || riding || liquid || climbing || web || flying || fresh || dead || stall; }
     std::string describe() const;
 };
 

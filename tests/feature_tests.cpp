@@ -35,11 +35,43 @@ static void testWhoTriggers() {
     EXPECT(!matchesWhoTrigger("[MVP+] Chatter: protect your bed guys"), "player chat must not trigger");
     EXPECT(!matchesWhoTrigger("Welcome to Hypixel!"), "unrelated line");
     AutoWho w;
+    w.setEnabled(true);
     EXPECT(w.onChat("Protect your bed and destroy the enemy beds.", 1000.0, 400.0), "first trigger schedules");
     EXPECT(!w.due(1300.0) && w.due(1400.0), "respects delay");
     w.markSent();
     EXPECT(!w.onChat("Protect your bed and destroy the enemy beds.", 2000.0, 400.0), "cooldown blocks duplicate");
     EXPECT(w.onChat("Protect your bed and destroy the enemy beds.", 9000.0, 0.0), "next game schedules again");
+}
+
+// Disabled must mean fully disabled: no scheduling, no queued or delayed sends, no retries.
+static void testAutoWhoDisabled() {
+    using namespace utilities;
+    const char* start = "Protect your bed and destroy the enemy beds.";
+    AutoWho off;
+    EXPECT(!off.onChat(start, 1000.0, 0.0), "a disabled Auto Who schedules nothing");
+    EXPECT(!off.due(5000.0) && !off.pending(), "nothing is due while disabled");
+
+    // Scheduled, then turned off before the delay elapsed: never sent, not even after re-enabling.
+    AutoWho w;
+    w.setEnabled(true);
+    EXPECT(w.onChat(start, 1000.0, 400.0), "sanity: schedules while enabled");
+    w.setEnabled(false);
+    EXPECT(!w.due(1400.0), "not due after being turned off");
+    w.setEnabled(true);
+    EXPECT(!w.due(60000.0) && !w.pending(), "re-enabling later does not send the stale /who");
+
+    // Retrying, then turned off: retries stop for good.
+    AutoWho r;
+    r.setEnabled(true);
+    r.onChat(start, 0.0, 0.0);
+    EXPECT(r.due(0.0), "sanity: due immediately");
+    r.markFailed(0.0);
+    r.setEnabled(false);
+    r.setEnabled(true);
+    EXPECT(!r.due(1000.0) && !r.pending(), "retries do not resume after a disable");
+
+    // The cooldown is not carried across a disable: the next real game start schedules normally.
+    EXPECT(r.onChat(start, 1500.0, 0.0), "a fresh game start after re-enabling schedules");
 }
 
 static void testPartyChat() {
@@ -166,6 +198,7 @@ int main() {
     struct Test { const char* name; void (*fn)(); };
     const Test tests[] = {
         {"who triggers", testWhoTriggers},
+        {"auto who disabled means disabled", testAutoWhoDisabled},
         {"party chat detector", testPartyChat},
         {"queue party detector", testQueueParty},
         {"fast buy menu", testFastBuy},

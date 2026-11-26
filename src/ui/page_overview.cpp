@@ -62,10 +62,14 @@ void drawOverview(PageContext& ctx, const Rect& area) {
         }
         drawIcon(ui.r, hl.level == Health::Active ? Icon::Eye : hl.level == Health::Degraded ? Icon::Warning : Icon::Pulse,
                  badge.x + 11.f, badge.y + 11.f, 22.f, hc);
-        std::string title = hl.level == Health::Active ? "Watching " + std::to_string(ctx.engine.stats().trackedPlayers) + " players"
-                                                       : hl.title;
-        ui.fonts.draw(ui.r, type::Title, badge.r() + 16.f, hero.y + 26.f, title, t.text, Align::Left, hero.w * 0.36f);
-        ui.fonts.draw(ui.r, type::Small, badge.r() + 16.f, hero.y + 50.f, hl.detail, t.textMuted, Align::Left, hero.w * 0.36f);
+        const std::string title = hl.level == Health::Active ? "Watching " + std::to_string(ctx.engine.stats().trackedPlayers) + " players"
+                                                             : hl.title;
+        std::string detail = hl.detail;
+        const int npcs = ctx.engine.stats().filteredEntities;
+        if (hl.level == Health::Active && npcs > 0) detail += " \xC2\xB7 " + std::to_string(npcs) + (npcs == 1 ? " NPC ignored" : " NPCs ignored");
+        const float textW = hero.w * 0.44f - (badge.r() + 16.f - hero.x) - 30.f;
+        ui.fonts.draw(ui.r, type::Title, badge.r() + 16.f, hero.y + 26.f, title, t.text, Align::Left, textW);
+        ui.fonts.draw(ui.r, type::Small, badge.r() + 16.f, hero.y + 50.f, detail, t.textMuted, Align::Left, textW);
         bool h = false;
         const Rect link{badge.r() + 12.f, hero.y + 72.f, 120.f, 24.f};
         if (ui.pressable(hashId("ov-status"), link, &h)) ctx.navigate(Page::Status);
@@ -73,24 +77,26 @@ void drawOverview(PageContext& ctx, const Rect& area) {
         drawIcon(ui.r, Icon::ArrowRight, link.x + 8.f + ui.fonts.width(type::SmallStrong, "View status"), link.y + 5.f, 13.f,
                  h ? t.text : t.accent);
     }
-    int watch = 0, present = 0;
+    int flagged = 0, inGame = 0, sessionPlayers = 0;
     for (const auto& r : session.players()) {
         if (r.local) continue;
-        if (r.present) ++present;
-        if (r.suspicion >= 50.f) ++watch;
+        ++sessionPlayers;
+        if (!ctx.engine.inThisGame(r)) continue;
+        ++inGame;
+        if (r.suspicion >= 40.f) ++flagged;
     }
     {
         const float mx0 = hero.x + hero.w * 0.44f;
         const float mw = (hero.r() - 22.f - mx0) / 4.f;
         const float my = hero.y + 24.f;
         ui.r.rect({mx0 - 22.f, hero.y + 20.f, 1.f, hero.h - 40.f}, t.divider);
-        metric(ui, mx0, my, "OBSERVED", static_cast<double>(session.players().size()), std::to_string(present) + " in view now",
-               t.chart[0], hashId("m-players"));
+        metric(ui, mx0, my, "THIS GAME", static_cast<double>(inGame), std::to_string(sessionPlayers) + " this session", t.chart[0],
+               hashId("m-players"));
         metric(ui, mx0 + mw, my, "EVIDENCE", session.totalEvidence(), std::to_string(checks.size()) + " checks", t.chart[1],
                hashId("m-evidence"));
         metric(ui, mx0 + mw * 2.f, my, "DETECTIONS", session.totalDetections(),
                session.totalDetections() ? "evidence-gated" : "none this session", t.sevAlert, hashId("m-det"));
-        metric(ui, mx0 + mw * 3.f, my, "UNDER WATCH", watch, "suspicion \xE2\x89\xA5 50%", t.sevNotice, hashId("m-watch"));
+        metric(ui, mx0 + mw * 3.f, my, "FLAGGED", flagged, "elevated or higher", t.sevNotice, hashId("m-watch"));
     }
 
     const float gap = 14.f;
@@ -162,23 +168,24 @@ void drawOverview(PageContext& ctx, const Rect& area) {
                 else if (hv > 0.01f) ui.r.roundRect(row.inset(4.f, 3.f), 10.f, t.surfaceHover.alpha(hv));
                 const auto& chk = *checks[static_cast<std::size_t>(g.check)];
                 const Color sev = t.severity(g.confidence);
-                playerAvatar(ctx, *g.player, {row.x + 14.f, row.cy() - 16.f, 32.f, 32.f});
-                const Rect ic{row.x + 34.f, row.cy() + 2.f, 18.f, 18.f};
-                ui.r.circle(ic.cx(), ic.cy(), 10.f, t.surface);
-                ui.r.circle(ic.cx(), ic.cy(), 8.5f, sev.withAlpha(0.22f));
-                drawIcon(ui.r, g.detection ? Icon::Bolt : checkIcon(chk.id()), ic.x + 3.f, ic.y + 3.f, 12.f, sev, 1.7f);
+                playerAvatar(ctx, *g.player, {row.x + 12.f, row.cy() - 18.f, 36.f, 36.f});
                 const float nx = row.x + 62.f;
-                const float nw = ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 12.f, g.player->name, t.text);
-                const std::string tag = g.detection ? "Detection \xC2\xB7 " + chk.name() : chk.name();
-                const float cw = chipWidth(ui, tag);
-                chip(ui, {nx + nw + 8.f, row.y + 11.f, cw, 19.f}, tag, g.detection ? t.sevAlert : t.textMuted);
+                const float nw = ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 12.f, g.player->name, t.text, Align::Left, row.w * 0.4f);
+                // The check, as an icon + name chip; a detection is marked with a bolt.
+                const std::string tag = chk.name();
+                const float cw = chipWidth(ui, tag) + 16.f;
+                const Rect chr{nx + nw + 8.f, row.y + 11.f, cw, 19.f};
+                ui.r.roundRect(chr, 9.5f, (g.detection ? sev : t.textMuted).withAlpha(t.light ? 0.12f : 0.14f));
+                drawIcon(ui.r, g.detection ? Icon::Bolt : checkIcon(chk.id()), chr.x + 6.f, chr.y + 3.f, 13.f, g.detection ? sev : t.textMuted, 1.6f);
+                ui.fonts.draw(ui.r, type::Caption, chr.x + 22.f, chr.cy() - ui.fonts.lineHeight(type::Caption) * 0.5f, tag,
+                              g.detection ? (t.light ? sev.darker(0.15f) : sev.lighter(0.1f)) : t.textMuted);
                 if (g.count > 1) {
                     const std::string cnt = "\xC3\x97" + std::to_string(g.count);
-                    ui.fonts.draw(ui.r, type::Caption, nx + nw + cw + 14.f, row.y + 14.f, cnt, t.textFaint);
+                    ui.fonts.draw(ui.r, type::NumericCaption, chr.r() + 6.f, row.y + 14.f, cnt, t.textFaint);
                 }
                 ui.fonts.draw(ui.r, type::Small, nx, row.y + 34.f, g.summary, t.textMuted, Align::Left, row.w - 180.f);
                 ui.fonts.draw(ui.r, type::Caption, row.r() - 14.f, row.y + 13.f, agoLabel(ctx.nowMs, g.lastMs), t.textFaint, Align::Right);
-                ui.fonts.draw(ui.r, type::SmallStrong, row.r() - 14.f, row.y + 33.f, formatNumber(g.confidence, 0) + "%", sev, Align::Right);
+                suspicionLabel(ui, row.r() - 14.f, row.y + 33.f, g.confidence, Align::Right);
                 ui.r.popOffset();
                 ui.r.popAlpha();
             }
@@ -187,19 +194,20 @@ void drawOverview(PageContext& ctx, const Rect& area) {
         endScroll(ui, sid, feedView, y - (feedView.y + off) + 8.f);
     }
 
-    // ── Watchlist ──
+    // ── Watchlist: your marks first (from any game), then who stands out in this game ──
     card(ui, watchCard);
-    sectionHeader(ui, watchCard.x + 20.f, watchCard.y + 18.f, "WATCHLIST");
-    auto players = sortedPlayers(session, 0, {}, false);
+    sectionHeader(ui, watchCard.x + 20.f, watchCard.y + 18.f, "WATCHLIST", "marked and flagged");
+    auto players = sortedPlayers(ctx.engine, 0, {}, false);
     players.erase(std::remove_if(players.begin(), players.end(),
                                  [&](const detection::PlayerRecord* p) {
-                                     return !ctx.state.watched.count(p->key) && p->suspicion < 1.f && p->peakSuspicion < 10.f;
+                                     if (ctx.engine.marks().watched(p->key)) return false;
+                                     return !ctx.engine.inThisGame(*p) || (p->suspicion < 15.f && p->peakSuspicion < 40.f);
                                  }),
                   players.end());
-    std::stable_partition(players.begin(), players.end(), [&](const detection::PlayerRecord* p) { return ctx.state.watched.count(p->key) > 0; });
     const Rect wl{watchCard.x + 8.f, watchCard.y + 44.f, watchCard.w - 16.f, watchCard.h - 84.f};
     if (players.empty()) {
-        emptyState(ui, wl, Icon::Target, "No one stands out", "Players with rising suspicion are ranked here. Pin anyone from their profile.");
+        emptyState(ui, wl, Icon::Target, "No one stands out",
+                   "Players in this game with rising suspicion appear here, with anyone you watch or have confirmed.");
     } else {
         float y = wl.y;
         const double t1 = ctx.nowMs, t0 = t1 - 5 * 60 * 1000.0;
@@ -211,19 +219,16 @@ void drawOverview(PageContext& ctx, const Rect& area) {
             if (ui.pressable(rid, row, &h)) ctx.openPlayer(p->key);
             const float hv = ui.anim(mixId(rid, 1), h ? 1.f : 0.f, motion::kHover);
             if (hv > 0.01f) ui.r.roundRect(row.inset(4.f, 3.f), 10.f, t.surfaceHover.alpha(hv));
-            playerAvatar(ctx, *p, {row.x + 14.f, row.cy() - 17.f, 34.f, 34.f}, true);
+            playerAvatar(ctx, *p, {row.x + 12.f, row.cy() - 18.f, 36.f, 36.f});
             const float nx = row.x + 62.f;
-            const float nw = ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 12.f, p->name, p->present ? t.text : t.textMuted,
-                                           Align::Left, row.w - 200.f);
-            if (ctx.state.watched.count(p->key)) drawIcon(ui.r, Icon::Pin, nx + nw + 6.f, row.y + 13.f, 13.f, t.accent, 1.6f);
+            ui.fonts.draw(ui.r, type::BodyStrong, nx, row.y + 12.f, p->name, p->present ? t.text : t.textMuted, Align::Left, row.w - 200.f);
             const int topc = p->topCheck();
-            const std::string detail = topc >= 0 ? checks[static_cast<std::size_t>(topc)]->name() : "Peak " + formatNumber(p->peakSuspicion, 0) + "%";
-            ui.fonts.draw(ui.r, type::Small, nx, row.y + 33.f, detail + (p->present ? "" : " \xC2\xB7 left"), t.textFaint, Align::Left,
-                          row.w - 220.f);
-            const float trend = confidenceTrend(p->suspicionHistory, p->suspicion, ctx.nowMs);
-            ui.fonts.draw(ui.r, type::SmallStrong, row.r() - 112.f, row.y + 12.f, formatNumber(p->suspicion, 0) + "%",
-                          t.severity(p->suspicion), Align::Right);
-            trendLabel(ui, row.r() - 112.f, row.y + 33.f, trend, true);
+            std::string detail = ctx.engine.marks().confirmed(p->key) ? "Confirmed by you"
+                               : topc >= 0 ? checks[static_cast<std::size_t>(topc)]->name() : tierName(tierOf(p->suspicion));
+            detail += " \xC2\xB7 " + presenceLabel(ctx, *p);
+            ui.fonts.draw(ui.r, type::Small, nx, row.y + 33.f, detail, t.textFaint, Align::Left, row.w - 220.f);
+            suspicionLabel(ui, row.r() - 112.f, row.y + 12.f, p->suspicion, Align::Right, false);
+            trendLabel(ui, row.r() - 112.f, row.y + 33.f, confidenceTrend(p->suspicionHistory, p->suspicion, ctx.nowMs), true);
             sparkline(ui, {row.r() - 100.f, row.y + 14.f, 84.f, 32.f}, p->suspicionHistory, t0, t1, t.severity(p->suspicion));
             y += 60.f;
         }

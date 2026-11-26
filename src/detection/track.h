@@ -17,8 +17,11 @@ struct AirSegment {
     double apexY = 0.0;
     int airTicks = 0;
     double horizontalDistance = 0.0;
-    Vec3 startVelocity;       // horizontal velocity shortly after takeoff (b/tick)
-    Vec3 endVelocity;         // horizontal velocity shortly before landing (b/tick)
+    // Horizontal velocities from update-aware 4-tick spans centered 3 ticks after takeoff and 3
+    // ticks before landing (b/tick); zero when the segment was too short to measure.
+    Vec3 startVelocity;
+    Vec3 endVelocity;
+    int maxGap = 0;           // longest run of ticks without a position update during the segment
     int groundTicksBefore = 0; // ground ticks between previous landing and this takeoff
     bool jumped = false;      // rose like a jump (vs. walked off an edge)
     bool clean = true;        // no hurt/teleport/exemption during the segment
@@ -46,11 +49,29 @@ public:
     const PlayerFrame& cur() const { return back(0); }
     bool has(int k) const { return k < size(); }
 
-    // Horizontal speed averaged over the last `window` ticks (b/tick). Robust to packet bunching.
+    // Horizontal speed averaged over the last `window` ticks (b/tick), using tick indices.
     double horizontalSpeed(int window) const;
     Vec3 displacement(int window) const;
     // Velocity estimate centered `k` ticks back, averaged over `span` ticks.
     Vec3 velocity(int k, int span = 2) const;
+
+    // ── Update-aware measurements ────────────────────────────────────────────────────────────
+    // Server positions arrive every ~2 ticks, in bursts after lag, and sometimes not at all for a
+    // while. A position held at tick t may have been received many ticks earlier. These helpers
+    // measure between the ticks positions were *received*, so a lag catch-up is spread over the
+    // time it really covers instead of being squeezed into the window.
+    Tick updateTickAt(int k = 0) const;
+    // Average horizontal speed over roughly the last `window` ticks.
+    double horizontalSpeedFresh(int window) const;
+    // Velocity between the positions received at/before index k and at/before index k + span.
+    Vec3 velocityFresh(int k, int span = 4) const;
+    // Longest run of ticks without a position update inside the last `window` ticks.
+    int maxUpdateGap(int window) const;
+    // Data regularity of the last `window` ticks: 1 = regular updates, 0 = unusable.
+    float dataQuality(int window) const;
+    // Largest movement multiplier seen over the last `window` ticks (a modifier that just ended
+    // still explains the movement it produced).
+    double maxSpeedMultiplier(int window) const;
 
     // Edge events computed on the latest push.
     bool swingStarted() const { return swingStarted_; }
@@ -92,6 +113,7 @@ private:
     int entityId_ = -1;
     std::deque<PlayerFrame> frames_;
     std::deque<Tick> ticks_;
+    std::deque<Tick> updateTicks_;   // tick at which each frame's position was received
     std::deque<Tick> swingTicks_;
     std::deque<AirSegment> airSegments_;
     AirSegment currentAir_;

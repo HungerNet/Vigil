@@ -4,6 +4,7 @@
 
 #include "../detection/engine.h"
 #include "app.h"
+#include "suspicion.h"
 #include "widgets.h"
 
 #include <deque>
@@ -17,6 +18,8 @@ public:
     void onAlert(const detection::Alert& a, double now);
     void showActivation(double now);
     void notify(const std::string& title, const std::string& body, double now);
+    // Match briefing: who in the new game is worth knowing about (shown only when non-empty).
+    void showBriefing(const Briefing& b, double now);
     void clear();
 
     bool idle(double now) const;
@@ -59,9 +62,12 @@ private:
     void drawToasts(const Context& c);
     void drawActivation(const Context& c);
     void drawNotices(const Context& c);
+    void drawBriefing(const Context& c);
 
     std::deque<Toast> toasts_;
     std::deque<Notice> notices_;
+    Briefing briefing_;
+    double briefingAt_ = -100.0;
     double activationAt_ = -100.0;
     float lastLife_ = 6.f;
 };

@@ -96,18 +96,19 @@ float pageHeader(PageContext& ctx, const Rect& area, std::string_view title, std
     // Title and purpose share one line: the title names the place, the purpose says what it is for.
     const float tw = ctx.ui.fonts.draw(ctx.ui.r, type::Heading, area.x, area.y, title, t.text);
     if (!subtitle.empty()) {
-        const float baseline = area.y + ctx.ui.fonts.lineHeight(type::Heading) - ctx.ui.fonts.lineHeight(type::Body) - 3.f;
-        ctx.ui.fonts.draw(ctx.ui.r, type::Body, area.x + tw + 16.f, baseline, subtitle, t.textMuted, Align::Left, area.w - tw - 30.f);
+        // Share the title's baseline.
+        const float y = area.y + ctx.ui.fonts.ascent(type::Heading) - ctx.ui.fonts.ascent(type::Body);
+        ctx.ui.fonts.draw(ctx.ui.r, type::Body, area.x + tw + 16.f, y, subtitle, t.textMuted, Align::Left, area.w - tw - 30.f);
     }
     return area.y + 46.f;
 }
 
-std::vector<const detection::PlayerRecord*> sortedPlayers(const detection::Session& s, int sortMode, const std::string& filter,
+std::vector<const detection::PlayerRecord*> sortedPlayers(const detection::Engine& e, int sortMode, const std::string& filter,
                                                           bool includeLocal) {
     std::vector<const detection::PlayerRecord*> out;
     std::string f = filter;
     std::transform(f.begin(), f.end(), f.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    for (const auto& r : s.players()) {
+    for (const auto& r : e.session().players()) {
         if (r.local && !includeLocal) continue;
         if (!f.empty()) {
             std::string n = r.name;
@@ -116,11 +117,17 @@ std::vector<const detection::PlayerRecord*> sortedPlayers(const detection::Sessi
         }
         out.push_back(&r);
     }
-    std::stable_sort(out.begin(), out.end(), [sortMode](const detection::PlayerRecord* a, const detection::PlayerRecord* b) {
+    // Relevance first: the user's own marks, then suspicion, then who is here right now.
+    auto rank = [&e](const detection::PlayerRecord* r) {
+        float s = std::max(r->suspicion, r->peakSuspicion * 0.35f) + (r->evidence.empty() ? 0.f : 0.5f);
+        if (e.marks().confirmed(r->key)) s += 1000.f;
+        else if (e.marks().watched(r->key)) s += 500.f;
+        return s;
+    };
+    std::stable_sort(out.begin(), out.end(), [&](const detection::PlayerRecord* a, const detection::PlayerRecord* b) {
         if (sortMode == 1) return a->lastSeenMs > b->lastSeenMs;
         if (sortMode == 2) return a->name < b->name;
-        const float sa = std::max(a->suspicion, a->peakSuspicion * 0.35f) + (a->evidence.empty() ? 0.f : 0.5f);
-        const float sb = std::max(b->suspicion, b->peakSuspicion * 0.35f) + (b->evidence.empty() ? 0.f : 0.5f);
+        const float sa = rank(a), sb = rank(b);
         if (std::fabs(sa - sb) > 0.01f) return sa > sb;
         if (a->present != b->present) return a->present;
         return a->name < b->name;
@@ -175,34 +182,27 @@ float trendLabel(Ui& ui, float x, float y, float delta, bool alignRight) {
     return w;
 }
 
-void playerAvatarByKey(Ui& ui, Host* host, const std::string& key, const std::string& name, float suspicion, const Rect& rc) {
-    const Theme& t = ui.th();
-    FaceTexture face;
-    if (host && host->playerFace(key, face) && face.texture) {
-        const float rad = std::max(3.f, rc.w * 0.18f);
-        ui.r.shadow(rc, rad, 6.f, Color(0, 0, 0, t.light ? 0.10f : 0.30f), 1.5f);
-        ui.r.roundRect(rc, rad, t.inset);
-        const Rect img = rc.inset(rc.w * 0.06f);
-        ui.r.image(face.texture, img, face.u0, face.v0, face.u1, face.v1);
-        ui.r.image(face.texture, img.inset(-img.w * 0.04f), face.hu0, face.hv0, face.hu1, face.hv1);
-        ui.r.roundRectStroke(rc, rad, 1.f, t.borderStrong);
-        return;
+void playerAvatar(PageContext& ctx, const detection::PlayerRecord& p, const Rect& rc, Color cutout) {
+    HaloStyle s;
+    s.confidence = p.suspicion;
+    s.marks = marksOf(ctx.engine, p.key);
+    s.present = p.present;
+    s.cutout = cutout;
+    // One pulse when this player's newest detection arrives.
+    if (!p.detections.empty()) {
+        const double age = (ctx.nowMs - p.detections.back().timeMs) / 1000.0;
+        if (age >= 0.0 && age < 1.0) s.pulseAt = ctx.ui.time - age;
     }
-    const Color sev = t.severity(suspicion);
-    ui.r.roundRect(rc, rc.w * 0.3f, sev.withAlpha(0.16f));
-    std::string ini = name.empty() ? "?" : name.substr(0, 1);
-    for (char& ch : ini) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-    const TextStyle st = rc.w >= 40.f ? type::Title : type::BodyStrong;
-    ui.fonts.draw(ui.r, st, rc.cx(), rc.cy() - ui.fonts.lineHeight(st) * 0.5f, ini, sev, Align::Center);
+    // One animation id per player and size, so the same player animates independently per surface.
+    const Id id = mixId(hashId(p.key, 4242), static_cast<Id>(rc.w * 10.f));
+    playerHalo(ctx.ui, ctx.host, id, p.key, p.name, rc, s);
 }
 
-void playerAvatar(PageContext& ctx, const detection::PlayerRecord& p, const Rect& rc, bool ring) {
-    playerAvatarByKey(ctx.ui, ctx.host, p.key, p.name, p.suspicion, rc);
-    if (ring && p.suspicion >= 1.f) {
-        const Theme& t = ctx.ui.th();
-        const float rad = std::max(3.f, rc.w * 0.18f);
-        ctx.ui.r.roundRectStroke(rc.inset(-3.f), rad + 3.f, 2.f, t.severity(p.suspicion).withAlpha(0.35f + 0.6f * p.suspicion / 100.f));
-    }
+std::string presenceLabel(const PageContext& ctx, const detection::PlayerRecord& p) {
+    if (p.local) return "You";
+    if (!ctx.engine.inThisGame(p)) return "Earlier game";
+    if (p.present) return ctx.engine.phase() == detection::GamePhase::Queue ? "In the queue" : "In this game";
+    return "Left \xC2\xB7 " + agoLabel(ctx.nowMs, p.lastSeenMs);
 }
 
 std::string keyLabel(const std::string& settingKey) {
@@ -234,12 +234,21 @@ Health computeHealth(const PageContext& ctx) {
     } else if (e.active()) {
         h.level = Health::Active;
         h.title = "Monitoring";
-        h.detail = e.contextDetail().empty() ? detection::gameContextName(e.context()) : e.contextDetail();
+        h.detail = std::string(detection::gamePhaseName(e.phase())) +
+                   (e.contextDetail().empty() ? std::string() : " \xC2\xB7 " + e.contextDetail());
+    } else if (e.phase() == detection::GamePhase::Queue) {
+        h.level = Health::Standby;
+        h.title = "In the queue";
+        h.detail = "Checks start with the match";
+    } else if (e.phase() == detection::GamePhase::PostGame) {
+        h.level = Health::Standby;
+        h.title = "Game over";
+        h.detail = "Checks paused until the next game";
     } else {
         h.level = Health::Standby;
         h.title = "Standing by";
         if (ctx.host && !ctx.host->connectedToHypixel()) h.detail = "Not on Hypixel";
-        else h.detail = std::string(detection::gameContextName(e.context())) + " \xC2\xB7 waiting for a game";
+        else h.detail = std::string(detection::gamePhaseName(e.phase())) + " \xC2\xB7 waiting for a game";
     }
     return h;
 }

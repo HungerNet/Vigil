@@ -7,9 +7,12 @@
 #include "../src/core/settings.h"
 #include "../src/detection/engine.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <deque>
 #include <functional>
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
@@ -129,12 +132,37 @@ struct Sim {
         out.pitch = static_cast<float>(std::round(f.pitch / mc::kRotationQuantum) * mc::kRotationQuantum);
         return out;
     }
+
+    // Server relay: positions (and the ground flag that travels with them) reach the observer
+    // `delay` ticks late, every `cadence` ticks, and not at all while `freeze` is set (lag); the
+    // next update after a freeze is a catch-up.
+    int delay = 0;
+    int cadence = 1;
+    bool freeze = false;
+    std::deque<std::pair<Vec3, bool>> past;
+    std::pair<Vec3, bool> shown{{}, true};
+    long relayCount = 0;
+    PlayerFrame relayFrame() {
+        PlayerFrame out = frame();
+        if (delay == 0 && cadence == 1 && !freeze && past.empty()) return out;
+        past.push_back({f.pos, f.onGround});
+        while (static_cast<int>(past.size()) > delay + 1) past.pop_front();
+        if (relayCount++ == 0 || (!freeze && relayCount % cadence == 0)) shown = past.front();
+        out.pos = {std::round(shown.first.x * 32.0) / 32.0, std::round(shown.first.y * 32.0) / 32.0,
+                   std::round(shown.first.z * 32.0) / 32.0};
+        out.onGround = shown.second;
+        return out;
+    }
 };
 
 struct World {
     Engine engine;
     std::vector<Sim*> sims;
     Tick tick = 1000;
+    GameContext context = GameContext::InGame;
+    std::vector<std::string> chat;      // delivered with the next frame
+    bool worldChanged = false;          // delivered with the next frame
+    std::vector<Sim*> hidden;           // out of view this frame
 
     World() {
         engine.initialize();
@@ -145,8 +173,14 @@ struct World {
         WorldFrame w;
         w.tick = ++tick;
         w.timeMs = tick * 50.0;
-        w.context = GameContext::InGame;
-        for (Sim* s : sims) w.players.push_back(s->frame());
+        w.context = context;
+        w.chat.swap(chat);
+        w.worldChanged = worldChanged;
+        worldChanged = false;
+        for (Sim* s : sims) {
+            if (std::find(hidden.begin(), hidden.end(), s) != hidden.end()) continue;
+            w.players.push_back(s->relayFrame());
+        }
         engine.onFrame(w);
     }
     const PlayerRecord* rec(const Sim& s) const { return engine.session().find(s.f.uuid); }
@@ -666,6 +700,443 @@ static void testPresetsKeepDefaults() {
     }
 }
 
+// ── Quality pass (1.0-dev.8): root-cause regressions ─────────────────────────────────────────
+
+// One tick of the low-hop cheat used by several scenarios (motionY 0.25, 0.55 b/tick).
+static void lowHopStep(Sim& c) {
+    const double rad = c.moveYaw * 3.14159265358979323846 / 180.0;
+    const Vec3 fwd{-std::sin(rad), 0.0, std::cos(rad)};
+    if (c.f.onGround) {
+        c.motion.y = 0.25;
+        c.f.pos = c.f.pos + Vec3{0, 0.01, 0};
+        c.f.onGround = false;
+    }
+    c.f.pos = c.f.pos + fwd * 0.55;
+    c.f.pos.y += c.motion.y;
+    if (c.f.pos.y <= c.groundY) {
+        c.f.pos.y = c.groundY;
+        c.motion.y = 0.0;
+        c.f.onGround = true;
+    } else {
+        c.motion.y = (c.motion.y - 0.08) * 0.98;
+    }
+    c.f.sprinting = true;
+    c.tickAnimations();
+}
+
+// Prints a player's evidence when VIGIL_TEST_VERBOSE is set (diagnosing a failing scenario).
+static void dumpEvidence(const World& w, const Sim& s) {
+    if (!std::getenv("VIGIL_TEST_VERBOSE")) return;
+    if (const PlayerRecord* r = w.rec(s)) {
+        for (const auto& e : r->evidence) {
+            std::printf("      [%s] t=%lld %s |", w.engine.checks()[static_cast<std::size_t>(e.check)]->id().c_str(),
+                        static_cast<long long>(e.tick), e.summary.c_str());
+            for (const auto& v : e.values) std::printf(" %s=%.3f", v.name.c_str(), v.value);
+            std::printf("\n");
+        }
+    }
+}
+
+static float suspicionOf(const World& w, const Sim& s) {
+    const PlayerRecord* r = w.rec(s);
+    return r ? r->suspicion : -1.f;
+}
+
+// V1/V2: the victim's knockback reaches the observer only after their latency. A fixed 5-tick
+// window read every high-ping victim as "did not move". Hits are spaced so the victim lands and
+// settles; the attacker follows the victim instead of the victim being reset.
+static int runLatencyVelocity(int relayDelay, int pingMs, bool antiKb, int& detections) {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim a(2, "Hitter"), v(3, "HighPing");
+    v.delay = relayDelay;
+    v.f.pingMs = pingMs;
+    v.f.pos = {0, 64, 2.6};
+    w.add(local);
+    w.add(a);
+    w.add(v);
+    for (int i = 0; i < 30; ++i) w.frame();
+    for (int h = 0; h < 12; ++h) {
+        for (int t = 0; t < 30; ++t) {
+            if (t == 0) a.f.pos = {v.f.pos.x, 64.0, v.f.pos.z - 2.6};
+            a.lookAt(v);
+            if (t == 0) a.swing();
+            if (t == 1) {
+                v.hurt();
+                if (!antiKb) {
+                    v.motion.y = 0.3608;
+                    v.motion.z += 0.4;
+                    v.f.onGround = false;
+                    v.f.pos.y += 0.0001;
+                }
+            }
+            a.tickAnimations();
+            if (!v.f.onGround || v.motion.horizontalLength() > 0) {
+                v.f.pos = v.f.pos + v.motion;
+                v.motion.x *= v.f.onGround ? 0.546 : 0.91;
+                v.motion.z *= v.f.onGround ? 0.546 : 0.91;
+                if (v.f.pos.y <= v.groundY) {
+                    v.f.pos.y = v.groundY;
+                    v.motion.y = 0;
+                    v.f.onGround = true;
+                } else {
+                    v.f.onGround = false;
+                    v.motion.y = (v.motion.y - 0.08) * 0.98;
+                }
+            }
+            if (v.f.hurtTime > 0) --v.f.hurtTime;
+            v.f.pos.x += (t % 2 == 0 ? 0.04 : -0.04);
+            w.frame();
+        }
+    }
+    detections = w.detections(v, "velocity");
+    dumpEvidence(w, v);
+    return w.evidence(v, "velocity");
+}
+
+static void testVelocityLatency() {
+    int det = 0;
+    EXPECT(runLatencyVelocity(7, 250, false, det) == 0, "legit 250 ms victim produced velocity evidence");
+    EXPECT(runLatencyVelocity(6, -1, false, det) == 0, "legit victim with unknown ping produced velocity evidence");
+    const int cheat = runLatencyVelocity(7, 250, true, det);
+    EXPECT(cheat >= 5 && det >= 1, "anti-knockback behind 250 ms is still detected (evidence=%d detections=%d)", cheat, det);
+}
+
+// S1: after a lag catch-up, a window that starts inside the frozen period counted more movement
+// than its ticks. Speeds between received positions do not.
+static void testSpeedLagCatchUp() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim runner(2, "Laggy"), cheat(3, "LaggyCheat");
+    cheat.f.pos = {60, 64, 0};
+    runner.cadence = cheat.cadence = 2;
+    w.add(local);
+    w.add(runner);
+    w.add(cheat);
+    std::mt19937 rng(11);
+    std::uniform_real_distribution<double> turn(-4.0, 4.0);
+    for (int i = 0; i < 20 * 90; ++i) {
+        // 10-tick connection hiccups: the catch-up (~3.5 blocks) is too small to be a teleport.
+        const bool lag = (i % 80) >= 70;
+        runner.freeze = cheat.freeze = lag;
+        runner.moveYaw += turn(rng);
+        runner.step(1.0, true);
+        lowHopStep(cheat);
+        w.frame();
+    }
+    EXPECT(w.evidence(runner, "speed") == 0, "legit runner with lag catch-ups: speed evidence=%d", w.evidence(runner, "speed"));
+    EXPECT(w.evidence(runner, "bhop") == 0, "legit runner with lag catch-ups: bhop evidence=%d", w.evidence(runner, "bhop"));
+    EXPECT(w.detections(cheat, "speed") >= 1, "speed cheat with the same lag is still detected (evidence=%d)", w.evidence(cheat, "speed"));
+}
+
+// S2: Speed II ends; the previous second at 1.4× must not be judged against 1.0×. Ground
+// sprinting with Speed II (~0.39 b/tick) is well past the 0.31 ground limit, so the ticks right
+// after it ends are where judging with the current multiplier goes wrong.
+static void testExpiringSpeedEffect() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim runner(2, "Expiring");
+    w.add(local);
+    w.add(runner);
+    for (int i = 0; i < 20 * 90; ++i) {
+        const bool potion = (i % 300) < 220;
+        runner.f.moveSpeedAttribute = potion ? 0.1 * 1.3 * 1.4 : 0.1 * 1.3;
+        runner.f.sprintModifier = true;
+        const double rad = runner.moveYaw * 3.14159265358979323846 / 180.0;
+        const Vec3 fwd{-std::sin(rad), 0.0, std::cos(rad)};
+        if (potion && runner.f.onGround) runner.motion = runner.motion + fwd * (0.13 * 0.4);
+        runner.step(1.0, false);
+        w.frame();
+    }
+    dumpEvidence(w, runner);
+    EXPECT(w.evidence(runner, "speed") == 0, "speed evidence after Speed II expired=%d", w.evidence(runner, "speed"));
+    EXPECT(w.evidence(runner, "bhop") == 0, "bhop evidence after Speed II expired=%d", w.evidence(runner, "bhop"));
+}
+
+// B3: jumping diagonally into a wall zeroes one axis mid-air — a collision, not a strafe.
+static void testWallCollisionIsNotStrafe() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim runner(2, "WallJumper");
+    runner.moveYaw = 45.0;   // −X, +Z
+    w.add(local);
+    w.add(runner);
+    for (int i = 0; i < 20 * 60; ++i) {
+        if (runner.f.onGround) runner.f.pos.x = -1.2;   // back off the wall before each jump
+        runner.step(1.0, true);
+        if (runner.f.pos.x < -3.0) {
+            runner.f.pos.x = -3.0;
+            runner.motion.x = 0.0;
+        }
+        w.frame();
+    }
+    EXPECT(w.indicatorCount(runner, "bhop", "air_strafe") == 0, "wall collision read as air strafe (%d)",
+           w.indicatorCount(runner, "bhop", "air_strafe"));
+    EXPECT(w.indicatorCount(runner, "bhop", "air_accel") == 0, "wall collision read as air acceleration (%d)",
+           w.indicatorCount(runner, "bhop", "air_accel"));
+}
+
+// S3: the server stalls; everyone's positions arrive in bursts at once.
+static void testServerStall() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    std::vector<std::unique_ptr<Sim>> runners;
+    for (int i = 0; i < 4; ++i) {
+        runners.push_back(std::make_unique<Sim>(10 + i, "Runner" + std::to_string(i)));
+        runners.back()->f.pos = {i * 20.0, 64, 0};
+        runners.back()->cadence = 2;
+    }
+    w.add(local);
+    for (auto& r : runners) w.add(*r);
+    for (int i = 0; i < 20 * 60; ++i) {
+        const bool stall = (i % 90) >= 82;
+        for (auto& r : runners) {
+            r->freeze = stall;
+            r->moveYaw += 1.5;
+            r->step(1.0, true);
+        }
+        w.frame();
+    }
+    int speed = 0;
+    for (auto& r : runners) speed += w.evidence(*r, "speed") + w.evidence(*r, "bhop");
+    EXPECT(speed == 0, "server stalls produced movement evidence=%d", speed);
+    EXPECT(w.engine.stats().stalls >= 5, "stalls detected=%d", w.engine.stats().stalls);
+}
+
+// N1: a lag catch-up while eating is not "moving fast while using an item".
+static void testNoSlowLagCatchUp() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim eater(2, "LaggyEater");
+    eater.cadence = 2;
+    w.add(local);
+    w.add(eater);
+    for (int i = 0; i < 20 * 60; ++i) {
+        const bool eating = (i % 60) > 10;
+        eater.f.heldItem = 322;
+        eater.f.usingItem = eating;
+        eater.freeze = (i % 60) >= 30 && (i % 60) < 42;
+        eater.step(eating ? 0.2 : 1.0, false, !eating);
+        w.frame();
+    }
+    EXPECT(w.evidence(eater, "noslow") == 0, "noslow evidence from lag while eating=%d", w.evidence(eater, "noslow"));
+}
+
+// Phases: queue, match, post-game, new world.
+static void testMatchTracker() {
+    MatchTracker m;
+    std::vector<std::string> none;
+    m.onFrame(GameContext::Lobby, none, 0);
+    EXPECT(m.phase() == GamePhase::Lobby, "lobby");
+    m.onWorldChanged();
+    auto u = m.onFrame(GameContext::Pregame, none, 100);
+    EXPECT(m.phase() == GamePhase::Queue && u.sceneChanged, "queue in a new world");
+    const int queueScene = m.scene();
+    u = m.onFrame(GameContext::Unknown, none, 150);
+    EXPECT(m.phase() == GamePhase::Queue && !u.sceneChanged, "scoreboard flicker holds the phase");
+    u = m.onFrame(GameContext::InGame, none, 200);
+    EXPECT(m.phase() == GamePhase::Match && u.matchStarted && m.scene() == queueScene + 1, "queue → match starts a match");
+    EXPECT(m.queueScene() == queueScene, "the queue belongs to this match");
+    u = m.onFrame(GameContext::InGame, {"[MVP+] Someone: winner: me lol"}, 300);
+    EXPECT(m.phase() == GamePhase::Match && !u.matchEnded, "player chat does not end the match");
+    u = m.onFrame(GameContext::InGame, {"                  1st Killer - Kestrel - 7"}, 400);
+    EXPECT(m.phase() == GamePhase::PostGame && u.matchEnded, "end announcement → post-game");
+    u = m.onFrame(GameContext::InGame, none, 500);
+    EXPECT(m.phase() == GamePhase::PostGame && !u.matchStarted, "post-game holds");
+    m.onWorldChanged();
+    u = m.onFrame(GameContext::Lobby, none, 600);
+    EXPECT(m.phase() == GamePhase::Lobby && u.sceneChanged && !u.matchEnded, "new world after post-game: one end only");
+    m.onWorldChanged();
+    u = m.onFrame(GameContext::InGame, none, 700);
+    EXPECT(u.matchStarted && m.queueScene() == -1, "rejoin straight into a game starts a match without a queue");
+    EXPECT(matchesGameEnd("Reward Summary") && !matchesGameEnd("Kestrel: reward summary pls"), "end trigger matching");
+}
+
+static void testPostGameIsQuiet() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim cheat(2, "Celebrating");
+    w.add(local);
+    w.add(cheat);
+    for (int i = 0; i < 20 * 20; ++i) { lowHopStep(cheat); w.frame(); }
+    const int before = w.evidence(cheat, "bhop") + w.evidence(cheat, "speed");
+    EXPECT(before > 0, "sanity: the low hop produces evidence during the match (%d)", before);
+    w.chat.push_back("                  1st Killer - Celebrating - 9");
+    for (int i = 0; i < 20 * 20; ++i) { lowHopStep(cheat); w.frame(); }
+    const int after = w.evidence(cheat, "bhop") + w.evidence(cheat, "speed");
+    EXPECT(w.engine.phase() == GamePhase::PostGame, "phase after the end announcement = %s", gamePhaseName(w.engine.phase()));
+    EXPECT(after == before, "post-game movement was judged (%d → %d)", before, after);
+}
+
+// Confidence holds while a player is out of view and resumes when they return.
+static void testConfidenceHoldsWhileAway() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim cheat(2, "Wanderer");
+    w.add(local);
+    w.add(cheat);
+    for (int i = 0; i < 20 * 15; ++i) { lowHopStep(cheat); w.frame(); }
+    w.hidden.push_back(&cheat);
+    for (int i = 0; i < 20 * 3; ++i) w.frame();    // leaves view (dropped after 2 s)
+    const float left = suspicionOf(w, cheat);
+    for (int i = 0; i < 20 * 120; ++i) w.frame();  // two minutes away
+    w.hidden.clear();
+    cheat.f.pos = {0, 64, 0};
+    w.frame();
+    const float back = suspicionOf(w, cheat);
+    EXPECT(left > 30.f, "sanity: suspicion before leaving %.1f", left);
+    EXPECT(std::fabs(back - left) < 1.5f, "suspicion collapsed or grew while away (%.1f → %.1f)", left, back);
+}
+
+// A new game halves carried confidence and empties the evidence gate.
+static void testCarryOverToNextGame() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim cheat(2, "Returning");
+    w.add(local);
+    w.add(cheat);
+    for (int i = 0; i < 20 * 15; ++i) { lowHopStep(cheat); w.frame(); }
+    const float first = suspicionOf(w, cheat);
+    w.worldChanged = true;
+    cheat.f.pos = {0, 64, 0};
+    cheat.motion = {};
+    cheat.f.onGround = true;
+    w.frame();
+    const PlayerRecord* r = w.rec(cheat);
+    const float carried = suspicionOf(w, cheat);
+    EXPECT(r && w.engine.inThisGame(*r), "the player is in this game after reappearing");
+    bool noted = false;
+    if (r) for (const auto& e : r->timeline) if (e.kind == TimelineKind::Carried) noted = true;
+    EXPECT(noted, "carry-over is noted on the timeline");
+    // Two models combine: halving each lowers the combined value by at least a third.
+    EXPECT(first > 30.f && carried < first * 0.8f && carried > 0.f, "carried suspicion %.1f from %.1f", carried, first);
+}
+
+// In the queue, players are recorded (they are your opponents) but not judged.
+static void testQueueRecordsWithoutJudging() {
+    World w;
+    w.context = GameContext::Pregame;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim cheat(2, "Waiting");
+    w.add(local);
+    w.add(cheat);
+    for (int i = 0; i < 20 * 20; ++i) { lowHopStep(cheat); w.frame(); }
+    const PlayerRecord* r = w.rec(cheat);
+    EXPECT(r != nullptr && r->participant, "queue players are recorded as participants");
+    EXPECT(w.evidence(cheat, "bhop") + w.evidence(cheat, "speed") == 0, "queue players are not judged by default");
+}
+
+// NPCs, bots and duplicates never reach records, checks or the roster.
+static void testEntityClassification() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim npc(2, "Shopkeeper");
+    npc.f.uuid = "3c4d5e6f-1a2b-2c3d-8e9f-0a1b2c3d4e5f";   // version 2
+    Sim prop(3, "Quest_Giver");
+    prop.f.tabKnown = true;
+    prop.f.tabListed = false;                                // unlisted and never moves
+    Sim mirror(4, "Observer");                               // the "your profile" NPC
+    mirror.f.uuid = "00000000-0000-4000-8000-999999999999";
+    Sim bot(5, "Wd_Bot");
+    bot.f.tabKnown = true;
+    bot.f.invisible = true;                                  // hidden and unlisted
+    Sim real(6, "Listed");
+    real.f.tabKnown = real.f.tabListed = true;
+    Sim nick(7, "Nicked");
+    nick.f.uuid = "0b4f2ba3-6c5d-1e8f-9a0b-1c2d3e4f5a6b";   // version 1 (Hypixel nick)
+    nick.f.tabKnown = nick.f.tabListed = true;
+    Sim walker(8, "NotInTab");
+    walker.f.tabKnown = true;                                // unlisted but visibly playing
+    Sim badName(9, "[NPC] Bob");
+    for (Sim* s : {&npc, &prop, &mirror, &bot, &real, &nick, &walker, &badName}) s->f.pos = {s->f.entityId * 6.0, 64, 30};
+    w.add(local);
+    for (Sim* s : {&npc, &prop, &mirror, &bot, &real, &nick, &walker, &badName}) w.add(*s);
+    for (int i = 0; i < 120; ++i) {
+        walker.moveYaw += 3.0;
+        walker.step(1.0, false);
+        bot.moveYaw -= 7.0;
+        bot.step(1.0, true);
+        w.frame();
+    }
+    EXPECT(!w.rec(npc), "v2 NPC was recorded");
+    EXPECT(!w.rec(prop), "unlisted prop was recorded");
+    EXPECT(!w.rec(mirror), "an entity using your name was recorded");
+    EXPECT(!w.rec(bot), "hidden unlisted bot was recorded");
+    EXPECT(!w.rec(badName), "an invalid player name was recorded");
+    EXPECT(w.rec(real) != nullptr, "listed player missing");
+    EXPECT(w.rec(nick) != nullptr, "nicked (v1) player missing");
+    EXPECT(w.rec(walker) != nullptr, "unlisted but active player missing after the grace period");
+    EXPECT(w.engine.filtered().size() == 5, "filtered entities = %zu", w.engine.filtered().size());
+}
+
+static void testDuplicates() {
+    World w;
+    Sim local(1, "Observer");
+    setupLocal(local);
+    Sim a(2, "Twin"), b(3, "Twin");
+    b.f.uuid = a.f.uuid;              // the same player on two entities (respawn overlap, replay copy)
+    b.f.pos = {0.5, 64, 0.5};
+    Sim real(4, "Kestrel"), imposter(5, "Kestrel");
+    real.f.tabKnown = real.f.tabListed = true;
+    imposter.f.uuid = "00000000-0000-4000-8000-777777777777";
+    imposter.f.tabKnown = true;       // unlisted, wearing a listed player's name
+    real.f.pos = {20, 64, 0};
+    imposter.f.pos = {24, 64, 0};
+    w.add(local);
+    w.add(a);
+    w.add(b);
+    w.add(real);
+    w.add(imposter);
+    const int frames = 200;
+    for (int i = 0; i < frames; ++i) {
+        a.moveYaw += 2.0;
+        a.step(1.0, false);
+        real.step(0.3, false);
+        w.frame();
+    }
+    const PlayerRecord* r = w.rec(a);
+    EXPECT(r && std::abs(r->stats.ticksObserved - frames) <= 2, "duplicate entities double-counted (%d ticks for %d frames)",
+           r ? r->stats.ticksObserved : -1, frames);
+    EXPECT(w.rec(real) != nullptr && !w.rec(imposter), "name collision: the listed player is kept, the unlisted twin is not");
+}
+
+static void testMarks() {
+    char tmp[512];
+    std::snprintf(tmp, sizeof(tmp), "%s\\vigil_test_marks.json", std::getenv("TEMP") ? std::getenv("TEMP") : ".");
+    std::remove(tmp);
+    {
+        Marks m;
+        m.setPath(tmp);
+        EXPECT(!m.watched("k1") && !m.confirmed("k1"), "empty store");
+        m.setWatch("k1", "Kestrel", true);
+        m.confirm("k2", "Vale", {"KillAura", "Reach"});
+        EXPECT(m.watched("k1") && !m.confirmed("k1"), "watch");
+        EXPECT(m.confirmed("k2") && m.watched("k2"), "confirming also watches");
+        m.unconfirm("k2");
+        EXPECT(!m.confirmed("k2") && m.watched("k2"), "removing a confirmation keeps the player watched");
+        m.confirm("k2", "Vale", {"KillAura"});
+    }
+    Marks back;
+    back.setPath(tmp);
+    const Mark* k2 = back.find("k2");
+    EXPECT(back.watched("k1") && k2 && k2->confirmed && k2->name == "Vale" && k2->reasons.size() == 1, "marks persist");
+    EXPECT(back.all().front().key == "k2", "confirmed players list first");
+    back.setWatch("k1", "Kestrel", false);
+    EXPECT(!back.find("k1"), "unwatching an unconfirmed player removes the mark");
+    std::remove(tmp);
+}
+
 int main() {
     struct Test { const char* name; void (*fn)(); };
     const Test tests[] = {
@@ -687,6 +1158,20 @@ int main() {
         {"velocity", testVelocity},
         {"autoclicker", testAutoClicker},
         {"noslow", testNoSlow},
+        {"velocity waits for the victim's latency", testVelocityLatency},
+        {"speed ignores lag catch-ups", testSpeedLagCatchUp},
+        {"speed effect that just ended", testExpiringSpeedEffect},
+        {"wall collision is not air strafe", testWallCollisionIsNotStrafe},
+        {"server stall", testServerStall},
+        {"noslow ignores lag catch-ups", testNoSlowLagCatchUp},
+        {"match tracker phases", testMatchTracker},
+        {"post-game is not judged", testPostGameIsQuiet},
+        {"confidence holds while away", testConfidenceHoldsWhileAway},
+        {"carry-over to the next game", testCarryOverToNextGame},
+        {"queue records without judging", testQueueRecordsWithoutJudging},
+        {"NPC and bot classification", testEntityClassification},
+        {"duplicates and name collisions", testDuplicates},
+        {"marks", testMarks},
     };
     for (const Test& t : tests) {
         const int before = g_failures;

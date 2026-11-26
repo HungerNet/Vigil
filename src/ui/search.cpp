@@ -76,10 +76,12 @@ std::vector<Result> collect(PageContext& ctx, const std::string& query) {
     auto& e = ctx.engine;
 
     // Players (and nicked players by the name behind the nick).
-    for (const auto* p : sortedPlayers(e.session(), 0, {}, true)) {
+    for (const auto* p : sortedPlayers(e, 0, {}, true)) {
         identity::Profile ip;
         std::string kw = p->uuid;
-        std::string sub = formatNumber(p->suspicion, 0) + "% suspicion \xC2\xB7 " + (p->present ? "in view" : "left");
+        std::string sub = std::string(tierName(tierOf(p->suspicion))) + " \xC2\xB7 " + presenceLabel(ctx, *p);
+        if (e.marks().confirmed(p->key)) { sub = "Confirmed by you \xC2\xB7 " + sub; kw += " confirmed marked"; }
+        else if (e.marks().watched(p->key)) { sub = "Watching \xC2\xB7 " + sub; kw += " watched marked"; }
         if (identity::Service::instance().find(p->key, ip) && ip.nicked) {
             kw += " nick nicked " + ip.realName;
             for (const auto& c : ip.candidates) kw += " " + c;
@@ -307,8 +309,7 @@ void drawSearch(PageContext& ctx, const Rect& win) {
             ui.fonts.draw(ui.r, type::BodyStrong, row.x + 54.f, row.y + 6.f, r.title, t.text, Align::Left, row.w - 170.f);
             ui.fonts.draw(ui.r, type::Caption, row.x + 54.f, row.y + 25.f, r.subtitle, t.textFaint, Align::Left, row.w - 170.f);
             if (r.suspicion >= 0.f) {
-                ui.fonts.draw(ui.r, type::SmallStrong, row.r() - 16.f, row.y + 14.f, formatNumber(r.suspicion, 0) + "%", t.severity(r.suspicion),
-                              Align::Right);
+                if (tierOf(r.suspicion) != Tier::Clear) suspicionLabel(ui, row.r() - 16.f, row.y + 14.f, r.suspicion, Align::Right);
             } else if (sel) {
                 const float kw = keycapWidth(ui, "Enter");
                 keycap(ui, {row.r() - 16.f - kw, row.cy() - 10.f, kw, 20.f}, "Enter");

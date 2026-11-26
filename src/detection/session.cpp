@@ -54,6 +54,16 @@ PlayerRecord& Session::record(const std::string& key, const std::string& uuid, c
     return players_.back();
 }
 
+int Session::prune(const std::function<bool(const PlayerRecord&)>& drop) {
+    const std::size_t before = players_.size();
+    players_.erase(std::remove_if(players_.begin(), players_.end(), drop), players_.end());
+    if (players_.size() == before) return 0;
+    index_.clear();
+    for (std::size_t i = 0; i < players_.size(); ++i) index_[players_[i].key] = i;
+    ++revision_;
+    return static_cast<int>(before - players_.size());
+}
+
 PlayerRecord* Session::find(const std::string& key) {
     auto it = index_.find(key);
     return it == index_.end() ? nullptr : &players_[it->second];

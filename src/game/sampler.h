@@ -23,6 +23,9 @@ struct SignalStatus {
     bool hurt = false;
     bool profiles = false;        // GameProfile textures (identity tools)
     bool skins = false;           // skin textures (player faces)
+    bool tabList = false;         // NetHandlerPlayClient#getPlayerInfo (NPC filtering)
+    bool latency = false;         // NetworkPlayerInfo#getResponseTime (Velocity response window)
+    bool burning = false;         // Entity#isBurning (Velocity: damage without an attacker)
 };
 
 class Sampler {
@@ -44,16 +47,25 @@ private:
         bool teammate = false;
         bool texturesRead = false;
         unsigned int skinTexture = 0;
+        jobject uuidRef = nullptr;      // global ref to the profile's java.util.UUID (tab-list queries)
+        bool listed = false;
+        int pingMs = -1;
         detection::Tick refreshedAt = -100000;
         detection::Tick teamAt = -100000;
         detection::Tick skinAt = -100000;
+        detection::Tick tabAt = -100000;
     };
     void readProfileExtras(JNIEnv* env, jobject mc, jobject entity, jobject profile, Identity& id, bool isLocal);
 
     bool resolve(JNIEnv* env, jobject mc);
-    void readPlayer(JNIEnv* env, jobject mc, jobject world, jobject entity, bool isLocal, detection::PlayerFrame& f);
+    void readPlayer(JNIEnv* env, jobject mc, jobject world, jobject netHandler, jobject entity, bool isLocal,
+                    detection::PlayerFrame& f);
+    // Block id at a position. Results are cached for a short time per block, so standing players,
+    // hitbox-corner probes and repeated wall probes cost no extra calls into the game.
     int blockAt(JNIEnv* env, jobject world, double x, double y, double z);
+    int probeBlock(JNIEnv* env, jobject world, int bx, int by, int bz);
     void refreshIdentity(JNIEnv* env, jobject mc, jobject entity, Identity& id, bool isLocal);
+    void releaseIdentity(JNIEnv* env, Identity& id);
 
     bool resolved_ = false;
     SignalStatus signals_;
@@ -67,6 +79,8 @@ private:
     std::unordered_map<std::string, unsigned int> faces_;
     std::unordered_map<int, bool> seenIds_;
     std::vector<int> spawns_;
+    struct CachedBlock { int id; detection::Tick at; };
+    std::unordered_map<long long, CachedBlock> blockCache_;
 
     // Classes (global refs)
     jclass clsEntity_ = nullptr, clsLiving_ = nullptr, clsPlayer_ = nullptr, clsOther_ = nullptr;
@@ -104,6 +118,9 @@ private:
     // Skins.
     jclass clsAbstractClient_ = nullptr;
     jmethodID mLocationSkin_ = nullptr, mTextureManager_ = nullptr, mGetTexture_ = nullptr, mGlTextureId_ = nullptr;
+    // Tab list and latency.
+    jmethodID mNetHandler_ = nullptr, mGetPlayerInfo_ = nullptr, mResponseTime_ = nullptr;
+    jmethodID mBurning_ = nullptr;
 };
 
 }  // namespace vigil::game

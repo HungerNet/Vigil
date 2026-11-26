@@ -1,5 +1,9 @@
-// NoSlow — moving at full speed while using an item. Ported from the original check and
-// strengthened with a speed-based indicator.
+// NoSlow — moving at full speed while using an item.
+//
+// Item use multiplies movement input by 0.2 and ends sprinting. Two indicators: the sprint flag
+// staying on during use, and ground speed that stays high long after use began. Speeds are
+// update-aware (a lag catch-up while eating is not "fast"), and the limit includes the momentum
+// the player had when use began, decaying with vanilla ground friction.
 
 #include "../check.h"
 
@@ -13,7 +17,11 @@ struct NoSlowState : PlayerCheckState {
     int sprintUsingTicks = 0;
     Tick lastSprintEvidence = -10000;
     Tick lastSpeedEvidence = -10000;
+    Tick useStart = -10000;
+    double speedAtUseStart = 0.0;
 };
+
+constexpr double kGroundFriction = 0.546;   // 0.6 slipperiness × 0.91
 
 bool slowingItemInUse(const PlayerFrame& f) {
     if (!f.usingItem) return false;
@@ -24,10 +32,9 @@ class NoSlow final : public Check {
 public:
     NoSlow()
         : Check("noslow", "NoSlow", CheckCategory::Movement, "No slowdown while eating, drinking, blocking or drawing a bow",
-                "Using an item in vanilla multiplies movement input by 0.2 and stops sprinting. Vigil watches for "
-                "players who keep their sprint flag for several ticks while using an item, and for players who keep "
-                "moving at walking or sprinting speed on the ground long after the item use began, when momentum "
-                "would already have bled off.") {
+                "Using an item slows movement to a fifth and ends sprinting. Vigil flags players who keep sprinting "
+                "for several ticks while using an item, or who keep moving fast on the ground after their momentum "
+                "should have bled off. Lag catch-ups, ice, slime, knockback and server lag are skipped.") {
         defAlert_ = 70.f;
         defHalfLife_ = 30.f;
         defMinEvidence_ = 3;
@@ -53,18 +60,22 @@ public:
         auto* st = static_cast<NoSlowState*>(base);
         const PlayerFrame& f = t.cur();
         const Exemptions& ex = ctx.exemptions(t);
-        if (!slowingItemInUse(f) || f.riding || ex.movement()) { st->sprintUsingTicks = 0; return; }
+        if (!slowingItemInUse(f) || f.riding || ex.movement() || ex.ice || ex.slime) { st->sprintUsingTicks = 0; return; }
         const Tick now = ctx.tick();
+        if (t.lastUseStartTick() != st->useStart) {
+            // Momentum carried into the item use.
+            st->useStart = t.lastUseStartTick();
+            st->speedAtUseStart = t.horizontalSpeedFresh(4);
+        }
 
         if (f.sprinting) {
             ++st->sprintUsingTicks;
             if (st->sprintUsingTicks >= sprintTicks_->i() && now - st->lastSprintEvidence > 40) {
                 st->lastSprintEvidence = now;
                 ctx.emit(t, iSprint_, static_cast<float>(std::clamp(st->sprintUsingTicks / (sprintTicks_->value * 2.0), 0.4, 1.0)),
-                         fmt("Sprinted for %d ticks while using an item", st->sprintUsingTicks),
-                         fmt("%s kept sprinting for %d consecutive ticks (%d ms) while using item %d. Starting to use "
-                             "an item ends sprinting in vanilla.",
-                             t.name().c_str(), st->sprintUsingTicks, st->sprintUsingTicks * 50, f.heldItem),
+                         fmt("Sprinted %d ticks while using an item", st->sprintUsingTicks),
+                         fmt("Using an item ends sprinting within a tick or two; the sprint flag stayed on for %d ms.",
+                             st->sprintUsingTicks * 50),
                          {{"Sprinting while using", static_cast<double>(st->sprintUsingTicks), "ticks",
                            static_cast<double>(sprintTicks_->i()), true},
                           {"Item", static_cast<double>(f.heldItem), ""}});
@@ -74,18 +85,23 @@ public:
         }
 
         const Tick usingFor = now - t.lastUseStartTick();
-        if (usingFor >= 6 && t.groundTicks() >= 4 && !ex.ice && now - st->lastSpeedEvidence > 20) {
-            const double sp = t.horizontalSpeed(4);
-            const double limit = speedLimit_->value * speedMultiplier(f);
-            if (sp > limit) {
+        if (usingFor >= 6 && t.groundTicks() >= 4 && now - st->lastSpeedEvidence > 20) {
+            const double sp = t.horizontalSpeedFresh(4);
+            const float q = t.dataQuality(6);
+            const double mult = t.maxSpeedMultiplier(static_cast<int>(std::min<Tick>(usingFor, 30)));
+            // Momentum from before the use decays by ground friction each tick (4-tick window).
+            const double carry = st->speedAtUseStart * std::pow(kGroundFriction, static_cast<double>(std::max<Tick>(0, usingFor - 4)));
+            const double limit = std::max(speedLimit_->value * mult, carry);
+            if (q >= 0.6f && sp > limit) {
                 st->lastSpeedEvidence = now;
-                ctx.emit(t, iSpeed_, static_cast<float>(std::clamp((sp / limit - 1.0) / 0.8 + 0.35, 0.35, 1.0)),
+                ctx.emit(t, iSpeed_, static_cast<float>(std::clamp((sp / limit - 1.0) / 0.8 + 0.35, 0.35, 1.0)) * (0.6f + 0.4f * q),
                          fmt("Moved %.2f b/tick while using an item", sp),
-                         fmt("%s had been using item %d for %lld ticks and was on the ground for %d, yet moved %.2f "
-                             "blocks per tick. Vanilla item use slows walking to about 0.06.",
-                             t.name().c_str(), f.heldItem, static_cast<long long>(usingFor), t.groundTicks(), sp),
+                         fmt("%.1f s into using an item, on the ground, at %.2f b/tick. Item use slows walking to about "
+                             "0.06; the limit here is %.2f.",
+                             usingFor * 0.05, sp, limit),
                          {{"Speed while using", sp, "b/tick", limit, true},
-                          {"Using for", static_cast<double>(usingFor), "ticks"}});
+                          {"Using for", static_cast<double>(usingFor), "ticks"},
+                          {"Data quality", q * 100.0, "%"}});
             }
         }
     }

@@ -91,6 +91,10 @@ public:
     // RGBA texture region drawn into `r` (dp). Texture parameters are never modified, so
     // textures owned by the host (e.g. Minecraft skins) are drawn exactly as configured.
     void image(unsigned int texture, const Rect& r, float u0, float v0, float u1, float v1, Color tint = {1, 1, 1, 1});
+    // The texture region mapped onto a disc (circular player faces). The rim is not feathered:
+    // draw a ring over it (playerHalo does) for an anti-aliased edge.
+    void imageDisc(unsigned int texture, float cx, float cy, float radius, float u0, float v0, float u1, float v1,
+                   Color tint = {1, 1, 1, 1});
 
     // Textured quad in dp with a GL_ALPHA texture (used by fonts).
     void beginGlyphs(unsigned int texture, Color c);

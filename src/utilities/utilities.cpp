@@ -173,17 +173,30 @@ bool matchesWhoTrigger(const std::string& cleanLine) {
     return false;
 }
 
+void AutoWho::setEnabled(bool on) {
+    if (enabled_ == on) return;
+    enabled_ = on;
+    if (!on) {
+        // Nothing scheduled, retrying or cooling down survives being turned off.
+        scheduled_ = false;
+        retries_ = 0;
+        lastTrigger_ = -1e18;
+    }
+}
+
 bool AutoWho::onChat(const std::string& cleanLine, double nowMs, double delayMs) {
+    if (!enabled_) return false;
     if (!matchesWhoTrigger(cleanLine)) return false;
     if (nowMs - lastTrigger_ < 3000.0) return false;   // one /who per game start
     lastTrigger_ = nowMs;
     scheduledAt_ = nowMs + std::max(0.0, delayMs);
+    scheduled_ = true;
     retries_ = 0;
     return true;
 }
 
 void AutoWho::markFailed(double nowMs) {
-    if (++retries_ > 8) { reset(); return; }
+    if (!enabled_ || ++retries_ > 8) { reset(); return; }
     scheduledAt_ = nowMs + 250.0;
 }
 

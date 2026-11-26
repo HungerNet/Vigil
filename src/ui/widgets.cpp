@@ -87,6 +87,10 @@ bool Ui::consumeKey(int vk, bool* ctrl, bool* shift) {
 
 Spring& Ui::spring(Id id) { return springs_[id]; }
 
+void Ui::snapSprings() {
+    for (auto& kv : springs_) kv.second.initialized = false;
+}
+
 float& Ui::value(Id id, float init) {
     auto it = values_.find(id);
     if (it == values_.end()) it = values_.emplace(id, init).first;
@@ -743,9 +747,12 @@ float settingRow(Ui& ui, Setting& s, float x, float y, float w, const SettingRow
     const float lw = ui.fonts.draw(ui.r, type::BodyStrong, labelX, y + 11.f, s.label, t.text, Align::Left, labelW - 26.f);
     infoIcon(ui, mixId(id, 11), labelX + lw + 7.f, y + 11.5f, s.tooltip);
     const bool capturing = s.type == SettingType::Key && ui.captureKey == mixId(id, 4);
+    const bool dragging = s.deferred && ui.active == mixId(id, 2) && ui.in.down[0];
     if (capturing) {
         ui.fonts.draw(ui.r, type::Small, labelX, y + 30.f, "Press the new key \xC2\xB7 Esc cancels \xC2\xB7 Backspace clears", t.accent,
                       Align::Left, labelW);
+    } else if (dragging) {
+        ui.fonts.draw(ui.r, type::Small, labelX, y + 30.f, "Applies when you release", t.accent, Align::Left, labelW);
     } else {
         ui.fonts.draw(ui.r, type::Small, labelX, y + 30.f, s.tooltip, t.textFaint, Align::Left, labelW);
     }

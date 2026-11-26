@@ -129,7 +129,20 @@ public:
         add(14, "Wren", 60, -30);
         // A nicked player: Hypixel nicks carry version-1 UUIDs.
         add(15, "Disguised", 64, -26).f.uuid = "0b4f2ba3-6c5d-1e8f-9a0b-1c2d3e4f5a6b";
+        // A shopkeeper NPC (version-2 UUID): filtered, never listed or analyzed.
+        add(16, "Item_Shop", 70, -20).f.uuid = "3c4d5e6f-1a2b-2c3d-8e9f-0a1b2c3d4e5f";
+        // Players from the previous game (present only before the world change).
+        earlier_.emplace_back(31, "Ember", 30, 60);
+        earlier_.emplace_back(32, "Thistle", 34, 60);
+        earlier_.emplace_back(33, "Corvid", 38, 60);
     }
+
+    static std::string uuidOf(int id) {
+        char uuid[64];
+        std::snprintf(uuid, sizeof(uuid), "5f1c%04x-7a2b-4c3d-9e8f-%012d", id, id * 7919);
+        return uuid;
+    }
+    bool previousGame = false;
 
     void step(Tick tick) {
         Sim& you = get("You");
@@ -203,14 +216,27 @@ public:
         if (t < 60 && t % 3 == 0) get("Wren").swing();
     }
 
-    WorldFrame frame(Tick tick, double timeMs) const {
+    WorldFrame frame(Tick tick, double timeMs) {
         WorldFrame w;
         w.tick = tick;
         w.timeMs = timeMs;
         w.context = GameContext::InGame;
         w.contextDetail = "BED WARS";
         for (const Sim& s : sims_) w.players.push_back(s.frame());
+        if (previousGame) {
+            for (Sim& s : earlier_) {
+                s.moveYaw += 1.0;
+                s.physics(0.6, false);
+                w.players.push_back(s.frame());
+            }
+        }
+        w.worldChanged = worldChangePending_;
+        worldChangePending_ = false;
         return w;
+    }
+    void endPreviousGame() {
+        previousGame = false;
+        worldChangePending_ = true;
     }
 
 private:
@@ -250,6 +276,8 @@ private:
     }
 
     std::vector<Sim> sims_;
+    std::vector<Sim> earlier_;
+    bool worldChangePending_ = false;
     std::mt19937 rng_{42};
 };
 
@@ -305,7 +333,7 @@ public:
         s.server = "mc.hypixel.net";
         s.samplerResolved = true;
         for (const char* n : {"Server positions", "Head rotation", "Movement attribute", "Potion effects", "Block probes", "Held items",
-                              "Arm swings", "Hurt animations"}) {
+                              "Arm swings", "Hurt animations", "Player list", "Player latency"}) {
             s.signals.push_back({n, true, ""});
         }
         s.dataDir = dataDirectory();
@@ -460,6 +488,13 @@ struct Options {
     int onboardingStep = 0;
     int frames = 150;
     bool clickAt = false;
+    double scale = 1.0;
+    float wheel = 0.f;                  // wheel notches at the --mouse position on frame 3
+    int dragX0 = -1, dragY0 = -1, dragX1 = -1, dragY1 = -1;   // press, move, keep holding
+    bool release = false;               // release the drag 20 frames before the capture
+    std::vector<std::string> options;   // App::previewOption
+    int transitionTo = -1;              // capture a theme transition in progress
+    int transitionFrames = 8;
 };
 
 LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -542,6 +577,13 @@ int main(int argc, char** argv) {
         else if (a == "--activation") o.activation = true;
         else if (a == "--onboarding") { o.onboarding = true; o.onboardingStep = std::atoi(next().c_str()); }
         else if (a == "--frames") o.frames = std::atoi(next().c_str());
+        else if (a == "--scale") o.scale = std::atof(next().c_str());
+        else if (a == "--wheel") o.wheel = static_cast<float>(std::atof(next().c_str()));
+        else if (a == "--drag") std::sscanf(next().c_str(), "%d,%d,%d,%d", &o.dragX0, &o.dragY0, &o.dragX1, &o.dragY1);
+        else if (a == "--release") o.release = true;
+        else if (a == "--option") o.options.push_back(next());
+        else if (a == "--transition-to") o.transitionTo = std::atoi(next().c_str());
+        else if (a == "--transition-frames") o.transitionFrames = std::atoi(next().c_str());
     }
 
     // Engine + settings (in a temporary directory so the preview never touches real data).
@@ -561,6 +603,16 @@ int main(int argc, char** argv) {
     Settings::instance().find("ui.theme")->set(o.theme);
     Settings::instance().find("ui.accent")->set(o.accent);
     Settings::instance().find("ui.onboarded")->set(o.onboarding ? 0.0 : 1.0);
+    Settings::instance().find("ui.scale")->set(o.scale);
+    // Marks: one confirmed player and one watched player, in a scratch file.
+    {
+        const std::string marks = (std::filesystem::path(tmp) / "marks.json").string();
+        std::remove(marks.c_str());
+        engine.setMarksPath(marks);
+        engine.marks().confirm(Arena::uuidOf(4), "Kestrel", {"KillAura"});
+        engine.marks().setWatch(Arena::uuidOf(7), "Morrow", true);
+        engine.marks().setWatch("5f1c0063-7a2b-4c3d-9e8f-000000999999", "Halloway", true);   // not seen this session
+    }
 
     // Window + GL context.
     WNDCLASSA wc{};
@@ -594,7 +646,9 @@ int main(int argc, char** argv) {
     const double start = qpcMs() - warmTicks * 50.0;
     engine.resetSession(start);
     Tick tick = 0;
+    arena.previousGame = true;   // the first minute is an earlier game in another world
     for (; tick < warmTicks; ++tick) {
+        if (tick == 20 * 60) arena.endPreviousGame();
         arena.step(tick);
         engine.onFrame(arena.frame(tick, start + tick * 50.0));
     }
@@ -622,10 +676,23 @@ int main(int argc, char** argv) {
                 }
                 app.openTo(o.page, playerKey, o.tab, o.section);
                 if (!o.search.empty()) app.openSearch(o.search == "-" ? "" : o.search);
+                for (const auto& opt : o.options) app.previewOption(opt);
             }
-            if (o.mx >= 0) app.onMouseMove(o.mx, o.my);
+            if (o.transitionTo >= 0 && f == o.frames - 1 - o.transitionFrames) Settings::instance().find("ui.theme")->set(o.transitionTo);
+            if (o.mx >= 0 && (o.dragX0 < 0 || f < o.frames / 3)) app.onMouseMove(o.mx, o.my);
+            if (o.wheel != 0.f && f == 3) app.onMouseWheel(o.wheel);
             if (o.clickAt && f == o.frames / 2) { app.onMouseButton(0, true, o.mx, o.my); }
             if (o.clickAt && f == o.frames / 2 + 1) { app.onMouseButton(0, false, o.mx, o.my); }
+            if (o.dragX0 >= 0) {
+                // Press at the start point, glide to the end point over 40 frames, keep holding.
+                const int f0 = o.frames / 3, f1 = f0 + 40, fr = o.frames - 20;
+                if (f == f0) app.onMouseButton(0, true, o.dragX0, o.dragY0);
+                if (f > f0 && f <= f1) {
+                    const float k = static_cast<float>(f - f0) / (f1 - f0);
+                    app.onMouseMove(static_cast<int>(o.dragX0 + (o.dragX1 - o.dragX0) * k), static_cast<int>(o.dragY0 + (o.dragY1 - o.dragY0) * k));
+                }
+                if (o.release && f == fr) app.onMouseButton(0, false, o.dragX1, o.dragY1);
+            }
             if (o.onboarding && o.onboardingStep > 0 && f > 2 && f <= 2 + o.onboardingStep) key(VK_RIGHT, false);
             drawWorld(o.w, o.h, now / 1000.0);
             app.render(o.w, o.h, now, true);

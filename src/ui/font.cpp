@@ -48,7 +48,11 @@ struct Atlas {
     bool dirty = false;
     std::unordered_map<unsigned int, Glyph> glyphs;
     std::map<std::pair<unsigned int, unsigned int>, int> kerning;
+    float digitAdvance = 0.f;      // widest of 0–9 (tabular figures); 0 = not measured yet
+    std::uint64_t lastUsed = 0;    // frame counter (eviction)
 };
+
+bool isDigit(unsigned int cp) { return cp >= '0' && cp <= '9'; }
 
 HMODULE thisModule() {
     HMODULE m = nullptr;
@@ -61,6 +65,7 @@ HMODULE thisModule() {
 
 struct Fonts::Impl {
     float scale = 1.f;
+    std::uint64_t frame = 1;
     bool registered = false;
     std::vector<HANDLE> memFonts;
     std::map<std::pair<int, int>, std::unique_ptr<Atlas>> atlases;
@@ -124,7 +129,10 @@ struct Fonts::Impl {
         const int px = std::max(6, static_cast<int>(std::lround(s.size * scale)));
         auto key = std::make_pair(static_cast<int>(s.face), px);
         auto it = atlases.find(key);
-        if (it != atlases.end()) return *it->second;
+        if (it != atlases.end()) {
+            it->second->lastUsed = frame;
+            return *it->second;
+        }
         auto a = std::make_unique<Atlas>();
         a->pixelSize = px;
         a->font = createFont(s.face, px);
@@ -142,9 +150,33 @@ struct Fonts::Impl {
             for (const auto& p : kp) a->kerning[{p.wFirst, p.wSecond}] = p.iKernAmount;
         }
         SelectObject(dc, old);
+        a->lastUsed = frame;
         Atlas& ref = *a;
         atlases[key] = std::move(a);
         return ref;
+    }
+
+    // Tracking in whole device pixels: measuring and drawing round the same way, so centered and
+    // right-aligned text lands exactly where it was measured and letter spacing stays even.
+    float trackingPx(const TextStyle& s) const { return std::round(s.tracking * scale); }
+
+    float digitAdvance(Atlas& a) {
+        if (a.digitAdvance <= 0.f) {
+            for (unsigned int d = '0'; d <= '9'; ++d) a.digitAdvance = std::max(a.digitAdvance, glyph(a, d).advance);
+        }
+        return a.digitAdvance;
+    }
+
+    // Advance of `cp` in device pixels (tabular digits use the widest digit).
+    float advance(Atlas& a, const TextStyle& s, unsigned int cp) {
+        if (s.tabular && isDigit(cp)) return digitAdvance(a);
+        return glyph(a, cp).advance;
+    }
+
+    int kern(Atlas& a, const TextStyle& s, unsigned int prev, unsigned int cp) const {
+        if (!prev || (s.tabular && (isDigit(prev) || isDigit(cp)))) return 0;
+        auto k = a.kerning.find({prev, cp});
+        return k == a.kerning.end() ? 0 : k->second;
     }
 
     const Glyph& glyph(Atlas& a, unsigned int cp) {
@@ -228,24 +260,41 @@ void Fonts::setScale(float scale) {
     d_->scale = scale;
 }
 
+void Fonts::collect() {
+    Impl& d = *d_;
+    ++d.frame;
+    // An atlas unused for ~10 s belongs to an old scale or window size.
+    for (auto it = d.atlases.begin(); it != d.atlases.end();) {
+        Atlas& a = *it->second;
+        if (d.frame - a.lastUsed > 600) {
+            if (a.tex) glDeleteTextures(1, &a.tex);
+            if (a.font) DeleteObject(a.font);
+            it = d.atlases.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 float Fonts::lineHeight(const TextStyle& s) {
     Atlas& a = d_->atlas(s);
     return static_cast<float>(a.ascent + a.descent) / d_->scale;
+}
+
+float Fonts::ascent(const TextStyle& s) {
+    Atlas& a = d_->atlas(s);
+    return static_cast<float>(a.ascent) / d_->scale;
 }
 
 float Fonts::width(const TextStyle& s, std::string_view text) {
     Atlas& a = d_->atlas(s);
     float w = 0.f;
     unsigned int prev = 0;
-    const float tracking = s.tracking * d_->scale;
+    const float tracking = d_->trackingPx(s);
     for (std::size_t i = 0; i < text.size();) {
         const unsigned int cp = nextCodepoint(text, i);
-        const Glyph& g = d_->glyph(a, cp);
-        if (prev) {
-            auto k = a.kerning.find({prev, cp});
-            if (k != a.kerning.end()) w += static_cast<float>(k->second);
-        }
-        w += g.advance + tracking;
+        w += static_cast<float>(d_->kern(a, s, prev, cp));
+        w += d_->advance(a, s, cp) + tracking;
         prev = cp;
     }
     if (!text.empty()) w -= tracking;
@@ -281,26 +330,29 @@ float Fonts::draw(Renderer& r, const TextStyle& s, float x, float y, std::string
     Atlas& a = d_->atlas(s);
     // Rasterize every glyph first so the texture is current before drawing.
     for (std::size_t i = 0; i < text.size();) d_->glyph(a, nextCodepoint(text, i));
+    if (s.tabular) d_->digitAdvance(a);
     d_->upload(a);
     const float sc = d_->scale;
+    // The pen starts on a whole device pixel and every advance is whole (hinted advances,
+    // whole-pixel tracking, tabular cells rounded), so glyphs never shimmer between pixels.
     float pen = std::round(x * sc);
     const float baseline = std::round(y * sc) + static_cast<float>(a.ascent);
-    const float tracking = s.tracking * sc;
+    const float tracking = d_->trackingPx(s);
     r.beginGlyphs(a.tex, c);
     unsigned int prev = 0;
     for (std::size_t i = 0; i < text.size();) {
         const unsigned int cp = nextCodepoint(text, i);
         const Glyph& g = d_->glyph(a, cp);
-        if (prev) {
-            auto k = a.kerning.find({prev, cp});
-            if (k != a.kerning.end()) pen += static_cast<float>(k->second);
-        }
+        pen += static_cast<float>(d_->kern(a, s, prev, cp));
+        const float adv = d_->advance(a, s, cp);
         if (g.w > 0) {
-            const float gx = std::round(pen) + g.bx;
+            // Tabular digits are centered in their fixed cell.
+            const float cell = (s.tabular && isDigit(cp)) ? std::round((adv - g.advance) * 0.5f) : 0.f;
+            const float gx = std::round(pen) + cell + g.bx;
             const float gy = baseline - g.by;
             r.glyph(gx, gy, gx + g.w, gy + g.h, g.u0, g.v0, g.u1, g.v1);
         }
-        pen += g.advance + tracking;
+        pen += adv + tracking;
         prev = cp;
     }
     r.endGlyphs();

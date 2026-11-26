@@ -1,10 +1,15 @@
 // Speed — horizontal movement faster than the vanilla envelope.
 //
-// Limits are scaled by every movement modifier Vigil can observe (see speedMultiplier in
-// types.h): the server-synced movement-speed attribute, Speed effects, and a conservative
-// allowance when effect data is missing or stale. Movement states that legitimately exceed the
-// flat-ground envelope are exempt or tolerated:
-//   * knockback, teleports, riding, liquids, ladders, cobwebs, flight  (shared exemptions)
+// Measurement. Speeds are taken between the ticks positions were *received* (see
+// PlayerTrack::horizontalSpeedFresh), so a lag catch-up is spread over the time it really covers
+// instead of being squeezed into the window. Evidence strength is scaled by how regular the
+// position updates were.
+//
+// Limits scale with the largest movement multiplier seen over the window (movement attribute,
+// Speed effects, conservative allowance when effect data is stale), so a potion that just ended
+// still explains the movement it produced. Movement states that legitimately exceed the flat-ground
+// envelope are exempt or tolerated:
+//   * knockback, teleports, riding, liquids, ladders, cobwebs, flight, server stalls (shared)
 //   * ice and slime                                                   (momentum surfaces)
 //   * head-hitter jumping under a two-block ceiling                   (short, fast jumps)
 //   * repeated step-up jumps on stairs, slabs and climbs              (shorter air time)
@@ -27,17 +32,17 @@ struct SpeedState : PlayerCheckState {
 constexpr int kCeilingGraceTicks = 20;
 constexpr int kStepUpGraceTicks = 20;
 constexpr double kStepUpTolerance = 1.12;
+constexpr int kMultiplierWindow = 30;   // window + momentum after a modifier ends
 
 class Speed final : public Check {
 public:
     Speed()
         : Check("speed", "Speed", CheckCategory::Movement, "Movement faster than vanilla allows",
-                "Measures horizontal speed from the server-relayed positions over windows long enough to cancel packet "
-                "bunching, and compares it with the vanilla envelope: about 0.28 blocks per tick sprinting on the "
-                "ground and 0.36 sprint-jumping. Limits scale with the player's movement-speed attribute and Speed "
-                "effects. Players are ignored after knockback and teleports, on ice or slime, in liquids, on ladders, "
-                "in cobwebs, while riding or flying, and while jumping under a low ceiling; stair and slab climbing is "
-                "tolerated.") {
+                "Compares horizontal speed with the vanilla envelope: about 0.28 blocks per tick sprinting on the "
+                "ground and 0.36 sprint-jumping, scaled by the player's movement-speed attribute and Speed effects. "
+                "Speeds are measured between received positions, so lag catch-ups don't count. Knockback, "
+                "teleports, ice, slime, liquids, ladders, cobwebs, riding, flight, low ceilings and server lag are "
+                "skipped; stairs and slabs are tolerated.") {
         defAlert_ = 72.f;
         defHalfLife_ = 25.f;
         defMinEvidence_ = 3;
@@ -75,51 +80,53 @@ public:
         if (t.size() < 24) return;
         const PlayerFrame& f = t.cur();
         const Tick now = ctx.tick();
-        const double mult = speedMultiplier(f);
+        const double mult = t.maxSpeedMultiplier(kMultiplierWindow);
         const bool underCeiling = now - t.lastCeilingTick() <= kCeilingGraceTicks;
         const bool steppingUp = now - t.lastStepUpTick() <= kStepUpGraceTicks;
         const double terrain = steppingUp ? kStepUpTolerance : 1.0;
         const std::string modifier = speedMultiplierSource(f);
 
         // Sustained (20 ticks). Head-hitter jumping legitimately exceeds the envelope.
-        const double avg = t.horizontalSpeed(20);
+        const double avg = t.horizontalSpeedFresh(20);
+        const float q20 = t.dataQuality(20);
         const double limit = airLimit_->value * mult * terrain;
-        if (!underCeiling && avg > limit && now - st->lastSustained >= 20) {
+        if (!underCeiling && q20 >= 0.3f && avg > limit && now - st->lastSustained >= 20) {
             st->lastSustained = now;
-            const float sev = static_cast<float>(std::clamp((avg / limit - 1.0) / 0.25 + 0.3, 0.3, 1.0));
-            ctx.emit(t, iSustained_, sev, fmt("Averaged %.2f b/tick for one second", avg),
-                     fmt("%s covered %.1f blocks in one second (%.1f m/s). Vanilla sprint-jumping averages 7.1 m/s; with "
-                         "a movement multiplier of %.2fx (%s)%s the limit in effect was %.2f b/tick.",
-                         t.name().c_str(), avg * 20.0, avg * 20.0, mult, modifier.c_str(),
-                         steppingUp ? " and stair tolerance" : "", limit),
+            const float sev = static_cast<float>(std::clamp((avg / limit - 1.0) / 0.25 + 0.3, 0.3, 1.0)) * (0.6f + 0.4f * q20);
+            ctx.emit(t, iSustained_, sev, fmt("Averaged %.2f b/tick for a second", avg),
+                     fmt("%.1f m/s over one second; the limit with %.2fx movement (%s)%s is %.1f m/s.", avg * 20.0, mult,
+                         modifier.c_str(), steppingUp ? " and stair tolerance" : "", limit * 20.0),
                      {{"Average speed", avg, "b/tick", limit, true},
                       {"Movement multiplier", mult, "x"},
-                      {"On ground", f.onGround ? 1.0 : 0.0, ""}});
+                      {"Data quality", q20 * 100.0, "%"}});
         }
 
         // Ground (12 ticks continuously on ground, not sneaking).
         if (!underCeiling && t.groundTicks() >= 12 && !f.sneaking) {
-            const double g = t.horizontalSpeed(12);
+            const double g = t.horizontalSpeedFresh(12);
+            const float q12 = t.dataQuality(12);
             const double glimit = groundLimit_->value * mult;
-            if (g > glimit && now - st->lastGround >= 20) {
+            if (q12 >= 0.3f && g > glimit && now - st->lastGround >= 20) {
                 st->lastGround = now;
-                const float sev = static_cast<float>(std::clamp((g / glimit - 1.0) / 0.25 + 0.35, 0.35, 1.0));
+                const float sev = static_cast<float>(std::clamp((g / glimit - 1.0) / 0.25 + 0.35, 0.35, 1.0)) * (0.6f + 0.4f * q12);
                 ctx.emit(t, iGround_, sev, fmt("%.2f b/tick without leaving the ground", g),
-                         fmt("For 12 ticks %s stayed on the ground and moved %.2f blocks per tick. Sprinting on flat "
-                             "ground tops out at 0.28; with a movement multiplier of %.2fx (%s) the limit in effect was %.2f.",
-                             t.name().c_str(), g, mult, modifier.c_str(), glimit),
-                         {{"Ground speed", g, "b/tick", glimit, true}, {"Movement multiplier", mult, "x"}});
+                         fmt("Stayed on the ground for 12 ticks at %.2f b/tick. Sprinting tops out at 0.28; with %.2fx "
+                             "movement (%s) the limit is %.2f.",
+                             g, mult, modifier.c_str(), glimit),
+                         {{"Ground speed", g, "b/tick", glimit, true},
+                          {"Movement multiplier", mult, "x"},
+                          {"Data quality", q12 * 100.0, "%"}});
             }
         }
 
-        // Burst (4 ticks).
-        const double b = t.horizontalSpeed(4);
+        // Burst (4 ticks), only on regular data: a burst is exactly what a lag catch-up looks like.
+        const double b = t.horizontalSpeedFresh(4);
         const double blimit = burstLimit_->value * mult;
-        if (b > blimit && b < 4.0 && now - st->lastBurst >= 40) {
+        if (t.dataQuality(8) >= 0.9f && b > blimit && b < 4.0 && now - st->lastBurst >= 40) {
             st->lastBurst = now;
             ctx.emit(t, iBurst_, static_cast<float>(std::clamp(b / (blimit * 2.0), 0.3, 1.0)),
                      fmt("Moved %.2f b/tick for 4 ticks", b),
-                     "A short burst beyond any vanilla movement speed that was not large enough to be a teleport.",
+                     "A short burst beyond any vanilla speed, too small to be a teleport, with regular position updates.",
                      {{"Burst speed", b, "b/tick", blimit, true}, {"Movement multiplier", mult, "x"}});
         }
     }

@@ -140,9 +140,28 @@ struct PlayerFrame {
     bool sprintModifier = false;   // attribute currently includes the vanilla sprint boost
 
     int blockBelow = -1;      // block id under the feet (-1 = unknown)
-    int blockAboveHead = -1;  // block id at feet + 2 (ceiling check)
-    bool wallNear = false;    // solid block within 0.6 horizontally at body height (sampled when hurt)
+    // Block at feet + 2 over the whole hitbox top (any of the blocks the 0.6-wide hitbox touches;
+    // a solid one wins), so ceilings at the edge of an overhang count.
+    int blockAboveHead = -1;
+    bool wallNear = false;    // any wall bit set (sampled when hurt)
+    // Solid blocks around the player at feet and head height, sampled when hurt. Bit i is the
+    // direction i * 45° in MC yaw convention (0 = +Z, 1 = −X/+Z, 2 = −X, … 7 = +X/+Z).
+    std::uint8_t wallMask = 0;
+    bool burning = false;     // on fire: damage without an attacker
+    // Tab list (NetworkPlayerInfo). Real players — including nicked ones — are listed; Hypixel
+    // removes NPC entries shortly after spawning them.
+    bool tabKnown = false;    // the adapter could query the tab list
+    bool tabListed = false;
+    int pingMs = -1;          // the player's latency as reported in the tab list (-1 = unknown)
 };
+
+// Octant (0..7) a horizontal direction points to, matching PlayerFrame::wallMask.
+inline int octantOf(double dx, double dz) {
+    // MC yaw: 0 = +Z, 90 = −X.
+    double yaw = -std::atan2(dx, dz) * 180.0 / 3.14159265358979323846;
+    yaw = std::fmod(yaw + 360.0 + 22.5, 360.0);
+    return static_cast<int>(yaw / 45.0) & 7;
+}
 
 // Movement-speed multiplier applied to every movement limit (Speed, BHop, NoSlow, Scaffold).
 //
@@ -188,6 +207,10 @@ struct WorldFrame {
     GameContext context = GameContext::Unknown;
     std::string contextDetail; // e.g. "Bed Wars"
     std::vector<PlayerFrame> players;
+    // Chat lines received since the previous frame (formatting stripped). The match tracker reads
+    // game-end announcements from them; tests and the preview may leave this empty.
+    std::vector<std::string> chat;
+    bool worldChanged = false; // the client loaded a new world since the previous frame
 };
 
 // ── Geometry helpers ────────────────────────────────────────────────────────────────────────

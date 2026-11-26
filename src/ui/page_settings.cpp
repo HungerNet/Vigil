@@ -107,12 +107,15 @@ void themeTile(PageContext& ctx, const Theme& th, const Rect& rc, bool sel, Id i
     const Rect railR{mini.x, mini.y, 20.f, mini.h};
     ui.r.roundRect(railR, 6.f, th.rail.a > 0.f ? th.rail.withAlpha(1.f) : th.surface);
     for (int k = 0; k < 3; ++k) ui.r.roundRect({railR.x + 5.f, railR.y + 8.f + k * 11.f, 10.f, 4.f}, 2.f, k == 0 ? th.accent : th.textFaint);
+    // The miniature scales with its tile, so narrow tiles (large interface scale) never overflow.
     const Rect card1{railR.r() + 6.f, mini.y, mini.w - 26.f, 26.f};
     ui.r.roundRect(card1, 6.f, th.surface);
     ui.r.roundRectStroke(card1, 6.f, 1.f, th.border);
-    ui.r.roundRect({card1.x + 8.f, card1.y + 7.f, 30.f, 4.f}, 2.f, th.text);
-    ui.r.roundRect({card1.x + 8.f, card1.y + 15.f, 46.f, 4.f}, 2.f, th.textFaint);
-    ui.r.arc(card1.r() - 12.f, card1.cy(), 6.f, 2.f, 0.f, 4.f, th.sevAlert, true);
+    const bool roomForRing = card1.w >= 64.f;
+    const float textRoom = card1.w - 16.f - (roomForRing ? 22.f : 0.f);
+    ui.r.roundRect({card1.x + 8.f, card1.y + 7.f, std::min(30.f, textRoom * 0.6f), 4.f}, 2.f, th.text);
+    ui.r.roundRect({card1.x + 8.f, card1.y + 15.f, std::min(46.f, textRoom), 4.f}, 2.f, th.textFaint);
+    if (roomForRing) ui.r.arc(card1.r() - 12.f, card1.cy(), 6.f, 2.f, 0.f, 4.f, th.severity(80.f), true);
     const Rect card2{railR.r() + 6.f, card1.b() + 6.f, mini.w - 26.f, 30.f};
     ui.r.roundRect(card2, 6.f, th.surface);
     ui.r.roundRectStroke(card2, 6.f, 1.f, th.border);
@@ -228,6 +231,46 @@ void dataActions(PageContext& ctx, float x, float y, float w) {
         if (isArmed) { if (ctx.host) ctx.host->newSession(); armed = -100.f; }
         else armed = static_cast<float>(ui.time);
     }
+}
+
+// The user's marks (watch, confirmed by you): what is stored, where, and how to manage it.
+float marksCard(PageContext& ctx, float x, float y, float w) {
+    Ui& ui = ctx.ui;
+    const Theme& t = ui.th();
+    auto& marks = ctx.engine.marks();
+    const Rect c{x, y, w, 150.f};
+    card(ui, c);
+    sectionHeader(ui, c.x + 22.f, c.y + 18.f, "YOUR MARKS", "watch and confirmed by you");
+    const int confirmed = marks.confirmedCount(), watched = marks.watchedCount();
+    PlayerMarks pm;
+    pm.confirmed = true;
+    float mx = c.x + 22.f;
+    if (confirmed > 0) mx += markChip(ui, mx, c.y + 44.f, pm) + 8.f;
+    ui.fonts.draw(ui.r, type::Body, mx, c.y + 45.f,
+                  std::to_string(confirmed) + " confirmed \xC2\xB7 " + std::to_string(watched) + " watched", t.text);
+    ui.fonts.draw(ui.r, type::Small, c.x + 22.f, c.y + 70.f,
+                  "Your conclusions, stored only on this computer. Checks never read them; Vigil's confidence is separate.",
+                  t.textMuted, Align::Left, c.w - 44.f);
+    const Icon pin = Icon::Pin, rst = Icon::Reset;
+    const float b1 = buttonWidth(ui, "Review in Players", true);
+    if (button(ui, hashId("marks-review"), {c.x + 22.f, c.y + 100.f, b1, 34.f}, "Review in Players", ButtonKind::Secondary, &pin)) {
+        ctx.state.rosterScope = 2;
+        ctx.navigate(Page::Players);
+    }
+    float& armed = ui.value(hashId("marks-clear-armed"), -100.f);
+    const bool isArmed = ui.time - armed < 3.0;
+    const std::string lbl = isArmed ? "Click again to clear " + std::to_string(watched) + " marks" : "Clear all marks";
+    if (watched > 0 &&
+        button(ui, hashId("marks-clear"), {c.x + 34.f + b1, c.y + 100.f, buttonWidth(ui, lbl, true), 34.f}, lbl,
+               isArmed ? ButtonKind::Danger : ButtonKind::Ghost, &rst)) {
+        if (isArmed) {
+            for (const auto& m : marks.all()) marks.remove(m.key);
+            armed = -100.f;
+        } else {
+            armed = static_cast<float>(ui.time);
+        }
+    }
+    return c.h + 14.f;
 }
 
 float keybinds(PageContext& ctx, float x, float y, float w) {
@@ -400,6 +443,7 @@ void drawSettings(PageContext& ctx, const Rect& area) {
     if (name == "Keybinds") y += keybinds(ctx, panel.x, y, w);
     for (const char* g : sec.groups) y += groupCard(ctx, g, panel.x, y, w);
     if (name == "Data") {
+        y += marksCard(ctx, panel.x, y, w);
         dataActions(ctx, panel.x, y, w);
         y += 156.f;
     }

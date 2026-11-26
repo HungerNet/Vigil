@@ -26,11 +26,9 @@ class AutoClicker final : public Check {
 public:
     AutoClicker()
         : Check("autoclicker", "AutoClicker", CheckCategory::Combat, "Machine-regular click timing",
-                "Measures the time between a player's arm swings at tick resolution during combat. Human clicking "
-                "drifts: intervals spread across neighboring ticks. Clicking software produces intervals that repeat "
-                "exactly. Because servers relay at most one swing every few ticks, Vigil reports timing structure "
-                "rather than raw clicks per second and ignores intervals at the relay floor, where every fast "
-                "clicker looks identical. Block placements are excluded.") {
+                "Human clicking drifts across neighboring tick lengths; clicking software repeats one interval "
+                "exactly. Vigil looks at the timing between swings in combat, not raw clicks per second, and ignores "
+                "intervals at the server's relay limit, where every fast clicker looks the same.") {
         defAlert_ = 75.f;
         defHalfLife_ = 60.f;
         defMinEvidence_ = 3;
@@ -102,9 +100,9 @@ public:
             st->sinceEvidence = 0;
             const float sev = static_cast<float>(std::clamp((best + 1.0) / (streak_->i() * 1.5), 0.5, 1.0));
             ctx.emit(t, iStreak_, sev, fmt("%d identical swing intervals of %d ticks", best + 1, bestValue),
-                     fmt("%s swung exactly every %d ticks (%.0f ms) %d times in a row. Human clicking at this pace "
-                         "drifts by at least a tick every few clicks.",
-                         t.name().c_str(), bestValue, bestValue * 50.0, best + 1),
+                     fmt("Exactly %.0f ms between swings, %d times in a row. Human clicking at this pace drifts by a "
+                         "tick every few clicks.",
+                         bestValue * 50.0, best + 1),
                      {{"Run length", best + 1.0, "intervals", static_cast<double>(streak_->i()), true},
                       {"Interval", bestValue * 50.0, "ms"},
                       {"Server relay floor", floor * 50.0, "ms"}});
@@ -129,9 +127,9 @@ public:
                 st->sinceEvidence = 0;
                 const float sev = static_cast<float>(std::clamp((share - modeShare_->value) / (1.0 - modeShare_->value + 1e-6) * 0.6 + 0.4, 0.4, 1.0));
                 ctx.emit(t, iMode_, sev, fmt("%.0f%% of swings exactly %d ticks apart", share * 100.0, modeValue),
-                         fmt("Over the last %d swings, %d were spaced exactly %d ticks (%.0f ms) apart. Human clicking "
-                             "at %.1f swings per second typically spreads across two or three neighboring tick lengths.",
-                             n, modeCount, modeValue, modeValue * 50.0, 20.0 / std::max(1.0, mean)),
+                         fmt("%d of the last %d swings were exactly %.0f ms apart. Human clicking spreads across two "
+                             "or three neighboring intervals.",
+                             modeCount, n, modeValue * 50.0),
                          {{"Dominant interval share", share * 100.0, "%", modeShare_->value * 100.0, true},
                           {"Dominant interval", modeValue * 50.0, "ms"},
                           {"Mean rate", 20.0 / std::max(1.0, mean), "swings/s"}});

@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -17,7 +18,7 @@ struct ConfidencePoint {
     float value = 0.f;
 };
 
-enum class TimelineKind : std::uint8_t { Seen, Left, Evidence, Detection, Hit, Hurt };
+enum class TimelineKind : std::uint8_t { Seen, Left, Evidence, Detection, Hit, Hurt, Carried };
 
 struct TimelineEvent {
     TimelineKind kind = TimelineKind::Seen;
@@ -79,10 +80,16 @@ struct PlayerRecord {
     std::deque<TimelineEvent> timeline;
     BehaviorStats stats;
 
-    float suspicion = 0.f;
+    float suspicion = 0.f;            // live while present; held (as last seen) while away
     float peakSuspicion = 0.f;
     std::vector<ConfidencePoint> suspicionHistory;
-    bool pinned = false;
+
+    // Relevance (PLAN.md §6). A scene is one world or one match; "this game" = the current scene.
+    int scene = -1;                   // scene the player was last seen in
+    int matchScene = -1;              // scene of the last match they took part in
+    int scenesSeen = 0;               // distinct scenes this session
+    bool participant = false;         // seen during the current match (or its queue / post-game)
+    std::string displaySuffix;        // disambiguates two listed players with the same name
 
     // Cross-session history (loaded from disk).
     int priorSessions = 0;
@@ -120,6 +127,8 @@ public:
     const PlayerRecord* find(const std::string& key) const;
     std::vector<PlayerRecord>& players() { return players_; }
     const std::vector<PlayerRecord>& players() const { return players_; }
+    // Removes records for which `drop` returns true; returns how many were removed.
+    int prune(const std::function<bool(const PlayerRecord&)>& drop);
 
     double startMs() const { return startMs_; }
     std::uint64_t startEpochMs() const { return startEpochMs_; }

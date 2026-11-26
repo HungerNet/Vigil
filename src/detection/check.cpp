@@ -33,6 +33,7 @@ std::string Exemptions::describe() const {
     add(flying, "flying");
     add(fresh, "just appeared");
     add(dead, "dead");
+    add(stall, "server lag");
     return s;
 }
 

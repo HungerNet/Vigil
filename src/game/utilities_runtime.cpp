@@ -24,8 +24,9 @@ void UtilitiesRuntime::announce(JNIEnv* env, jobject mc, const std::string& text
 
 void UtilitiesRuntime::onChat(const std::string& line, bool bedwarsPregame, bool hypixel, double nowMs) {
     const auto& s = utilities::settings();
+    autoWho_.setEnabled(s.autoWho && s.autoWho->b());
     if (!hypixel) return;
-    if (s.autoWho && s.autoWho->b()) autoWho_.onChat(line, nowMs, s.autoWhoDelay ? s.autoWhoDelay->value : 400.0);
+    autoWho_.onChat(line, nowMs, s.autoWhoDelay ? s.autoWhoDelay->value : 400.0);
     if (s.partyChat && s.partyChat->b() && bedwarsPregame) party_.onChat(line, nowMs);
 }
 
@@ -171,8 +172,9 @@ void UtilitiesRuntime::update(JNIEnv* env, jobject mc, const ContextDetector& ct
     const auto& s = utilities::settings();
     const bool pregame = hypixel && ctx.bedwarsPregame();
 
-    // Auto Who.
-    if (s.autoWho && s.autoWho->b() && autoWho_.due(nowMs)) {
+    // Auto Who. Turning it off discards anything scheduled; `due` is false while off.
+    autoWho_.setEnabled(s.autoWho && s.autoWho->b());
+    if (autoWho_.due(nowMs)) {
         if (sendChatMessage(env, mc, "/who")) {
             autoWho_.markSent();
             utilities::Activity::instance().add(utilities::Kind::AutoWho, "Sent /who as the game started");

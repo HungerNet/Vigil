@@ -1,5 +1,7 @@
 #include "theme.h"
 
+#include "anim.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -36,6 +38,7 @@ Theme midnight() {
     t.sevNotice = Color::hex(0xE8B35A);
     t.sevAlert = Color::hex(0xF0766A);
     t.sevCritical = Color::hex(0xE5484D);
+    t.verdict = Color::hex(0xC98BFF);
     setChart(t, {0x8FA8FF, 0x5CC8B2, 0xE8B35A, 0xF0766A, 0xB48CFF, 0x5EB8FF});
     return t;
 }
@@ -89,6 +92,7 @@ Theme obsidian() {
     t.textFaint = Color::hex(0x6B6B6B);
     t.textOnAccent = Color::hex(0x000000);
     t.accent = Color::hex(0x4ADE9F);
+    t.verdict = Color::hex(0xC084FC);
     t.radiusWindow = 14.f;
     t.radiusCard = 10.f;
     t.radiusControl = 7.f;
@@ -124,6 +128,7 @@ Theme glacier() {
     t.sevNotice = Color::hex(0xB7791F);
     t.sevAlert = Color::hex(0xD2513F);
     t.sevCritical = Color::hex(0xC9302C);
+    t.verdict = Color::hex(0x8A3FD1);
     setChart(t, {0x4C5FD7, 0x13917B, 0xB7791F, 0xD2513F, 0x8B5CF6, 0x0EA5E9});
     t.shadowStrength = 0.45f;
     t.glow = 0.2f;
@@ -151,6 +156,7 @@ Theme aurora() {
     t.textFaint = Color::hex(0x6B71A0);
     t.textOnAccent = Color::hex(0x051018);
     t.accent = Color::hex(0x5EE0F0);
+    t.verdict = Color::hex(0xE48AFF);
     setChart(t, {0x5EE0F0, 0xB48CFF, 0xF5C26B, 0xFF7A90, 0x7CF29A, 0x8FA8FF});
     t.glow = 0.9f;
     return t;
@@ -246,6 +252,7 @@ Theme paper() {
     t.sevNotice = Color::hex(0xAF7A1C);
     t.sevAlert = Color::hex(0xC4472E);
     t.sevCritical = Color::hex(0xA2201F);
+    t.verdict = Color::hex(0x7A3E9D);
     setChart(t, {0xC4472E, 0x2E8A5E, 0xAF7A1C, 0x3F5FA8, 0x8A4FA0, 0x2C8C9C});
     t.radiusWindow = 14.f;
     t.radiusCard = 10.f;
@@ -282,6 +289,7 @@ Theme signal() {
     t.sevNotice = Color::hex(0xFFD400);
     t.sevAlert = Color::hex(0xFF8A00);
     t.sevCritical = Color::hex(0xFF2D55);
+    t.verdict = Color::hex(0xE040FB);
     setChart(t, {0xFFD400, 0x00E676, 0x40C4FF, 0xFF8A00, 0xE040FB, 0xFFFFFF});
     t.radiusWindow = 12.f;
     t.radiusCard = 8.f;
@@ -294,11 +302,38 @@ Theme signal() {
 int g_theme = -1;
 int g_accent = -1;
 CustomTheme g_custom;
-Theme g_active = midnight();
+Theme g_active = midnight();   // what is on screen (interpolated during a transition)
+Theme g_from = g_active;       // what was on screen when the change began
+Theme g_target = g_active;     // where the transition is going
+bool g_pendingStart = false;
+bool g_transitioning = false;
+double g_changeAt = 0.0;
+double g_lastChangeAt = -10.0;
+float g_duration = 0.42f;
 
 bool sameCustom(const CustomTheme& a, const CustomTheme& b) { return std::memcmp(&a, &b, sizeof(CustomTheme)) == 0; }
 
+Color lerp(const Color& a, const Color& b, float t) { return a.mix(b, t); }
+float lerp(float a, float b, float t) { return a + (b - a) * t; }
+
 }  // namespace
+
+Theme blendThemes(const Theme& a, const Theme& b, float t) {
+    t = std::clamp(t, 0.f, 1.f);
+    Theme o = b;
+    o.light = t < 0.5f ? a.light : b.light;
+    Color Theme::*colors[] = {&Theme::backdropTint, &Theme::windowTop, &Theme::windowBottom, &Theme::rail, &Theme::surface,
+                              &Theme::surfaceRaised, &Theme::surfaceHover, &Theme::inset, &Theme::border, &Theme::borderStrong,
+                              &Theme::divider, &Theme::highlight, &Theme::text, &Theme::textMuted, &Theme::textFaint,
+                              &Theme::textOnAccent, &Theme::accent, &Theme::sevClear, &Theme::sevNotice, &Theme::sevAlert,
+                              &Theme::sevCritical, &Theme::verdict};
+    for (Color Theme::*c : colors) o.*c = lerp(a.*c, b.*c, t);
+    for (int i = 0; i < 6; ++i) o.chart[i] = lerp(a.chart[i], b.chart[i], t);
+    float Theme::*floats[] = {&Theme::backdropBlur, &Theme::radiusWindow, &Theme::radiusCard, &Theme::radiusControl,
+                              &Theme::shadowStrength, &Theme::glow};
+    for (float Theme::*f : floats) o.*f = lerp(a.*f, b.*f, t);
+    return o;
+}
 
 Color hsv(float h, float s, float v) {
     h = std::fmod(std::fmod(h, 360.f) + 360.f, 360.f) / 60.f;
@@ -316,9 +351,12 @@ Color hsv(float h, float s, float v) {
 
 Color Theme::severity(float c) const {
     c = std::clamp(c, 0.f, 100.f);
-    if (c < 35.f) return sevClear.mix(sevNotice, c / 35.f);
-    if (c < 70.f) return sevNotice.mix(sevAlert, (c - 35.f) / 35.f);
-    return sevAlert.mix(sevCritical, (c - 70.f) / 30.f);
+    const Color elevated = sevNotice.mix(sevAlert, 0.45f);
+    if (c < 15.f) return sevClear;
+    if (c < 40.f) return sevClear.mix(sevNotice, (c - 15.f) / 25.f);
+    if (c < 65.f) return sevNotice.mix(elevated, (c - 40.f) / 25.f);
+    if (c < 85.f) return elevated.mix(sevAlert, (c - 65.f) / 20.f);
+    return sevAlert.mix(sevCritical, (c - 85.f) / 15.f);
 }
 
 const std::vector<Theme>& themes() {
@@ -384,16 +422,46 @@ void setTheme(int index, int accentChoice, const CustomTheme& custom) {
     accentChoice = std::clamp(accentChoice, 0, static_cast<int>(accentChoices().size()) - 1);
     const bool isCustom = index == static_cast<int>(all.size());
     if (index == g_theme && accentChoice == g_accent && (!isCustom || sameCustom(custom, g_custom))) return;
+    const bool first = g_theme < 0;
     g_theme = index;
     g_accent = accentChoice;
     g_custom = custom;
-    g_active = isCustom ? deriveCustomTheme(custom) : all[static_cast<std::size_t>(index)];
+    Theme next = isCustom ? deriveCustomTheme(custom) : all[static_cast<std::size_t>(index)];
     if (accentChoice > 0 && !isCustom) {
         Color a = accentChoices()[static_cast<std::size_t>(accentChoice)].second;
-        if (g_active.light) a = a.darker(0.28f);  // keep contrast on light surfaces
-        g_active.accent = a;
-        g_active.chart[0] = a;
+        if (next.light) a = a.darker(0.28f);  // keep contrast on light surfaces
+        next.accent = a;
+        next.chart[0] = a;
     }
+    if (first) {
+        g_active = g_from = g_target = next;
+        return;
+    }
+    // Retarget from whatever is on screen, so a change in the middle of a transition never jumps.
+    g_from = g_active;
+    g_target = next;
+    g_pendingStart = true;
+    g_transitioning = true;
 }
+
+void tickTheme(double now, float motion) {
+    if (!g_transitioning) return;
+    if (g_pendingStart) {
+        g_pendingStart = false;
+        // Scrubbing (the theme editor's sliders) follows quickly; a deliberate change crossfades.
+        g_duration = now - g_lastChangeAt < 0.25 ? 0.12f : 0.42f;
+        g_changeAt = now;
+        g_lastChangeAt = now;
+    }
+    const float k = motion <= 0.01f ? 1.f : static_cast<float>((now - g_changeAt) / (g_duration * (motion < 0.99f ? 0.6f : 1.f)));
+    if (k >= 1.f) {
+        g_active = g_target;
+        g_transitioning = false;
+        return;
+    }
+    g_active = blendThemes(g_from, g_target, ease::emphasized(std::max(0.f, k)));
+}
+
+bool themeTransitioning() { return g_transitioning; }
 
 }  // namespace vigil::ui

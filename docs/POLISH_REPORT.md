@@ -1,6 +1,7 @@
 # Polish & maturity pass — report (1.0-dev.7)
 
-The plan, with all audits as they stood before any code changed, is in [`PLAN.md`](../PLAN.md).
+The plan, with all audits as they stood before any code changed, is archived in
+[`docs/history/PLAN-polish.md`](history/PLAN-polish.md).
 This report records what was done, how it was verified, and what still needs a live client.
 Trust and antivirus findings are in [`TRUST_AUDIT.md`](TRUST_AUDIT.md).
 

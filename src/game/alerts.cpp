@@ -17,7 +17,7 @@ const char* severityColor(float confidence) {
 
 std::string chatPrefix() { return "\xC2\xA7" "8[\xC2\xA7" "9Vigil\xC2\xA7" "8] \xC2\xA7" "r"; }
 
-std::string buildAlertJson(const detection::Alert& alert, const std::string& checkName, bool clickToReport) {
+std::string buildAlertJson(const detection::Alert& alert, const std::string& checkName, bool clickToReport, const ChatMarks& marks) {
     using json::Value;
     char pct[16];
     std::snprintf(pct, sizeof(pct), "%.0f%%", alert.confidence);
@@ -35,6 +35,8 @@ std::string buildAlertJson(const detection::Alert& alert, const std::string& che
     };
     add(hx, checkName, "blue", true);
     add(hx, "  " + std::string(pct) + " confidence\n", severityColor(alert.confidence));
+    if (marks.confirmed) add(hx, "\xE2\x9C\x96 Confirmed by you\n", "light_purple");
+    else if (marks.watched) add(hx, "\xE2\x97\x8E On your watchlist\n", "aqua");
     for (std::size_t i = 0; i < alert.reasons.size(); ++i) {
         add(hx, std::string(i == 0 ? "\n" : "") + "\xE2\x80\xA2 " + alert.reasons[i] + "\n", i == 0 ? "white" : "gray");
     }
@@ -47,6 +49,10 @@ std::string buildAlertJson(const detection::Alert& alert, const std::string& che
     add(ex, "[", "dark_gray");
     add(ex, "Vigil", "blue");
     add(ex, "] ", "dark_gray");
+    // Shapes first, so the line reads without color.
+    if (marks.confirmed) add(ex, "\xE2\x9C\x96 ", "light_purple");
+    else if (marks.watched) add(ex, "\xE2\x97\x8E ", "aqua");
+    if (!marks.glyph.empty()) add(ex, marks.glyph + " ", severityColor(alert.confidence));
     add(ex, alert.name, "white");
     add(ex, " \xC2\xB7 ", "dark_gray");
     add(ex, checkName + " ", "gray");
@@ -69,10 +75,14 @@ std::string buildAlertJson(const detection::Alert& alert, const std::string& che
     return json::write(root, -1);
 }
 
-std::string buildAlertLegacy(const detection::Alert& alert, const std::string& checkName) {
+std::string buildAlertLegacy(const detection::Alert& alert, const std::string& checkName, const ChatMarks& marks) {
     char pct[16];
     std::snprintf(pct, sizeof(pct), "%.0f%%", alert.confidence);
-    return chatPrefix() + "\xC2\xA7" "f" + alert.name + " \xC2\xA7" "8\xC2\xB7 \xC2\xA7" "7" + checkName + " \xC2\xA7" "e" + pct;
+    std::string shapes;
+    if (marks.confirmed) shapes += "\xC2\xA7" "d\xE2\x9C\x96 ";
+    else if (marks.watched) shapes += "\xC2\xA7" "b\xE2\x97\x8E ";
+    if (!marks.glyph.empty()) shapes += "\xC2\xA7" "e" + marks.glyph + " ";
+    return chatPrefix() + shapes + "\xC2\xA7" "f" + alert.name + " \xC2\xA7" "8\xC2\xB7 \xC2\xA7" "7" + checkName + " \xC2\xA7" "e" + pct;
 }
 
 }  // namespace vigil::game

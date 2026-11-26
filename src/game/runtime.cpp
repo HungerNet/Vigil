@@ -5,6 +5,7 @@
 #include "../core/settings.h"
 #include "../identity/identity.h"
 #include "../platform/hooks.h"
+#include "../ui/suspicion.h"
 #include "../ui/widgets.h"
 #include "alerts.h"
 #include "jvm.h"
@@ -48,10 +49,18 @@ void Runtime::registerSettings() {
                                  "Show a notification card when a detection fires. Pressing the menu key while it is "
                                  "visible opens that player."), "Alerts");
     highlight_ = &grp(S.addBool("highlight.enabled", "Suspect Highlight", true,
-                                "Outline players whose overall suspicion is above the threshold, colored by severity."),
+                                "Outline players whose suspicion is above the threshold, in the same colors as their halo. "
+                                "Drawn by Vigil; nametags, teams and the player list are never changed."),
                       "Suspect Highlight");
     highlightAt_ = &grp(S.addFloat("highlight.threshold", "Highlight threshold", 50.0, {10.0, 100.0, 1.0, 0, "%"},
                                    "Overall suspicion at which a player is outlined."), "Suspect Highlight");
+    highlightConfirmed_ = &grp(S.addBool("highlight.confirmed", "Highlight confirmed players", true,
+                                         "Outline players you confirmed, in your verdict color, whatever Vigil's confidence."),
+                               "Suspect Highlight");
+    highlightMarkers_ = &grp(S.addBool("highlight.markers", "Over-head markers", true,
+                                       "A small marker above highlighted players: the confidence ring and a shape for the "
+                                       "tier (\xE2\x97\x87 elevated, \xE2\x97\x86 high, \xE2\x96\xB2 critical) or your verdict."),
+                             "Suspect Highlight");
     grp(S.addInt("highlight.thickness", "Outline width", 2, {1, 6, 1, 0, "px"}, "Line width of the outline."),
         "Suspect Highlight", true);
     highlightFill_ = &grp(S.addBool("highlight.fill", "Tinted volume", true, "Fill the outlined box with a faint tint."),
@@ -110,6 +119,7 @@ void Runtime::initialize(const std::string& dllDirectory, HWND gameWindow) {
         S.save();
     }
     engine_.setHistoryPath((std::filesystem::path(dataDir_) / "history" / "players.json").string());
+    engine_.setMarksPath((std::filesystem::path(dataDir_) / "history" / "marks.json").string());
     engine_.setJournalDirectory((std::filesystem::path(dataDir_) / "sessions").string());
     engine_.resetSession(nowMs());
     initialized_ = true;
@@ -149,7 +159,7 @@ ui::RuntimeStatus Runtime::runtimeStatus() const {
     st.framesPerSecond = frameRate_;
     st.inputHook = platform::windowHookActive();
     st.menuHost = menuHostReady();
-    st.worldHookWanted = highlight_ && highlight_->b();
+    st.worldHookWanted = highlight_ && highlight_->b() && worldHookNeeded_;
     st.worldHook = IsRenderGlobalHookInstalled();
     st.samplerResolved = sampler_.resolved();
     if (sampler_.resolved()) {
@@ -163,6 +173,8 @@ ui::RuntimeStatus Runtime::runtimeStatus() const {
             {"Held items", s.heldItem, "AutoBlock, NoSlow, Scaffold"},
             {"Arm swings", s.swing, "AutoClicker, KillAura, Reach"},
             {"Hurt animations", s.hurt, "Velocity, hit attribution"},
+            {"Player list", s.tabList, "NPC and bot filtering"},
+            {"Player latency", s.latency, "Velocity response window"},
             {"Player skins", s.skins, "player faces"},
         };
     }
@@ -197,7 +209,22 @@ void Runtime::newSession() {
 
 void Runtime::ensureHooks(JNIEnv* env, jobject mc) {
     const double now = nowMs();
-    if (!highlight_->b() || IsRenderGlobalHookInstalled() || now - lastHookTryMs_ < 2000.0) return;
+    if (!highlight_->b() || IsRenderGlobalHookInstalled()) return;
+    // Compatibility: the RenderGlobal swap is installed only once a player actually needs an
+    // outline (most sessions never do), never at startup.
+    if (!worldHookNeeded_) {
+        const float threshold = highlightAt_->f();
+        for (const auto& r : engine_.session().players()) {
+            if (!r.present || r.local) continue;
+            if (r.suspicion >= threshold || (highlightConfirmed_->b() && engine_.marks().confirmed(r.key))) {
+                worldHookNeeded_ = true;
+                log::writef("runtime", "world highlight needed (%s); installing the RenderGlobal hook", r.name.c_str());
+                break;
+            }
+        }
+        if (!worldHookNeeded_) return;
+    }
+    if (now - lastHookTryMs_ < 2000.0) return;
     lastHookTryMs_ = now;
     TryInstallRenderGlobalHook(env, mc, g_injectClassLoaderGlobal);
 }
@@ -222,6 +249,8 @@ void Runtime::readChat(JNIEnv* env, jobject mc, double now) {
     for (const std::string& line : chat_.poll(env, mc)) {
         utilities_.onChat(line, context_.bedwarsPregame(), hypixel_, now);
         identity::Service::instance().onChatLine(line);
+        // The match tracker reads end-of-game announcements from the next frame.
+        if (pendingChat_.size() < 64) pendingChat_.push_back(line);
     }
 }
 
@@ -248,6 +277,7 @@ void Runtime::pump(JNIEnv* env, jobject mc) {
 
     const bool allowed = hypixel_ || anyServer_->b();
     if (allowed) context_.poll(env, mc, now);
+    readChat(env, mc, now);
 
     detection::WorldFrame frame;
     bool worldChanged = false;
@@ -261,11 +291,11 @@ void Runtime::pump(JNIEnv* env, jobject mc) {
         frame.timeMs = now;
         frame.context = allowed ? context_.context() : detection::GameContext::Unknown;
         frame.contextDetail = allowed ? context_.detail() : std::string();
+        frame.chat.swap(pendingChat_);
         engine_.onFrame(frame);
         utilities_.onSpawns(sampler_.takeSpawns(), now);
+        announceMatch(env, mc, now);
     }
-
-    readChat(env, mc, now);
     utilities_.update(env, mc, context_, hypixel_, chat_.available(), now);
     for (const std::string& a : identity::Service::instance().takeAnnouncements()) {
         const auto bar = a.find('|');
@@ -307,12 +337,44 @@ void Runtime::dispatchAlerts(JNIEnv* env, jobject mc) {
         const auto& checks = engine_.checks();
         const std::string checkName = (a.check >= 0 && a.check < static_cast<int>(checks.size())) ? checks[a.check]->name() : "Check";
         if (alertChat_->b()) {
-            if (!printJsonChat(env, mc, buildAlertJson(a, checkName, alertClick_->b()))) {
-                printChat(env, mc, buildAlertLegacy(a, checkName));
+            ChatMarks cm;
+            cm.glyph = ui::tierGlyph(ui::tierOf(a.confidence));
+            cm.confirmed = engine_.marks().confirmed(a.playerKey);
+            cm.watched = engine_.marks().watched(a.playerKey);
+            if (!printJsonChat(env, mc, buildAlertJson(a, checkName, alertClick_->b(), cm))) {
+                printChat(env, mc, buildAlertLegacy(a, checkName, cm));
             }
         }
         if (alertSound_->b()) playSound(env, mc, "note.pling", 1.6f);
     }
+}
+
+// Match briefing in chat (Settings → Alerts → Match briefing: "Screen and chat"). The on-screen
+// card is drawn by the UI; both use ui::buildBriefing, three seconds into the match.
+void Runtime::announceMatch(JNIEnv* env, jobject mc, double /*now*/) {
+    const auto& m = engine_.match();
+    if (m.matchCount() != briefedMatch_) {
+        briefedMatch_ = m.matchCount();
+        briefingChatDueMs_ = m.matchStartedMs() + 3000.0;
+    }
+    if (briefingChatDueMs_ <= 0.0 || engine_.lastTimeMs() < briefingChatDueMs_) return;
+    briefingChatDueMs_ = -1.0;
+    const Setting* mode = Settings::instance().find("alerts.briefing");
+    if (!mode || mode->i() != 2 || !m.inMatch()) return;
+    const ui::Briefing b = ui::buildBriefing(engine_);
+    if (b.entries.empty()) return;
+    std::string line = chatPrefix() + "\xC2\xA7" "7Match briefing \xC2\xB7 " + std::to_string(b.players) + " players:";
+    const std::size_t shown = std::min<std::size_t>(4, b.entries.size());
+    for (std::size_t i = 0; i < shown; ++i) {
+        const ui::BriefingEntry& e = b.entries[i];
+        const std::string shape = e.marks.confirmed ? "\xC2\xA7" "d" + std::string(ui::kGlyphConfirmed)
+                                : e.marks.watched ? "\xC2\xA7" "b" + std::string(ui::kGlyphWatching)
+                                : e.marks.nicked && e.priority == 4 ? "\xC2\xA7" "5" + std::string(ui::kGlyphNicked)
+                                                                    : "\xC2\xA7" "e" + std::string(ui::tierGlyph(ui::Tier::High));
+        line += (i ? " \xC2\xA7" "8\xC2\xB7 " : " ") + shape + " \xC2\xA7" "f" + e.name + " \xC2\xA7" "8(" + e.reason + ")";
+    }
+    if (b.entries.size() > shown) line += " \xC2\xA7" "7+" + std::to_string(b.entries.size() - shown);
+    printChat(env, mc, line);
 }
 
 void Runtime::handleMenu(JNIEnv* env, jobject mc) {
@@ -451,18 +513,31 @@ void Runtime::onRenderEntities(JNIEnv* env, jobject mc, jclass /*mcClass*/) {
     if (!initialized_ || !highlight_ || !highlight_->b()) return;
     const float threshold = highlightAt_->f();
     const bool fill = highlightFill_->b();
-    // Map entity id → suspicion for players currently in view.
-    RenderSuspectHighlights(env, mc, [&](int entityId, int& rgb, float& alpha) {
+    const bool confirmedToo = highlightConfirmed_->b();
+    const bool markers = highlightMarkers_->b();
+    // The same language as the halo: the active theme's severity color for Vigil's confidence, the
+    // verdict color for players the user confirmed. NPCs have no records, so they are never drawn.
+    const ui::Theme& th = ui::theme();
+    auto rgbOf = [](const ui::Color& c) {
+        return (static_cast<int>(c.r * 255.f + 0.5f) << 16) | (static_cast<int>(c.g * 255.f + 0.5f) << 8) | static_cast<int>(c.b * 255.f + 0.5f);
+    };
+    RenderSuspectHighlights(env, mc, [&](int entityId, HighlightStyle& s) {
         for (const auto& r : engine_.session().players()) {
             if (r.entityId != entityId || !r.present || r.local) continue;
-            if (r.suspicion < threshold) return false;
-            // Severity scale: notice amber → alert coral → critical red.
-            const float t = std::clamp((r.suspicion - threshold) / std::max(1.f, 100.f - threshold), 0.f, 1.f);
-            const int r0 = 0xE8, g0 = 0xB3, b0 = 0x5A;   // notice
-            const int r1 = 0xE5, g1 = 0x48, b1 = 0x4D;   // critical
-            rgb = (static_cast<int>(r0 + (r1 - r0) * t) << 16) | (static_cast<int>(g0 + (g1 - g0) * t) << 8) |
-                  static_cast<int>(b0 + (b1 - b0) * t);
-            alpha = fill ? 0.06f + 0.08f * t : 0.f;
+            const bool confirmed = confirmedToo && engine_.marks().confirmed(r.key);
+            if (r.suspicion < threshold && !confirmed) return false;
+            const ui::Tier tier = ui::tierOf(r.suspicion);
+            // Outline: the verdict color for a confirmed player, otherwise Vigil's severity color.
+            // Marker ring: always Vigil's confidence (as on the halo); the glyph shows the verdict.
+            s.rgb = confirmed ? rgbOf(th.verdict) : rgbOf(th.severity(r.suspicion));
+            s.ringRgb = rgbOf(th.severity(r.suspicion));
+            const float k = std::clamp((r.suspicion - threshold) / std::max(1.f, 100.f - threshold), 0.f, 1.f);
+            s.fillAlpha = fill ? 0.06f + 0.08f * k : 0.f;
+            s.marker = markers;
+            s.tier = tier == ui::Tier::Critical ? 3 : tier == ui::Tier::High ? 2 : tier == ui::Tier::Elevated ? 1 : 0;
+            s.confidence = r.suspicion;
+            s.confirmed = confirmed;
+            s.verdictRgb = rgbOf(th.verdict);
             return true;
         }
         return false;

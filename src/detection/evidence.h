@@ -72,6 +72,10 @@ public:
     void markDetected(double nowMs) { lastDetectionMs_ = nowMs; }
     double lastDetectionMs() const { return lastDetectionMs_; }
     void reset() { *this = ConfidenceModel{}; }
+    // The player was out of view: nothing was observed, so nothing decays. Restarts the decay clock
+    // at `nowMs` without charging the absence. `carry` < 1 (a new game) scales the value and empties
+    // the evidence-gate window, so carried confidence can never complete a detection on its own.
+    void resume(double nowMs, float carry = 1.f);
 
 private:
     float value_ = 0.f;

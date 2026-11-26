@@ -31,6 +31,9 @@ struct Theme {
     Color text, textMuted, textFaint, textOnAccent;
     Color accent;
     Color sevClear, sevNotice, sevAlert, sevCritical;
+    // The user's own conclusion ("Confirmed by you"). Deliberately outside the severity scale and
+    // distinct from the accent, so a verdict can never be mistaken for Vigil's confidence.
+    Color verdict;
     Color chart[6];
 
     float radiusWindow = 18.f;
@@ -40,8 +43,13 @@ struct Theme {
     float glow = 0.5f;            // accent glow intensity
 
     Color accentSoft() const { return accent.withAlpha(light ? 0.12f : 0.14f); }
-    Color severity(float confidence) const;   // 0..100
+    // Continuous severity color for a confidence (0..100). Stops sit on the suspicion tiers
+    // (src/ui/suspicion.h): 15 clear · 40 notice · 65 between notice and alert · 85 alert · 100 critical.
+    Color severity(float confidence) const;
 };
+
+// Linear blend of two themes (colors, radii, glow, shadow). `light` follows the nearer theme.
+Theme blendThemes(const Theme& a, const Theme& b, float t);
 
 // Parameters of the Custom theme (Settings → Appearance → Theme editor).
 struct CustomTheme {
@@ -59,7 +67,12 @@ Theme deriveCustomTheme(const CustomTheme& c);
 Color hsv(float hueDeg, float s, float v);
 
 // Active theme with user accent applied. `index == themes().size()` selects the Custom theme.
+// Changing the theme starts a transition: the active theme is interpolated from what was on screen
+// to the new target by tickTheme(), so a theme change is a crossfade rather than a cut.
 const Theme& theme();
 void setTheme(int index, int accentChoice, const CustomTheme& custom);
+// Advances the transition (call once per frame). `motion` 0 = instant.
+void tickTheme(double nowSec, float motion);
+bool themeTransitioning();
 
 }  // namespace vigil::ui

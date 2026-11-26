@@ -33,6 +33,9 @@ struct Setting {
     SettingRange range;
     std::vector<std::string> choices;  // Choice labels
     bool advanced = false;
+    // Applied by its consumer only when a drag on its control ends (e.g. interface scale, whose
+    // slider would otherwise move under the cursor while it is being dragged).
+    bool deferred = false;
     // When set, `warning` is shown while this predicate returns true.
     std::function<bool(const Setting&)> warnWhen;
 

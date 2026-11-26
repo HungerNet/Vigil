@@ -20,6 +20,8 @@ enum class Icon {
     Search, Info, Reset, ChevronRight, ChevronDown, ChevronLeft, Back, ArrowRight, Close, Check, Warning, Clock, Pin, Export,
     Folder, Bell, Palette, Database, Pulse, Target, Filter, Plus, Minus, Dot, Bolt, Spark, Report, Layers, Keyboard, Copy,
     Eye, TrendUp, TrendDown, Globe, Play, Plug, Chip, Mask,
+    // Investigation marks and relevance.
+    Shield, ShieldCheck, Bot, History,
 };
 
 void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, float stroke = 1.6f);

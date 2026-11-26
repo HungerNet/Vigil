@@ -41,6 +41,65 @@ Vec3 PlayerTrack::velocity(int k, int span) const {
     return (back(a).pos - back(b).pos) * (1.0 / ticks);
 }
 
+Tick PlayerTrack::updateTickAt(int k) const {
+    if (updateTicks_.empty()) return 0;
+    k = std::clamp(k, 0, size() - 1);
+    return updateTicks_[updateTicks_.size() - 1 - static_cast<std::size_t>(k)];
+}
+
+double PlayerTrack::horizontalSpeedFresh(int window) const {
+    if (size() < 2) return 0.0;
+    window = std::clamp(window, 1, size() - 1);
+    // The current position was received at `ue`; the one held `window` ticks ago at `us`
+    // (earlier than the window start when updates were missing). Standing still also sends no
+    // updates, so a movement that just began reads slightly slow — never fast.
+    const Tick ue = updateTickAt(0);
+    const Tick us = updateTickAt(window);
+    const double elapsed = static_cast<double>(ue - us);
+    if (elapsed <= 0.0) return 0.0;
+    return (back(0).pos - back(window).pos).horizontalLength() / elapsed;
+}
+
+Vec3 PlayerTrack::velocityFresh(int k, int span) const {
+    if (size() < 2) return {};
+    const int a = std::clamp(k, 0, size() - 1);
+    int b = std::clamp(k + std::max(1, span), 0, size() - 1);
+    const Tick ua = updateTickAt(a);
+    // Reach back to a different received position (bunched updates share one arrival tick).
+    while (b < size() - 1 && b < k + span + 4 && updateTickAt(b) == ua) ++b;
+    const Tick ub = updateTickAt(b);
+    if (ua <= ub) return {};
+    return (back(a).pos - back(b).pos) * (1.0 / static_cast<double>(ua - ub));
+}
+
+int PlayerTrack::maxUpdateGap(int window) const {
+    if (size() < 2) return 0;
+    window = std::clamp(window, 1, size() - 1);
+    Tick prev = updateTickAt(0);
+    int gap = static_cast<int>(tickAt(0) - prev);   // time since the last update
+    for (int k = 1; k <= window; ++k) {
+        const Tick u = updateTickAt(k);
+        if (u != prev) {
+            gap = std::max(gap, static_cast<int>(prev - u));
+            prev = u;
+        }
+    }
+    return gap;
+}
+
+float PlayerTrack::dataQuality(int window) const {
+    const int g = maxUpdateGap(window);
+    if (g <= 3) return 1.f;
+    return std::clamp(1.f - static_cast<float>(g - 3) / 9.f, 0.f, 1.f);
+}
+
+double PlayerTrack::maxSpeedMultiplier(int window) const {
+    double m = 1.0;
+    const int n = std::min(window, size() - 1);
+    for (int k = 0; k <= n; ++k) m = std::max(m, speedMultiplier(back(k)));
+    return m;
+}
+
 void PlayerTrack::push(const PlayerFrame& f, Tick tick, double /*timeMs*/) {
     const PlayerFrame* prev = frames_.empty() ? nullptr : &frames_.back();
     const Tick prevTick = ticks_.empty() ? tick : ticks_.back();
@@ -87,11 +146,14 @@ void PlayerTrack::push(const PlayerFrame& f, Tick tick, double /*timeMs*/) {
     if (f.blocking && (!prev || !prev->blocking)) blockStartTick_ = tick;
     if (f.usingItem && (!prev || !prev->usingItem)) useStartTick_ = tick;
 
+    const Tick received = (!prev || positionUpdated_ || updateTicks_.empty()) ? tick : updateTicks_.back();
     frames_.push_back(f);
     ticks_.push_back(tick);
+    updateTicks_.push_back(received);
     while (static_cast<int>(frames_.size()) > kCapacity) {
         frames_.pop_front();
         ticks_.pop_front();
+        updateTicks_.pop_front();
     }
 
     updateAir(f, prev, tick);
@@ -114,7 +176,9 @@ void PlayerTrack::updateAir(const PlayerFrame& f, const PlayerFrame* prev, Tick 
         currentAir_.apexY = std::max(currentAir_.apexY, f.pos.y);
         currentAir_.horizontalDistance += (f.pos - prev->pos).horizontalLength();
         if (!positionUpdated_) ++currentAir_.dataGaps;
-        if (currentAir_.airTicks == 3) currentAir_.startVelocity = velocity(0, 2).horizontal();
+        currentAir_.maxGap = std::max(currentAir_.maxGap, static_cast<int>(tick - updateTicks_.back()));
+        // Span takeoff+1 … takeoff+5: after the jump impulse, wide enough to average bunching.
+        if (currentAir_.airTicks == 5) currentAir_.startVelocity = velocityFresh(0, 4).horizontal();
         if (f.potions.jumpBoost > currentAir_.jumpBoost) currentAir_.jumpBoost = f.potions.jumpBoost;
         if (mc::isSolidish(f.blockAboveHead) && f.pos.y - currentAir_.takeoffY < 0.6) currentAir_.ceilingAtTakeoff = true;
         if (f.onGround) {
@@ -122,8 +186,8 @@ void PlayerTrack::updateAir(const PlayerFrame& f, const PlayerFrame* prev, Tick 
             landed_ = true;
             currentAir_.landTick = tick;
             currentAir_.landY = f.pos.y;
-            // Velocity just before touchdown: ticks [k=1..3].
-            currentAir_.endVelocity = velocity(1, 2).horizontal();
+            // Velocity just before touchdown: landing−5 … landing−1.
+            currentAir_.endVelocity = currentAir_.airTicks >= 9 ? velocityFresh(1, 4).horizontal() : Vec3{};
             if (currentAir_.landY > currentAir_.takeoffY + 0.4) lastStepUpTick_ = tick;
             airSegments_.push_back(currentAir_);
             while (airSegments_.size() > 24) airSegments_.pop_front();

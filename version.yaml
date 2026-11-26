@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.7'
+version: '1.0-dev.8'
 description: |
   Dev 1:
   - Initial release
@@ -19,3 +19,8 @@ description: |
     merged player profiles, global search, redesigned detection notifications,
     onboarding, keybinds, Utilities (Auto Who, Fast Buy, party detectors),
     denickers, new themes and theme editor, refined logo, movement-check fixes
+  Dev 8:
+  - Quality, relevance & UX pass: current-game roster, match phases and briefing,
+    NPC/bot filtering, duplicate handling, confidence halos, Confirmed by you,
+    latency-aware Velocity and update-aware Speed/BHop/NoSlow, stable interface
+    scaling, theme transitions, typography and icon refinements, compatibility fixes

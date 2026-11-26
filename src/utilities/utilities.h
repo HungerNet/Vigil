@@ -87,18 +87,25 @@ std::string trim(const std::string& s);
 // Game-start lines across Hypixel modes (Bed Wars, Duels, SkyWars, Murder Mystery, …).
 bool matchesWhoTrigger(const std::string& cleanLine);
 
+// Disabled means fully disabled: while off, chat lines schedule nothing, nothing is due, and
+// turning it off discards anything already scheduled or retrying (it is never sent later).
 class AutoWho {
 public:
+    // Call before onChat/due with the current toggle state.
+    void setEnabled(bool on);
+    bool enabled() const { return enabled_; }
     // Returns true when a /who was scheduled by this line.
     bool onChat(const std::string& cleanLine, double nowMs, double delayMs);
     // Returns true when /who should be sent now. Call markSent() or markFailed() after trying.
-    bool due(double nowMs) const { return scheduledAt_ > 0.0 && nowMs >= scheduledAt_; }
-    void markSent() { scheduledAt_ = 0.0; retries_ = 0; }
+    bool due(double nowMs) const { return enabled_ && scheduled_ && nowMs >= scheduledAt_; }
+    void markSent() { scheduled_ = false; retries_ = 0; }
     void markFailed(double nowMs);
-    void reset() { scheduledAt_ = 0.0; retries_ = 0; }
-    bool pending() const { return scheduledAt_ > 0.0; }
+    void reset() { scheduled_ = false; retries_ = 0; }
+    bool pending() const { return scheduled_; }
 
 private:
+    bool enabled_ = false;
+    bool scheduled_ = false;
     double lastTrigger_ = -1e18;
     double scheduledAt_ = 0.0;
     int retries_ = 0;

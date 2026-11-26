@@ -32,10 +32,17 @@ That's all — there are no other files to keep track of. Vigil stores its setti
 - **Eleven checks on one framework:** KillAura, Reach, AutoClicker, Velocity, AutoBlock, Speed,
   BHop, NoSlow, Scaffold (Keep-Y), Scaffold (Flat) and LegitScaff, each with independent
   indicators, a confidence model with decay and an evidence gate. Movement limits follow each
-  player's real movement modifiers.
+  player's real movement modifiers; measurements account for latency, lag catch-ups and server
+  stalls.
+- **Focused on your game:** Vigil knows lobbies, queues, matches and post-game. The roster shows
+  the current game first; NPCs, bots and duplicate entities never appear or get analyzed. A short
+  match briefing names the players worth knowing about.
+- **Confidence you can read at a glance:** every player wears a halo — a ring that fills and grows
+  heavier with Vigil's confidence — in the roster, profiles, notifications and the world.
+- **Your conclusions, kept separate:** watch players or mark them **Confirmed by you**. Vigil never
+  does this on its own, and your marks never change its confidence.
 - **Player profiles:** confidence over the session, what drives it and how it evolved; the
-  evidence timeline with an inspector that explains every observation numerically; behavior;
-  identity.
+  evidence timeline with an inspector that explains every observation; behavior; identity.
 - **Denickers:** recognises nicked players, identifies the account behind a nick that kept its
   own skin, and (with your own Bordic key) matches Bed Wars final/bed counters.
 - **Utilities:** Auto Who, Fast Buy, Party Detector and Party Queue Detector — off until you turn
@@ -91,9 +98,10 @@ docs/            design, audits and reports
 
 ## Documentation
 
-[Plan](PLAN.md) · [Polish report](docs/POLISH_REPORT.md) · [Trust audit](docs/TRUST_AUDIT.md) ·
-[Detection framework](docs/DETECTION_FRAMEWORK.md) · [Detection redesign](docs/DETECTION_REDESIGN.md) ·
-[UI/UX](docs/UI_UX.md) · [Brand](docs/BRAND.md) · [2.0 plan](docs/history/PLAN-2.0.md) ·
+[Plan](PLAN.md) · [Quality report](docs/QUALITY_REPORT.md) · [Polish report](docs/POLISH_REPORT.md) ·
+[Trust audit](docs/TRUST_AUDIT.md) · [Detection framework](docs/DETECTION_FRAMEWORK.md) ·
+[Detection redesign](docs/DETECTION_REDESIGN.md) · [UI/UX](docs/UI_UX.md) · [Brand](docs/BRAND.md) ·
+[Polish plan](docs/history/PLAN-polish.md) · [2.0 plan](docs/history/PLAN-2.0.md) ·
 [2.0 implementation summary](docs/IMPLEMENTATION_SUMMARY.md)
 
 Inter typeface © The Inter Project Authors, SIL Open Font License 1.1 (`assets/fonts/LICENSE-Inter.txt`).

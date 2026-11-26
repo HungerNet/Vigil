@@ -70,6 +70,9 @@ public:
     bool consumeKey(int vk, bool* ctrl = nullptr, bool* shift = nullptr);
 
     Spring& spring(Id id);
+    // Layout moved under every spring (interface scale or window size changed): springs jump to
+    // their next target instead of gliding across the screen from stale positions.
+    void snapSprings();
     float& value(Id id, float init = 0.f);
     float anim(Id id, float target, float rate = 14.f);   // exponential approach helper
     float springTo(Id id, float target, float stiffness = 260.f, float damping = 26.f);

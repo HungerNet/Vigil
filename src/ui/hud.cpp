@@ -11,11 +11,19 @@ namespace {
 
 constexpr float kActivationLife = 7.5f;
 constexpr float kNoticeLife = 2.4f;
+constexpr float kBriefingLife = 7.5f;
+constexpr int kBriefingRows = 4;
 constexpr int kMaxToasts = 3;
 constexpr float kToastW = 364.f;
 constexpr float kToastH = 112.f;
 
 }  // namespace
+
+void Hud::showBriefing(const Briefing& b, double now) {
+    if (b.entries.empty()) return;
+    briefing_ = b;
+    briefingAt_ = now;
+}
 
 void Hud::onAlert(const detection::Alert& a, double now) {
     // Repeat detections for a player already on screen update that card instead of stacking.
@@ -53,6 +61,7 @@ void Hud::notify(const std::string& title, const std::string& body, double now) 
 void Hud::clear() {
     toasts_.clear();
     notices_.clear();
+    briefingAt_ = -100.0;
 }
 
 float Hud::lifeOf(const Toast& t, float base) const {
@@ -63,6 +72,7 @@ float Hud::lifeOf(const Toast& t, float base) const {
 
 bool Hud::idle(double now) const {
     if (now - activationAt_ < kActivationLife + 0.5) return false;
+    if (now - briefingAt_ < kBriefingLife + 0.5) return false;
     if (!notices_.empty()) return false;
     return toasts_.empty();
 }
@@ -78,6 +88,7 @@ void Hud::draw(const Context& c) {
     lastLife_ = c.lifeSec;
     if (c.showToasts) drawToasts(c);
     drawActivation(c);
+    drawBriefing(c);
     drawNotices(c);
 }
 
@@ -126,29 +137,36 @@ void Hud::drawToasts(const Context& c) {
         ui.r.shadow(box, 16.f, 30.f, Color(0, 0, 0, t.light ? 0.18f : 0.55f), 12.f);
         ui.r.roundRectGradient(box, 16.f, t.surfaceRaised.lighter(t.light ? 0.f : 0.035f), t.surfaceRaised);
         ui.r.roundRectStroke(box, 16.f, 1.f, t.borderStrong.mix(sev, 0.25f + 0.5f * bump));
-        // Severity edge: an inset pill, so it never crosses the rounded corners.
-        ui.r.roundRect({box.x + 6.f, box.y + 16.f, 3.f, box.h - 32.f}, 1.5f, sev);
 
-        // Confidence ring with the check glyph.
-        const float rcx = box.x + 38.f, rcy = box.y + 40.f;
-        confidenceRing(ui, mixId(hashId("toast-ring"), hashId(tt.playerKey)), rcx, rcy, 21.f, tt.confidence, 3.5f, true);
+        // The player's halo: the same face, ring and marks as everywhere else in Vigil.
+        const PlayerMarks marks = marksOf(c.engine, tt.playerKey);
+        HaloStyle hs;
+        hs.confidence = tt.confidence;
+        hs.marks = marks;
+        hs.pulseAt = tt.updated;
+        hs.cutout = t.surfaceRaised;
+        playerHalo(ui, c.host, mixId(hashId("toast-halo"), hashId(tt.playerKey)), tt.playerKey, tt.name, {box.x + 14.f, box.y + 16.f, 50.f, 50.f}, hs);
 
         const std::string checkName = tt.check >= 0 && tt.check < static_cast<int>(checks.size())
                                           ? checks[static_cast<std::size_t>(tt.check)]->name() : "Detection";
         std::string over = "DETECTION \xC2\xB7 " + checkName;
         if (tt.checks.size() > 1) over += " +" + std::to_string(tt.checks.size() - 1);
-        const float tx = box.x + 72.f;
-        ui.fonts.draw(ui.r, type::Overline, tx, box.y + 14.f, over, sev, Align::Left, kToastW - 140.f);
+        const float tx = box.x + 76.f;
+        ui.fonts.draw(ui.r, type::Overline, tx, box.y + 15.f, over, sev, Align::Left, kToastW - 140.f);
         if (tt.count > 1) {
             const std::string cnt = "\xC3\x97" + std::to_string(tt.count);
             const float cw = chipWidth(ui, cnt);
-            chip(ui, {box.r() - cw - 14.f, box.y + 10.f, cw, 19.f}, cnt, sev);
+            chip(ui, {box.r() - cw - 14.f, box.y + 11.f, cw, 19.f}, cnt, sev);
         }
-        // Player line: face + name + trend since first notification.
-        playerAvatarByKey(ui, c.host, tt.playerKey, tt.name, tt.confidence, {tx, box.y + 31.f, 20.f, 20.f});
-        const float nw = ui.fonts.draw(ui.r, type::Title, tx + 28.f, box.y + 31.f, tt.name, t.text, Align::Left, kToastW - 170.f);
-        trendLabel(ui, tx + 36.f + nw, box.y + 35.f, tt.confidence - tt.firstConfidence);
-        ui.fonts.draw(ui.r, type::Small, tx, box.y + 56.f, tt.summary, t.textMuted, Align::Left, kToastW - 88.f);
+        // Name, Vigil's tier, and the user's verdict when there is one.
+        const float nw = ui.fonts.draw(ui.r, type::Title, tx, box.y + 31.f, tt.name, t.text, Align::Left, kToastW - 180.f);
+        float lx = tx + nw + 8.f;
+        if (marks.confirmed && lx + 20.f < box.r() - 14.f) {
+            drawIcon(ui.r, Icon::ShieldCheck, lx, box.y + 33.f, 16.f, t.verdict, 1.7f);
+            lx += 22.f;
+        }
+        trendLabel(ui, lx, box.y + 35.f, tt.confidence - tt.firstConfidence);
+        ui.fonts.draw(ui.r, type::Small, tx, box.y + 56.f, tt.summary, t.textMuted, Align::Left, kToastW - 90.f);
 
         // Confidence over the last minute.
         if (const detection::PlayerRecord* rec = c.engine.session().find(tt.playerKey)) {
@@ -263,6 +281,58 @@ void Hud::drawActivation(const Context& c) {
     ui.r.popAlpha();
 }
 
+// ── Match briefing ───────────────────────────────────────────────────────────────────────────
+// Shown a few seconds into a match, only when someone in it is worth knowing about.
+
+void Hud::drawBriefing(const Context& c) {
+    const double age = c.now - briefingAt_;
+    if (age < 0.0 || age > kBriefingLife + 0.35 || briefing_.entries.empty()) return;
+    Ui& ui = c.ui;
+    const Theme& t = ui.th();
+    const int rows = std::min<int>(kBriefingRows, static_cast<int>(briefing_.entries.size()));
+    const int more = static_cast<int>(briefing_.entries.size()) - rows;
+    const float w = 420.f;
+    const float h = 50.f + rows * 38.f + (more > 0 ? 24.f : 0.f) + 10.f;
+    const float in = ease::emphasized(motion::progress(c.now, briefingAt_, 0.36f));
+    const float out = age > kBriefingLife ? ease::inOutCubic(static_cast<float>((age - kBriefingLife) / 0.35)) : 0.f;
+    const float top = c.now - activationAt_ < kActivationLife ? 236.f : 26.f;
+    const Rect box{(ui.r.width() - w) * 0.5f, top - (1.f - in) * motion::travel(16.f) - out * motion::travel(10.f), w, h};
+    ui.r.pushAlpha(in * (1.f - out));
+    ui.r.shadow(box, 18.f, 36.f, Color(0, 0, 0, t.light ? 0.18f : 0.55f), 12.f);
+    ui.r.roundRectGradient(box, 18.f, t.windowTop, t.windowBottom);
+    ui.r.roundRectStroke(box, 18.f, 1.f, t.borderStrong);
+    drawLogo(ui.r, box.x + 18.f, box.y + 15.f, 20.f, t.text, t.accent);
+    ui.fonts.draw(ui.r, type::Overline, box.x + 46.f, box.y + 13.f, "MATCH BRIEFING", t.accent);
+    ui.fonts.draw(ui.r, type::BodyStrong, box.x + 46.f, box.y + 27.f,
+                  std::to_string(briefing_.players) + " players \xC2\xB7 " + std::to_string(briefing_.entries.size()) +
+                      " worth knowing about",
+                  t.text, Align::Left, w - 64.f);
+    float y = box.y + 52.f;
+    for (int i = 0; i < rows; ++i) {
+        const BriefingEntry& e = briefing_.entries[static_cast<std::size_t>(i)];
+        const float k = ease::outCubic(motion::progress(c.now, briefingAt_ + 0.18 + i * 0.07, 0.24f));
+        ui.r.pushAlpha(k);
+        HaloStyle hs;
+        hs.confidence = e.suspicion;
+        hs.marks = e.marks;
+        hs.cutout = t.windowBottom;
+        playerHalo(ui, c.host, mixId(hashId("brief-halo"), hashId(e.key)), e.key, e.name, {box.x + 16.f, y, 30.f, 30.f}, hs);
+        ui.fonts.draw(ui.r, type::BodyStrong, box.x + 56.f, y, e.name, t.text, Align::Left, w * 0.4f);
+        const Color rc = e.marks.confirmed ? t.verdict : e.marks.watched ? t.accent : t.textMuted;
+        ui.fonts.draw(ui.r, type::Caption, box.x + 56.f, y + 17.f, e.reason, t.light ? rc.darker(0.1f) : rc, Align::Left, w - 180.f);
+        if (tierOf(e.suspicion) != Tier::Clear) suspicionLabel(ui, box.r() - 18.f, y + 8.f, e.suspicion, Align::Right);
+        ui.r.popAlpha();
+        y += 38.f;
+    }
+    if (more > 0) {
+        ui.fonts.draw(ui.r, type::Caption, box.x + 56.f, y + 2.f, "+" + std::to_string(more) + " more \xC2\xB7 " + c.menuKey + " to open Vigil",
+                      t.textFaint);
+    }
+    const float f = std::clamp(1.f - static_cast<float>(age) / kBriefingLife, 0.f, 1.f);
+    if (f > 0.01f) ui.r.roundRect({box.x + 22.f, box.b() - 6.f, (box.w - 44.f) * f, 2.f}, 1.f, t.accent.alpha(0.45f));
+    ui.r.popAlpha();
+}
+
 // ── Notices ──────────────────────────────────────────────────────────────────────────────────
 
 void Hud::drawNotices(const Context& c) {
@@ -270,6 +340,9 @@ void Hud::drawNotices(const Context& c) {
     const Theme& t = ui.th();
     while (!notices_.empty() && c.now - notices_.front().born > kNoticeLife + 0.3) notices_.pop_front();
     float y = c.now - activationAt_ < kActivationLife ? 236.f : 26.f;
+    if (c.now - briefingAt_ < kBriefingLife && !briefing_.entries.empty()) {
+        y += 60.f + std::min<int>(kBriefingRows, static_cast<int>(briefing_.entries.size())) * 38.f + 34.f;
+    }
     for (const Notice& n : notices_) {
         const double age = c.now - n.born;
         const float in = ease::outCubic(motion::progress(c.now, n.born, 0.18f));

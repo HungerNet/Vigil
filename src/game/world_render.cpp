@@ -14,6 +14,7 @@
 #include "minecraft_util.h"
 #include "runtime.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -53,6 +54,88 @@ static void HitboxBeginDrawPass(GLfloat lineWidth) {
 
 static void HitboxEndDrawPass() {
     glPopAttrib();
+}
+
+// ── Over-head marker ─────────────────────────────────────────────────────────────────────────
+// A small billboard above the player, in the same language as the halo: a confidence ring and a
+// glyph whose shape (not only its color) says the tier — ◇ elevated, ◆ high, ▲! critical — or the
+// user's verdict (✖ on the verdict color).
+
+static void MarkerColor(int rgb, float a) {
+    glColor4f(((rgb >> 16) & 0xFF) / 255.f, ((rgb >> 8) & 0xFF) / 255.f, (rgb & 0xFF) / 255.f, a);
+}
+
+static void MarkerDisc(float r, float red, float green, float blue, float a) {
+    glColor4f(red, green, blue, a);
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(0.f, 0.f);
+    for (int i = 0; i <= 32; ++i) {
+        const float t = 6.2831853f * i / 32.f;
+        glVertex2f(std::sin(t) * r, -std::cos(t) * r);
+    }
+    glEnd();
+}
+
+static void MarkerArc(float r, float w, float fraction) {
+    const int seg = std::max(2, static_cast<int>(48 * fraction));
+    glBegin(GL_TRIANGLE_STRIP);
+    for (int i = 0; i <= seg; ++i) {
+        const float t = 6.2831853f * fraction * i / seg;
+        const float s = std::sin(t), c = -std::cos(t);
+        glVertex2f(s * (r - w * 0.5f), c * (r - w * 0.5f));
+        glVertex2f(s * (r + w * 0.5f), c * (r + w * 0.5f));
+    }
+    glEnd();
+}
+
+static void DrawMarker(double x, double y, double z, float viewYaw, float viewPitch, const HighlightStyle& s) {
+    glPushMatrix();
+    glTranslated(x, y, z);
+    glRotatef(-viewYaw, 0.f, 1.f, 0.f);
+    glRotatef(viewPitch, 1.f, 0.f, 0.f);
+    glScalef(-0.025f, -0.025f, 0.025f);
+    glDisable(GL_CULL_FACE);
+    glDepthMask(GL_FALSE);
+    MarkerDisc(10.5f, 0.f, 0.f, 0.f, 0.45f);
+    glColor4f(1.f, 1.f, 1.f, 0.22f);
+    MarkerArc(8.5f, 1.6f, 1.f);
+    if (s.confidence >= 1.f) {
+        MarkerColor(s.ringRgb, 0.95f);
+        MarkerArc(8.5f, 2.6f, std::min(1.f, s.confidence / 100.f));
+    }
+    if (s.confirmed) {
+        MarkerDisc(5.2f, ((s.verdictRgb >> 16) & 0xFF) / 255.f, ((s.verdictRgb >> 8) & 0xFF) / 255.f, (s.verdictRgb & 0xFF) / 255.f, 1.f);
+        glColor4f(1.f, 1.f, 1.f, 1.f);
+        glLineWidth(2.f);
+        glBegin(GL_LINES);
+        glVertex2f(-2.4f, -2.4f); glVertex2f(2.4f, 2.4f);
+        glVertex2f(2.4f, -2.4f); glVertex2f(-2.4f, 2.4f);
+        glEnd();
+    } else if (s.tier >= 3) {
+        MarkerColor(s.ringRgb, 1.f);
+        glBegin(GL_TRIANGLES);
+        glVertex2f(0.f, -5.2f); glVertex2f(5.0f, 3.8f); glVertex2f(-5.0f, 3.8f);
+        glEnd();
+        glColor4f(0.f, 0.f, 0.f, 0.85f);
+        glBegin(GL_QUADS);
+        glVertex2f(-0.7f, -2.2f); glVertex2f(0.7f, -2.2f); glVertex2f(0.7f, 1.0f); glVertex2f(-0.7f, 1.0f);
+        glVertex2f(-0.7f, 1.8f); glVertex2f(0.7f, 1.8f); glVertex2f(0.7f, 3.0f); glVertex2f(-0.7f, 3.0f);
+        glEnd();
+    } else if (s.tier >= 1) {
+        MarkerColor(s.ringRgb, 1.f);
+        if (s.tier >= 2) {
+            glBegin(GL_QUADS);
+            glVertex2f(0.f, -4.6f); glVertex2f(4.6f, 0.f); glVertex2f(0.f, 4.6f); glVertex2f(-4.6f, 0.f);
+            glEnd();
+        } else {
+            glLineWidth(2.f);
+            glBegin(GL_LINE_LOOP);
+            glVertex2f(0.f, -4.4f); glVertex2f(4.4f, 0.f); glVertex2f(0.f, 4.4f); glVertex2f(-4.4f, 0.f);
+            glEnd();
+        }
+    }
+    glDepthMask(GL_TRUE);
+    glPopMatrix();
 }
 } // namespace
 
@@ -1032,9 +1115,10 @@ void RenderSuspectHighlights(JNIEnv* env, jobject mcObj, const HighlightQuery& q
         if (!entity || env->ExceptionCheck()) { env->ExceptionClear(); continue; }
         if (self && env->IsSameObject(entity, self)) { env->DeleteLocalRef(entity); continue; }
         const int entityId = g_hitbox.fidEid ? env->GetIntField(entity, g_hitbox.fidEid) : -1;
-        int rgb = 0;
-        float fill = 0.f;
-        if (entityId < 0 || !query(entityId, rgb, fill)) { env->DeleteLocalRef(entity); continue; }
+        HighlightStyle style;
+        if (entityId < 0 || !query(entityId, style)) { env->DeleteLocalRef(entity); continue; }
+        const int rgb = style.rgb;
+        const float fill = style.fillAlpha;
 
         const double posX = env->GetDoubleField(entity, g_hitbox.fidPosX);
         const double posY = env->GetDoubleField(entity, g_hitbox.fidPosY);
@@ -1057,6 +1141,18 @@ void RenderSuspectHighlights(JNIEnv* env, jobject mcObj, const HighlightQuery& q
             glDepthMask(GL_FALSE);
             DrawFilledRelativeSlab(rminX, rminY, rminZ, rmaxX, rmaxY, rmaxZ, rgb, fill);
             glDepthMask(GL_TRUE);
+        }
+        if (style.marker && (style.tier > 0 || style.confirmed) && g_hitbox.fidRmViewYaw && g_hitbox.fidRmViewPitch) {
+            // fidRmViewYaw holds playerViewX (pitch), fidRmViewPitch holds playerViewY (yaw).
+            const float viewPitch = env->GetFloatField(renderManager, g_hitbox.fidRmViewYaw);
+            const float viewYaw = env->GetFloatField(renderManager, g_hitbox.fidRmViewPitch);
+            if (!env->ExceptionCheck()) {
+                const double top = drawn ? rmaxY : (iy + 1.9 - viewerY);
+                DrawMarker((drawn ? (rminX + rmaxX) * 0.5 : ix - viewerX), top + 0.55, (drawn ? (rminZ + rmaxZ) * 0.5 : iz - viewerZ),
+                           viewYaw, viewPitch, style);
+            } else {
+                env->ExceptionClear();
+            }
         }
         env->DeleteLocalRef(entity);
     }

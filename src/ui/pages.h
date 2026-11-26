@@ -10,6 +10,7 @@
 #include "../detection/engine.h"
 #include "app.h"
 #include "motion.h"
+#include "suspicion.h"
 #include "widgets.h"
 
 #include <cstdint>
@@ -46,14 +47,19 @@ struct AppState {
     ProfileTab profileTabShown = ProfileTab::Summary;
     double profileTabChangedAt = -10.0;
     std::string playerSearch;
-    int rosterFilter = 0;                 // 0 all, 1 suspicious, 2 in view, 3 nicked
+    int rosterScope = 0;                  // 0 this game, 1 session, 2 marked, 3 nicked
     int playersSort = 0;                  // 0 suspicion, 1 recent, 2 name
+    bool earlierOpen = false;             // Session scope: "Earlier this session" expanded
     std::uint64_t selectedEvidence = 0;
     std::uint64_t selectedDetection = 0;
     int evidenceFilterCheck = -1;         // -1 = all checks
     int timelineWindow = 1;               // 0 = 1 min, 1 = 5 min, 2 = 15 min, 3 = session
     int inspectorTab = 0;                 // 0 = reasoning, 1 = debug
-    std::set<std::string> watched;        // players pinned to the watchlist
+    bool inspectorDetails = false;        // "Details" disclosure in the inspector
+
+    // Confirm flow (profile header popover).
+    std::string confirmKey;               // player whose confirm popover is open
+    std::set<std::string> confirmReasons; // reasons ticked in the popover
 
     // Checks.
     int selectedCheck = 0;
@@ -168,7 +174,7 @@ std::string epochAgoLabel(double epochMs);
 // Draws the page title with its purpose on the same line; returns the y where content starts.
 float pageHeader(PageContext& ctx, const Rect& area, std::string_view title, std::string_view subtitle);
 // Players sorted for lists (suspicion desc, present first).
-std::vector<const detection::PlayerRecord*> sortedPlayers(const detection::Session& s, int sortMode, const std::string& filter,
+std::vector<const detection::PlayerRecord*> sortedPlayers(const detection::Engine& e, int sortMode, const std::string& filter,
                                                           bool includeLocal);
 void sparkline(Ui& ui, const Rect& rc, const std::vector<detection::ConfidencePoint>& pts, double t0, double t1, Color c,
                bool fill = true);
@@ -176,9 +182,11 @@ void sparkline(Ui& ui, const Rect& rc, const std::vector<detection::ConfidencePo
 float confidenceTrend(const std::vector<detection::ConfidencePoint>& history, float current, double nowMs, double windowMs = 60e3);
 // Small "+12" / "−8" trend label with an arrow; returns its width. Draws nothing for |delta| < 1.
 float trendLabel(Ui& ui, float x, float y, float delta, bool alignRight = false);
-// Player face (skin texture when the host has one, initial otherwise), optional severity ring.
-void playerAvatar(PageContext& ctx, const detection::PlayerRecord& p, const Rect& rc, bool ring = false);
-void playerAvatarByKey(Ui& ui, Host* host, const std::string& key, const std::string& name, float suspicion, const Rect& rc);
+// The player's halo (src/ui/suspicion.h): circular face, confidence ring, marks badge. Dimmed
+// while the player is out of view. `cutout` is the surface behind the badge (default: card).
+void playerAvatar(PageContext& ctx, const detection::PlayerRecord& p, const Rect& rc, Color cutout = {0, 0, 0, 0});
+// "In this game" / "Left" / "Earlier game" line for a player record.
+std::string presenceLabel(const PageContext& ctx, const detection::PlayerRecord& p);
 std::string keyLabel(const std::string& settingKey);   // name of the key bound to a Key setting
 
 }  // namespace vigil::ui

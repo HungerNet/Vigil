@@ -181,7 +181,6 @@ void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, flo
         case Icon::Shop:  // shopping bag
             P.poly({{4, 7}, {16, 7}, {15.2f, 17}, {4.8f, 17}}, true);
             P.arc(10, 7, 3, -90, 90);
-            P.line(7, 7, 7, 7);
             break;
         case Icon::Party:  // two people
             P.circle(7.5f, 7, 2.6f);
@@ -204,9 +203,9 @@ void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, flo
             P.line(10, 9, 10, 14);
             P.dot(10, 6.3f, 1.1f);
             break;
-        case Icon::Reset:
-            P.arc(10, 10, 6.2f, 60, 360);
-            P.poly({{10.0f, 1.6f}, {10.0f, 4.6f}, {13.0f, 4.6f}});
+        case Icon::Reset:  // counter-clockwise arrow: open at the upper right, head tangent to the arc
+            P.arc(10, 10.5f, 6, 70, 380);
+            P.poly({{18.4f, 9.6f}, {15.2f, 7.3f}, {14.1f, 11.1f}});
             break;
         case Icon::ChevronRight: P.poly({{8, 5}, {13, 10}, {8, 15}}); break;
         case Icon::ChevronLeft: P.poly({{12, 5}, {7, 10}, {12, 15}}); break;
@@ -233,9 +232,11 @@ void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, flo
             P.circle(10, 10, 7.3f);
             P.poly({{10, 5.5f}, {10, 10}, {13.2f, 12}});
             break;
-        case Icon::Pin:
-            P.circle(10, 8, 4.2f);
-            P.line(10, 12.2f, 10, 17.5f);
+        case Icon::Pin:  // push-pin: cap, flared body, needle
+            P.line(7.2f, 2.6f, 12.8f, 2.6f);
+            P.poly({{8.4f, 2.6f}, {8.4f, 8.2f}, {5.6f, 11.2f}, {5.6f, 12.8f}, {14.4f, 12.8f}, {14.4f, 11.2f}, {11.6f, 8.2f},
+                    {11.6f, 2.6f}});
+            P.line(10, 12.8f, 10, 17.8f);
             break;
         case Icon::Export:
             P.poly({{6, 8}, {4, 8}, {4, 16.5f}, {16, 16.5f}, {16, 8}, {14, 8}});
@@ -350,6 +351,26 @@ void drawIcon(Renderer& r, Icon icon, float x, float y, float size, Color c, flo
             P.poly({{3, 7}, {17, 7}, {16, 11.5f}, {12.5f, 12.5f}, {10, 10.8f}, {7.5f, 12.5f}, {4, 11.5f}}, true);
             P.dot(7.3f, 9.3f, 1.1f);
             P.dot(12.7f, 9.3f, 1.1f);
+            break;
+        case Icon::Shield:
+        case Icon::ShieldCheck:  // the user's verdict
+            P.poly({{10, 2.4f}, {16, 4.7f}, {16, 9.6f}, {15.1f, 12.7f}, {12.9f, 15.4f}, {10, 17.6f}, {7.1f, 15.4f}, {4.9f, 12.7f},
+                    {4, 9.6f}, {4, 4.7f}},
+                   true);
+            if (icon == Icon::ShieldCheck) P.poly({{7.1f, 9.9f}, {9.2f, 12.0f}, {13.1f, 7.8f}});
+            break;
+        case Icon::Bot:  // an NPC: a robot head
+            P.rrect(4, 6.8f, 16, 16.2f, 2.6f);
+            P.line(10, 4, 10, 6.8f);
+            P.dot(10, 3.2f, 1.1f);
+            P.dot(7.6f, 11, 1.2f);
+            P.dot(12.4f, 11, 1.2f);
+            P.line(8.2f, 13.8f, 11.8f, 13.8f);
+            break;
+        case Icon::History:  // earlier: a clock turning back
+            P.arc(10, 10.5f, 6.6f, 300, 600);
+            P.poly({{7.2f, 6.8f}, {3.7f, 8.2f}, {3.1f, 4.4f}});
+            P.poly({{10, 7}, {10, 10.5f}, {12.6f, 12}});
             break;
     }
 }

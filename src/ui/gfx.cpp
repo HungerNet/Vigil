@@ -633,6 +633,28 @@ void Renderer::image(unsigned int texture, const Rect& r, float u0, float v0, fl
     glDisable(GL_TEXTURE_2D);
 }
 
+void Renderer::imageDisc(unsigned int texture, float cx, float cy, float radius, float u0, float v0, float u1, float v1,
+                         Color tint) {
+    if (!texture || radius <= 0.f) return;
+    const int seg = std::clamp(static_cast<int>(radius * scale_ * 0.9f) + 16, 16, 96);
+    const float um = (u0 + u1) * 0.5f, vm = (v0 + v1) * 0.5f;
+    const float uh = (u1 - u0) * 0.5f, vh = (v1 - v0) * 0.5f;
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    color(tint);
+    glBegin(GL_TRIANGLE_FAN);
+    glTexCoord2f(um, vm);
+    vertex(cx, cy);
+    for (int i = 0; i <= seg; ++i) {
+        const float a = 6.2831853f * i / seg;
+        const float ca = std::cos(a), sa = std::sin(a);
+        glTexCoord2f(um + ca * uh, vm + sa * vh);
+        vertex(cx + ca * radius, cy + sa * radius);
+    }
+    glEnd();
+    glDisable(GL_TEXTURE_2D);
+}
+
 void Renderer::beginGlyphs(unsigned int texture, Color c) {
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, texture);

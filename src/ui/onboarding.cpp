@@ -84,12 +84,17 @@ void illoConfidence(Ui& ui, const Rect& rc, double t0) {
     for (float h : hits) if (tt >= h) v += (100.f - v) * 0.42f;
     const float lastHit = 2.1f;
     if (tt > lastHit + 0.6f) v *= std::pow(0.5f, (tt - lastHit - 0.6f) / 1.2f);
-    const float cx = rc.x + 90.f, cy = rc.cy() - 4.f;
-    confidenceRing(ui, hashId("onb-ring"), cx, cy, 46.f, v, 7.f, true);
+    const float cx = rc.x + 90.f, cy = rc.cy() - 14.f;
+    // The same halo players wear everywhere in Vigil: the ring fills and grows heavier with confidence.
+    HaloStyle hs;
+    hs.confidence = v;
+    hs.cutout = t.windowBottom;
+    playerHalo(ui, nullptr, hashId("onb-halo"), "onboarding", "Kestrel", {cx - 50.f, cy - 50.f, 100.f, 100.f}, hs);
     for (int i = 0; i < 3; ++i) {
         const float age = tt - hits[i];
-        if (age >= 0.f && age < 0.6f) ui.r.ring(cx, cy, 46.f + 18.f * age, 2.f, t.accent.withAlpha(0.5f * (1.f - age / 0.6f)));
+        if (age >= 0.f && age < 0.6f) ui.r.ring(cx, cy, 50.f + 18.f * age, 2.f, t.accent.withAlpha(0.5f * (1.f - age / 0.6f)));
     }
+    suspicionLabel(ui, cx, cy + 60.f, v, Align::Center);
     // Threshold explanation beside the ring.
     const float x = rc.x + 180.f;
     const float y0 = rc.y + 18.f;
@@ -108,7 +113,8 @@ void illoProfile(Ui& ui, const Rect& rc, double t0) {
     const Rect panel{rc.x + 30.f, rc.y + 6.f, rc.w - 60.f, rc.h - 12.f};
     ui.r.roundRect(panel, 12.f, t.surface);
     ui.r.roundRectStroke(panel, 12.f, 1.f, t.border);
-    ui.r.roundRect({panel.x + 16.f, panel.y + 14.f, 30.f, 30.f}, 7.f, t.chart[4].withAlpha(0.4f));
+    ui.r.circle(panel.x + 31.f, panel.y + 29.f, 15.f, t.chart[4].withAlpha(0.4f));
+    ui.r.arc(panel.x + 31.f, panel.y + 29.f, 18.f, 2.5f, 0.f, 4.2f, t.severity(72.f), true);
     ui.r.roundRect({panel.x + 56.f, panel.y + 18.f, 90.f, 8.f}, 4.f, t.text);
     ui.r.roundRect({panel.x + 56.f, panel.y + 32.f, 140.f, 6.f}, 3.f, t.textFaint);
     const char* tabsL[] = {"Summary", "Evidence", "Behavior", "Identity"};

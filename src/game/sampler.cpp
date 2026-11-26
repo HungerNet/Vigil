@@ -213,6 +213,27 @@ bool Sampler::resolve(JNIEnv* env, jobject mc) {
         env->DeleteLocalRef(to);
     }
     jniFailed(env);
+    // Tab list (who is a real player) and each player's latency. Names confirmed in
+    // docs/reference/mcp-obfuscation-map.json: Minecraft#getNetHandler (u),
+    // NetHandlerPlayClient#getPlayerInfo(UUID) (a), NetworkPlayerInfo#getResponseTime (c).
+    {
+        jclass mcc = env->GetObjectClass(mc);
+        mNetHandler_ = method(env, mcc, "getNetHandler", "()Lnet/minecraft/client/network/NetHandlerPlayClient;", "u");
+        env->DeleteLocalRef(mcc);
+    }
+    if (jclass nh = McFindClass(env, "net/minecraft/client/network/NetHandlerPlayClient")) {
+        mGetPlayerInfo_ = method(env, nh, "getPlayerInfo", "(Ljava/util/UUID;)Lnet/minecraft/client/network/NetworkPlayerInfo;", "a");
+        env->DeleteLocalRef(nh);
+    }
+    if (jclass npi = McFindClass(env, "net/minecraft/client/network/NetworkPlayerInfo")) {
+        mResponseTime_ = method(env, npi, "getResponseTime", "()I", "c");
+        env->DeleteLocalRef(npi);
+    }
+    mBurning_ = method(env, clsEntity_, "isBurning", "()Z");
+    jniFailed(env);
+    signals_.tabList = mNetHandler_ && mGetPlayerInfo_ && mProfileId_;
+    signals_.latency = signals_.tabList && mResponseTime_;
+    signals_.burning = mBurning_ != nullptr;
 
     signals_.serverPositions = fServerX_ && fServerY_ && fServerZ_;
     signals_.headRotation = fHeadYaw_ != nullptr;
@@ -229,11 +250,16 @@ bool Sampler::resolve(JNIEnv* env, jobject mc) {
     resolved_ = fWorld_ && fSelf_ && fPlayerEntities_ && fEntityId_ && fPosX_ && fTicksExisted_ && mListGet_;
     log::writef("runtime",
                 "sampler: resolved=%d serverPos=%d head=%d attribute=%d potions=%d particles=%d blocks=%d item=%d swing=%d "
-                "hurt=%d profiles=%d skins=%d",
+                "hurt=%d profiles=%d skins=%d tab=%d latency=%d burning=%d",
                 resolved_, signals_.serverPositions, signals_.headRotation, signals_.moveAttribute, signals_.potions,
                 signals_.potionParticles, signals_.blocks, signals_.heldItem, signals_.swing, signals_.hurt, signals_.profiles,
-                signals_.skins);
+                signals_.skins, signals_.tabList, signals_.latency, signals_.burning);
     return resolved_;
+}
+
+void Sampler::releaseIdentity(JNIEnv* env, Identity& id) {
+    if (env && id.uuidRef) env->DeleteGlobalRef(id.uuidRef);
+    id.uuidRef = nullptr;
 }
 
 void Sampler::reset(JNIEnv* env) {
@@ -243,10 +269,12 @@ void Sampler::reset(JNIEnv* env) {
     }
     lastWorld_ = lastSelf_ = nullptr;
     lastTicksExisted_ = -1;
+    for (auto& kv : identities_) releaseIdentity(env, kv.second);
     identities_.clear();
     faces_.clear();      // texture ids may be reused after a world change
     seenIds_.clear();
     spawns_.clear();
+    blockCache_.clear();
 }
 
 bool Sampler::faceTexture(const std::string& playerKey, unsigned int& texture) const {
@@ -310,8 +338,20 @@ void Sampler::readProfileExtras(JNIEnv* env, jobject mc, jobject entity, jobject
 
 int Sampler::blockAt(JNIEnv* env, jobject world, double x, double y, double z) {
     if (!signals_.blocks || !world) return -1;
-    jobject pos = env->NewObject(clsBlockPos_, mBlockPosCtor_, static_cast<jint>(std::floor(x)),
-                                 static_cast<jint>(std::floor(y)), static_cast<jint>(std::floor(z)));
+    const int bx = static_cast<int>(std::floor(x)), by = static_cast<int>(std::floor(y)), bz = static_cast<int>(std::floor(z));
+    // Blocks rarely change; a block probed in the last second is reused.
+    const long long key = (static_cast<long long>(bx + (1 << 25)) << 34) ^ (static_cast<long long>(bz + (1 << 25)) << 8) ^
+                          static_cast<long long>(by & 0xFF);
+    auto it = blockCache_.find(key);
+    if (it != blockCache_.end() && tick_ - it->second.at <= 20) return it->second.id;
+    if (blockCache_.size() > 8192) blockCache_.clear();
+    const int id = probeBlock(env, world, bx, by, bz);
+    blockCache_[key] = {id, tick_};
+    return id;
+}
+
+int Sampler::probeBlock(JNIEnv* env, jobject world, int bx, int by, int bz) {
+    jobject pos = env->NewObject(clsBlockPos_, mBlockPosCtor_, static_cast<jint>(bx), static_cast<jint>(by), static_cast<jint>(bz));
     if (!pos || jniFailed(env)) return -1;
     int id = -1;
     jobject state = env->CallObjectMethod(world, mGetBlockState_, pos);
@@ -344,6 +384,8 @@ void Sampler::refreshIdentity(JNIEnv* env, jobject mc, jobject entity, Identity&
                 if (ju && !jniFailed(env)) id.uuid = jstringToUtf8(env, ju);
                 if (ju) env->DeleteLocalRef(ju);
             }
+            // Keep the UUID object for tab-list queries (it identifies the profile, never changes).
+            if (uuid && !id.uuidRef) id.uuidRef = env->NewGlobalRef(uuid);
             if (uuid) env->DeleteLocalRef(uuid);
             readProfileExtras(env, mc, entity, profile, id, isLocal);
             env->DeleteLocalRef(profile);
@@ -363,7 +405,8 @@ void Sampler::refreshIdentity(JNIEnv* env, jobject mc, jobject entity, Identity&
     }
 }
 
-void Sampler::readPlayer(JNIEnv* env, jobject mc, jobject world, jobject e, bool isLocal, detection::PlayerFrame& f) {
+void Sampler::readPlayer(JNIEnv* env, jobject mc, jobject world, jobject netHandler, jobject e, bool isLocal,
+                         detection::PlayerFrame& f) {
     using namespace detection;
     f.entityId = env->GetIntField(e, fEntityId_);
     f.isLocal = isLocal;
@@ -372,6 +415,24 @@ void Sampler::readPlayer(JNIEnv* env, jobject mc, jobject world, jobject e, bool
     f.uuid = id.uuid;
     f.name = id.name.empty() ? ("#" + std::to_string(f.entityId)) : id.name;
     f.isTeammate = id.teammate;
+
+    // Tab list: real players (nicked or not) are listed; NPCs are removed shortly after spawning.
+    if (!isLocal && signals_.tabList && netHandler && id.uuidRef && tick_ - id.tabAt >= 10) {
+        id.tabAt = tick_;
+        jobject info = env->CallObjectMethod(netHandler, mGetPlayerInfo_, id.uuidRef);
+        if (!jniFailed(env)) {
+            id.listed = info != nullptr;
+            if (info && mResponseTime_) {
+                const int ms = env->CallIntMethod(info, mResponseTime_);
+                id.pingMs = (!jniFailed(env) && ms > 0 && ms < 5000) ? ms : -1;
+            }
+        }
+        if (info) env->DeleteLocalRef(info);
+    }
+    f.tabKnown = !isLocal && id.tabAt > -100000;
+    f.tabListed = isLocal || id.listed;
+    f.pingMs = id.listed ? id.pingMs : -1;
+    f.burning = callBool(env, e, mBurning_);
 
     const double px = env->GetDoubleField(e, fPosX_);
     const double py = env->GetDoubleField(e, fPosY_);
@@ -486,15 +547,32 @@ void Sampler::readPlayer(JNIEnv* env, jobject mc, jobject world, jobject e, bool
 
     if (signals_.blocks) {
         f.blockBelow = blockAt(env, world, f.pos.x, f.pos.y - 0.2, f.pos.z);
+        // Ceiling over the whole hitbox top: a block over any corner stops a jump (head-hitters at
+        // the edge of an overhang). Corners in the same block as the center cost nothing (cache).
         f.blockAboveHead = blockAt(env, world, f.pos.x, f.pos.y + 2.05, f.pos.z);
+        if (!detection::mc::isSolidish(f.blockAboveHead)) {
+            const double h = detection::mc::kPlayerHalfWidth - 0.001;
+            const double corners[4][2] = {{h, h}, {h, -h}, {-h, h}, {-h, -h}};
+            for (const auto& c : corners) {
+                const int corner = blockAt(env, world, f.pos.x + c[0], f.pos.y + 2.05, f.pos.z + c[1]);
+                if (detection::mc::isSolidish(corner)) { f.blockAboveHead = corner; break; }
+            }
+        }
         if (f.hurtTime > 0) {
-            const double offs[4][2] = {{0.62, 0.0}, {-0.62, 0.0}, {0.0, 0.62}, {0.0, -0.62}};
-            for (const auto& o : offs) {
-                if (detection::mc::isSolidish(blockAt(env, world, f.pos.x + o[0], f.pos.y + 0.5, f.pos.z + o[1]))) {
-                    f.wallNear = true;
-                    break;
+            // Walls in eight directions at feet and head height (Velocity: a wall behind the victim
+            // in the push direction stops the push). Direction i is MC yaw i × 45°.
+            for (int i = 0; i < 8; ++i) {
+                const double yaw = i * 45.0 * 3.14159265358979323846 / 180.0;
+                const double reach = (i % 2) ? 0.5 : 0.62;
+                const double dx = -std::sin(yaw) * reach, dz = std::cos(yaw) * reach;
+                for (double hy : {0.5, 1.5}) {
+                    if (detection::mc::isSolidish(blockAt(env, world, f.pos.x + dx, f.pos.y + hy, f.pos.z + dz))) {
+                        f.wallMask = static_cast<std::uint8_t>(f.wallMask | (1u << i));
+                        break;
+                    }
                 }
             }
+            f.wallNear = f.wallMask != 0;
         }
     }
 }
@@ -549,6 +627,8 @@ bool Sampler::sample(JNIEnv* env, jobject mc, detection::WorldFrame& out, bool& 
         env->DeleteLocalRef(mcClass);
     }
 
+    jobject netHandler = signals_.tabList ? env->CallObjectMethod(mc, mNetHandler_) : nullptr;
+    if (jniFailed(env)) netHandler = nullptr;
     jobject list = env->GetObjectField(world, fPlayerEntities_);
     if (list && !jniFailed(env)) {
         const int n = env->CallIntMethod(list, mListSize_);
@@ -559,7 +639,7 @@ bool Sampler::sample(JNIEnv* env, jobject mc, detection::WorldFrame& out, bool& 
                 jobject e = env->CallObjectMethod(list, mListGet_, i);
                 if (e && !jniFailed(env)) {
                     detection::PlayerFrame f;
-                    readPlayer(env, mc, world, e, env->IsSameObject(e, self) == JNI_TRUE, f);
+                    readPlayer(env, mc, world, netHandler, e, env->IsSameObject(e, self) == JNI_TRUE, f);
                     jniFailed(env);
                     if (!f.isLocal && seenIds_.emplace(f.entityId, true).second) spawns_.push_back(f.entityId);
                     out.players.push_back(std::move(f));
@@ -569,13 +649,19 @@ bool Sampler::sample(JNIEnv* env, jobject mc, detection::WorldFrame& out, bool& 
         }
         env->DeleteLocalRef(list);
     }
+    if (netHandler) env->DeleteLocalRef(netHandler);
 
     // Forget identities of entities that left.
     if (tick_ % 200 == 0) {
         for (auto it = identities_.begin(); it != identities_.end();) {
             bool present = false;
             for (const auto& p : out.players) if (p.entityId == it->first) { present = true; break; }
-            it = present ? std::next(it) : identities_.erase(it);
+            if (present) {
+                ++it;
+            } else {
+                releaseIdentity(env, it->second);
+                it = identities_.erase(it);
+            }
         }
     }
 

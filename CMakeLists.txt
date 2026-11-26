@@ -49,6 +49,9 @@ add_library(vigil_core STATIC
     src/detection/combat.cpp
     src/detection/confidence.cpp
     src/detection/engine.cpp
+    src/detection/marks.cpp
+    src/detection/match.cpp
+    src/detection/roster.cpp
     src/detection/session.cpp
     src/detection/track.cpp
     src/detection/checks/autoblock.cpp
@@ -84,6 +87,7 @@ add_library(vigil_ui STATIC
     src/ui/page_status.cpp
     src/ui/page_utilities.cpp
     src/ui/search.cpp
+    src/ui/suspicion.cpp
     src/ui/theme.cpp
     src/ui/widgets.cpp
 )

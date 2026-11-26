@@ -11,6 +11,7 @@
 #include <tlhelp32.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cstring>
 #include <string>
@@ -27,10 +28,34 @@ SwapBuffersFn g_origSwap = nullptr;
 std::vector<void**> g_swapSlots;
 bool g_inSwap = false;
 
+// Chain-membership probe. When another tool subclasses the window after Vigil, its procedure
+// forwards to ours, so Vigil is still in the chain and must NOT subclass again: doing so would make
+// our "original" procedure theirs, which forwards back to ours — infinite recursion. A registered
+// message posted to the window proves whether our procedure still receives messages.
+UINT g_probeMsg = 0;
+std::atomic<ULONGLONG> g_probeSeen{0};
+ULONGLONG g_probeSent = 0;
+
 LRESULT CALLBACK hookedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (g_probeMsg && msg == g_probeMsg) {
+        g_probeSeen = GetTickCount64();
+        return 0;   // ours; never forwarded
+    }
     LRESULT result = 0;
     if (game::Runtime::instance().onWindowMessage(hwnd, msg, wParam, lParam, result)) return result;
     return g_origWndProc ? CallWindowProcA(g_origWndProc, hwnd, msg, wParam, lParam) : DefWindowProcA(hwnd, msg, wParam, lParam);
+}
+
+// Modules of other overlays and recorders. Their own SwapBuffers imports are left alone: Vigil
+// only needs the game's presenter, and drawing inside another overlay's present call would
+// interfere with it.
+bool isForeignOverlay(const char* moduleName) {
+    std::string n = moduleName;
+    std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    static const char* kOverlays[] = {"graphics-hook", "obs", "discord", "overlay", "rtss", "nvspcap", "gameoverlay",
+                                      "steam", "medal", "fraps", "bdcam", "action_x64", "reshade"};
+    for (const char* o : kOverlays) if (n.find(o) != std::string::npos) return true;
+    return false;
 }
 
 BOOL WINAPI hookedSwapBuffers(HDC hdc) {
@@ -156,6 +181,23 @@ void ensureWindowHook() {
     }
     if (!g_hwnd) return;
     auto cur = reinterpret_cast<WNDPROC>(GetWindowLongPtrA(g_hwnd, GWLP_WNDPROC));
+    if (cur != &hookedWndProc && g_origWndProc) {
+        // Someone subclassed after us. If our procedure still receives messages we are in the chain
+        // (they forward to us) and must leave it alone; re-hook only once a probe goes unanswered.
+        if (!g_probeMsg) g_probeMsg = RegisterWindowMessageA("Vigil.WndProc.Probe");
+        if (g_probeSent == 0 || now - g_probeSent > 2000) {
+            if (g_probeSent != 0 && g_probeSeen.load() < g_probeSent) {
+                log::write("runtime", "window procedure: probe unanswered, Vigil left the chain; re-hooking");
+                g_probeSent = 0;
+            } else {
+                g_probeSent = now;
+                PostMessageA(g_hwnd, g_probeMsg, 0, 0);
+                return;
+            }
+        } else {
+            return;
+        }
+    }
     if (cur != &hookedWndProc) {
         SetLastError(0);
         auto prev = reinterpret_cast<WNDPROC>(
@@ -185,7 +227,10 @@ bool installPresentHook() {
     if (snap == INVALID_HANDLE_VALUE) return false;
     MODULEENTRY32 me{};
     me.dwSize = sizeof(me);
-    for (BOOL ok = Module32First(snap, &me); ok; ok = Module32Next(snap, &me)) patchModule(me.hModule);
+    for (BOOL ok = Module32First(snap, &me); ok; ok = Module32Next(snap, &me)) {
+        if (isForeignOverlay(me.szModule)) continue;
+        patchModule(me.hModule);
+    }
     CloseHandle(snap);
     if (!g_origSwap) {
         if (HMODULE gdi = GetModuleHandleA("gdi32.dll")) g_origSwap = reinterpret_cast<SwapBuffersFn>(GetProcAddress(gdi, "SwapBuffers"));

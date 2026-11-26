@@ -1,8 +1,8 @@
 # Vigil — Polish & Maturity Plan
 
-> Written before any code changed in this pass. The 2.0 transformation plan is preserved in
-> [`docs/history/PLAN-2.0.md`](docs/history/PLAN-2.0.md). Outcomes are recorded in
-> [`docs/POLISH_REPORT.md`](docs/POLISH_REPORT.md) and [`docs/TRUST_AUDIT.md`](docs/TRUST_AUDIT.md).
+> Archived (1.0-dev.7). Written before any code changed in that pass. The 2.0 transformation plan
+> is preserved in [`PLAN-2.0.md`](PLAN-2.0.md). Outcomes are recorded in
+> [`docs/POLISH_REPORT.md`](../POLISH_REPORT.md) and [`docs/TRUST_AUDIT.md`](../TRUST_AUDIT.md).
 
 The 2.0 overhaul gave Vigil its identity: a cheat-detection client and a player-analysis
 platform. This pass does not reinvent that. It makes Vigil feel finished: restores what was lost
