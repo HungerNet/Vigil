@@ -83,12 +83,12 @@ jobs:
         run: |
           # The artifact must still be what Validate checked: run its self-check again here.
           $report = Join-Path $PWD 'recheck.json'
-          $p = Start-Process -FilePath ./validated/Vigil.exe -ArgumentList '--self-check', "`"$report`"" -Wait -PassThru
+          $p = Start-Process -FilePath ./validated/build/Release/Vigil.exe -ArgumentList '--self-check', "`"$report`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content $report; throw "Self-check failed on the downloaded artifact." }
           $before = Get-Content ./validated/selfcheck.json -Raw | ConvertFrom-Json
           $after = Get-Content $report -Raw | ConvertFrom-Json
           if ($before.runtimeSha256 -ne $after.runtimeSha256 -or $after.exeVersion -ne $env:VERSION) { throw "Artifact changed after validation." }
-          Copy-Item ./validated/Vigil.exe $env:ASSET
+          Copy-Item ./validated/build/Release/Vigil.exe $env:ASSET
           $hash = (Get-FileHash $env:ASSET -Algorithm SHA256).Hash.ToLower()
           "$hash  $env:ASSET" | Set-Content -Encoding ascii SHA256SUMS
           "SHA256=$hash" >> $env:GITHUB_ENV
