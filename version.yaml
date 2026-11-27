@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.12'
+version: '1.0-dev.13'
 description: |
   Dev 1:
   - Initial release
@@ -38,3 +38,5 @@ description: |
   - Rust rewrite Phases 1-2:
     - Decouple config
     - Build Rust toolchain and formats
+  Dev 13:
+  - Fixed app title metadata

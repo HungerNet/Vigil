@@ -510,7 +510,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     const int pw = static_cast<int>(kW * g_scale), ph = static_cast<int>(kH * g_scale);
     RECT area{};
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &area, 0);
-    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, L"VigilLauncher", L"Vigil", WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX,
+    std::wstring title = L"Vigil ";
+    for (const char* p = VIGIL_VERSION_STRING; *p; ++p)
+        title.push_back(static_cast<wchar_t>(*p));
+    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, L"VigilLauncher", title.c_str(), WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX,
                                 area.left + (area.right - area.left - pw) / 2, area.top + (area.bottom - area.top - ph) / 2, pw, ph,
                                 nullptr, nullptr, inst, nullptr);
     const DWORD round = 2;  // DWMWCP_ROUND
