@@ -21,7 +21,8 @@ what protects each step.
 push to master
    └─ Release
         ├─ Validate (validate.yml via workflow_call)
-        │    lint ── metadata ── build (/WX, 5 suites, golden replay, self-check, hash) ── complete
+        │    lint ── metadata ── build (/WX, suites, golden replay, determinism, Rust gates,
+        │                                C++ ↔ Rust round trips, self-check, hash) ── complete
         │                         └─ artifact "vigil-validated": Vigil.exe + selfcheck.json
         ├─ gate: run == true and tag does not exist
         └─ publish (contents: write, only job with write access)
@@ -40,7 +41,10 @@ Pull requests and other branches run Validate only (read-only token). Releases a
 | A version string that doesn't parse, a missing changelog entry, release notes for the wrong version | `validate_repo.py metadata` |
 | Broken documentation links | `validate_repo.py links` |
 | A compiler warning regression | `VIGIL_WARNINGS_AS_ERRORS=ON` (`/WX`) |
-| A behavior change in detection | five suites + golden trace replay |
+| A behavior change in detection | five suites + golden trace replay; corpus determinism (`VigilParity` twice) |
+| The engine reading global state again | `validate_repo.py engine-globals` |
+| A file format drifting between C++ and Rust, or from its committed fixtures | `format_fixtures` (CTest), `cargo test`, `cross_formats.py` |
+| Rust code that is unformatted or has lint warnings | `cargo fmt --check`, `cargo clippy -D warnings` |
 | `Vigil.exe` embedding a stale or foreign `Vigil.dll` | self-check (version + build ID of the embedded runtime) and SHA-256 of the embedded runtime == the DLL built in this run |
 | A binary not built from the released commit | build ID must start with the commit SHA |
 | Publishing something other than what was validated | publish downloads the validated artifact, re-runs the self-check, compares hash and version |

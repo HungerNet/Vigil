@@ -4,11 +4,16 @@
 //   VigilReplay <trace.vtrace> --json <out.json>       writes the outcome
 //   VigilReplay <trace.vtrace> --expect <exp.json>     compares with an expected outcome (exit 1 on a difference)
 //   VigilReplay <trace.vtrace> --write-expect <exp.json>  records the current outcome as the expectation
+//   VigilReplay <trace.vtrace> --config <cfg.json> …    replays with an engine configuration document
+//                                                      (vigil-engine-config) instead of the defaults
 //   VigilReplay --synthesize <out.vtrace>              writes the deterministic golden scenario
+//   VigilReplay --engine-schema <out.json>             writes the engine's parameter declaration
+//   VigilReplay --engine-config <out.json>             writes the default engine configuration
 //
 // Traces come from Status → Diagnostics → Record trace (in game) or from --synthesize.
 
 #include "../../src/core/json.h"
+#include "../../src/detection/config.h"
 #include "../../src/detection/engine.h"
 #include "../../src/detection/replay.h"
 #include "../../src/detection/trace.h"
@@ -26,8 +31,9 @@ using namespace vigil::detection;
 namespace {
 
 int usage() {
-    std::printf("usage: VigilReplay <trace> [--json out.json] [--expect expected.json] [--write-expect expected.json]\n"
-                "       VigilReplay --synthesize <out.vtrace>\n");
+    std::printf("usage: VigilReplay <trace> [--config cfg.json] [--json out.json] [--expect expected.json] [--write-expect expected.json]\n"
+                "       VigilReplay --synthesize <out.vtrace>\n"
+                "       VigilReplay --engine-schema <out.json> | --engine-config <out.json>\n");
     return 2;
 }
 
@@ -62,6 +68,17 @@ int main(int argc, char** argv) {
         std::printf("wrote %zu frames to %s\n", frames.size(), argv[2]);
         return 0;
     }
+    if (std::strcmp(argv[1], "--engine-schema") == 0 || std::strcmp(argv[1], "--engine-config") == 0) {
+        if (argc < 3) return usage();
+        Engine engine;
+        engine.initialize();
+        const bool schema = std::strcmp(argv[1], "--engine-schema") == 0;
+        const std::string text = (schema ? schemaToJson(engine.schema()) : configToJson(engine.config())) + "\n";
+        if (!writeText(argv[2], text)) { std::printf("cannot write %s\n", argv[2]); return 1; }
+        std::printf("wrote the engine %s (%zu parameters) to %s\n", schema ? "schema" : "default configuration",
+                    engine.schema().size(), argv[2]);
+        return 0;
+    }
     TraceHeader header;
     std::vector<WorldFrame> frames;
     std::string error;
@@ -71,6 +88,18 @@ int main(int argc, char** argv) {
     }
     Engine engine;
     engine.initialize();
+    for (int i = 2; i + 1 < argc; i += 2) {
+        if (std::strcmp(argv[i], "--config") != 0) continue;
+        std::string text;
+        EngineConfig config;
+        ConfigReadReport report;
+        if (!readText(argv[i + 1], text) || !configFromJson(text, engine.schemaPtr(), config, error, &report) || !engine.setConfig(config)) {
+            std::printf("cannot use configuration %s: %s\n", argv[i + 1], error.empty() ? "unreadable" : error.c_str());
+            return 1;
+        }
+        std::printf("configuration %s (%zu unknown keys ignored, %zu defaults kept)\n", argv[i + 1], report.unknown.size(),
+                    report.missing.size());
+    }
     const ReplayOutcome outcome = replayFrames(engine, frames);
     std::printf("trace recorded by Vigil %s (build %s), %d frames\n", header.vigil.c_str(), header.build.c_str(), outcome.frames);
     for (const auto& kv : outcome.players) {
@@ -94,7 +123,7 @@ int main(int argc, char** argv) {
             for (const auto& d : diffs) std::printf("  DIFF %s\n", d.c_str());
             std::printf(diffs.empty() ? "outcome matches the expectation\n" : "%zu differences\n", diffs.size());
             if (!diffs.empty()) code = 1;
-        } else {
+        } else if (opt != "--config") {
             return usage();
         }
     }

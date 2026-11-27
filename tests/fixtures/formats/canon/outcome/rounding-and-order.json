@@ -1,0 +1,51 @@
+{
+  "kind": "vigil-outcome",
+  "format": 1,
+  "frames": 1200,
+  "players": {
+    "Alpha": {
+      "suspicion": 100,
+      "peak": 100,
+      "evidence": {},
+      "detections": {
+        "reach": 1
+      }
+    },
+    "Empty": {
+      "suspicion": 0,
+      "peak": 0,
+      "evidence": {},
+      "detections": {}
+    },
+    "alpha": {
+      "suspicion": -0,
+      "peak": 0,
+      "evidence": {
+        "killaura": 3
+      },
+      "detections": {
+        "killaura": 0
+      }
+    },
+    "zed": {
+      "suspicion": 12.35,
+      "peak": 0.13,
+      "evidence": {
+        "bhop": 1,
+        "speed": 2
+      },
+      "detections": {}
+    },
+    "élève": {
+      "suspicion": 50,
+      "peak": 50,
+      "evidence": {
+        "a": 2,
+        "z": 1
+      },
+      "detections": {
+        "z": 1
+      }
+    }
+  }
+}

@@ -4,7 +4,8 @@
 #   through release.yml (workflow_call), which publishes only the artifacts it validated.
 #
 #   Required:      lint · metadata · build (warnings as errors, every test suite, golden trace,
-#                  self-check, embedded-runtime hash) · "Validation complete"
+#                  self-check, embedded-runtime hash, Rust gates and C++ <-> Rust format round
+#                  trips) · "Validation complete"
 #   Informational: UI smoke renders, Java shim reproducibility
 #
 # See docs/RELEASE_PROCESS.md and docs/VALIDATION.md.
@@ -62,6 +63,8 @@ jobs:
         run: python tools/ci/validate_repo.py links
       - name: Golden trace files
         run: python tools/ci/validate_repo.py golden
+      - name: Detection engine owns no globals
+        run: python tools/ci/validate_repo.py engine-globals
 
   build:
     name: Build, test and self-check
@@ -91,6 +94,41 @@ jobs:
         run: |
           ./build/Release/VigilReplay.exe tests/traces/golden-arena.vtrace --expect tests/traces/golden-arena.expect.json
           if ($LASTEXITCODE -ne 0) { throw "The golden trace no longer replays to its expected outcome (docs/VALIDATION.md)." }
+
+      - name: Engine determinism under every parameter (scenario corpus, run twice)
+        shell: pwsh
+        run: |
+          ./build/Release/VigilParity.exe parity-1.txt
+          if ($LASTEXITCODE -ne 0) { throw "VigilParity failed." }
+          ./build/Release/VigilParity.exe parity-2.txt
+          if ((Get-FileHash parity-1.txt).Hash -ne (Get-FileHash parity-2.txt).Hash) { throw "The engine is not deterministic: two identical runs of the corpus differ (docs/VALIDATION.md)." }
+
+      - name: Rust toolchain (pinned by rust/rust-toolchain.toml)
+        working-directory: rust
+        run: rustup toolchain install
+
+      - name: Rust quality gates (format, lints, tests)
+        working-directory: rust
+        shell: pwsh
+        run: |
+          cargo fmt --check
+          if ($LASTEXITCODE -ne 0) { throw "cargo fmt --check failed." }
+          cargo clippy --all-targets -- -D warnings
+          if ($LASTEXITCODE -ne 0) { throw "cargo clippy reported warnings." }
+          cargo test --release
+          if ($LASTEXITCODE -ne 0) { throw "cargo test failed." }
+
+      - name: C++ <-> Rust format round trips (fixtures, golden trace, scenario corpus)
+        shell: pwsh
+        run: |
+          python tools/ci/cross_formats.py --cpp ./build/Release/VigilFormats.exe --rust ./rust/target/release/vigil-fmt.exe --fixtures tests/fixtures --work format-round-trips
+          if ($LASTEXITCODE -ne 0) { throw "C++ and Rust disagree on a file format (docs/VALIDATION.md §8)." }
+
+      - name: replay-check reads the golden trace and its outcome
+        shell: pwsh
+        run: |
+          ./rust/target/release/replay-check.exe tests/traces/golden-arena.vtrace tests/traces/golden-arena.expect.json --strict
+          if ($LASTEXITCODE -ne 0) { throw "replay-check failed on the golden trace." }
 
       - name: Self-check (exe, embedded runtime, versions, build IDs)
         shell: pwsh

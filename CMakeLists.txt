@@ -77,6 +77,8 @@ add_library(vigil_detection STATIC
     src/detection/check.cpp
     src/detection/combat.cpp
     src/detection/confidence.cpp
+    src/detection/config.cpp
+    src/detection/config_binding.cpp
     src/detection/engine.cpp
     src/detection/marks.cpp
     src/detection/match.cpp
@@ -196,8 +198,9 @@ if(VIGIL_BUILD_TESTS)
     add_executable(validation_tests tests/validation_tests.cpp)
     target_link_libraries(validation_tests PRIVATE vigil_detection)
     add_test(NAME validation COMMAND validation_tests)
-    # Golden traces are read from the source tree (tests/traces).
-    target_compile_definitions(validation_tests PRIVATE VIGIL_TRACE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/traces")
+    # Golden traces and format fixtures are read from the source tree (tests/traces, tests/fixtures).
+    target_compile_definitions(validation_tests PRIVATE VIGIL_TRACE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/traces"
+                                                        VIGIL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 
     add_executable(ui_logic_tests tests/ui_logic_tests.cpp)
     target_link_libraries(ui_logic_tests PRIVATE vigil_ui)
@@ -205,4 +208,36 @@ if(VIGIL_BUILD_TESTS)
 
     add_executable(VigilReplay tools/replay/replay.cpp)
     target_link_libraries(VigilReplay PRIVATE vigil_detection)
+
+    # Full-state engine parity probe over the scenario corpus (tests/corpus.h, P1_PLAN.md §3).
+    add_executable(VigilParity tools/parity/parity.cpp)
+    target_link_libraries(VigilParity PRIVATE vigil_detection)
+
+    # Format fixtures shared with the Rust side (P2_PLAN.md): canonical forms, generators, and a
+    # check that the committed fixtures are exactly what this build produces.
+    add_executable(VigilFormats tools/formats/formats.cpp)
+    target_link_libraries(VigilFormats PRIVATE vigil_detection)
+    add_test(NAME format_fixtures COMMAND VigilFormats check "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/formats")
+endif()
+
+# ── Rust (optional): the vigil-formats workspace (RUST_PLAN.md §6.2) ─────────────────────────
+# Not part of the shipped binaries before P4. With VIGIL_BUILD_RUST=ON, `cmake --build` runs the
+# Rust quality gates and tests, and CTest runs the cross-language format round trips.
+option(VIGIL_BUILD_RUST "Build and test the Rust workspace in rust/ (needs cargo)" OFF)
+if(VIGIL_BUILD_RUST AND VIGIL_BUILD_TESTS)
+    find_program(CARGO cargo HINTS "$ENV{USERPROFILE}/.cargo/bin" REQUIRED)
+    set(VIGIL_CARGO_TARGET "${CMAKE_BINARY_DIR}/cargo")
+    add_custom_target(vigil_rust ALL
+        COMMAND "${CMAKE_COMMAND}" -E env CARGO_TARGET_DIR=${VIGIL_CARGO_TARGET} "${CARGO}" build --release --bins
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/rust"
+        COMMENT "cargo build (rust/)"
+        VERBATIM)
+    add_test(NAME rust_tests
+             COMMAND "${CMAKE_COMMAND}" -E env CARGO_TARGET_DIR=${VIGIL_CARGO_TARGET} "${CARGO}" test --release
+             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/rust")
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME format_round_trips
+             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/ci/cross_formats.py"
+                     --cpp "$<TARGET_FILE:VigilFormats>" --rust "${VIGIL_CARGO_TARGET}/release/vigil-fmt.exe"
+                     --fixtures "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures" --work "${CMAKE_BINARY_DIR}/format-round-trips")
 endif()

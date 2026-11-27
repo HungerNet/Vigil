@@ -1,0 +1,4 @@
+# Inputs on which the C++ and Rust readers deliberately disagree (RUST_PLAN.md §6.3 classification).
+# The Rust fixture test checks that each one diverges exactly as stated and that nothing else does.
+# kind/file<TAB>C++<TAB>Rust<TAB>classification: why
+json/hex-number.json	accepts	refuses	expected implementation difference: strtod reads hexadecimal floats (0x10 = 16); no Vigil writer produces them, so Rust refuses the document instead of mirroring a C library extension

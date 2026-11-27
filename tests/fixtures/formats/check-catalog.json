@@ -1,0 +1,84 @@
+{
+  "kind": "vigil-check-catalog",
+  "checks": [
+    {
+      "id": "killaura",
+      "indicators": [
+        "outside_view",
+        "multi_target",
+        "snap",
+        "tracking"
+      ]
+    },
+    {
+      "id": "reach",
+      "indicators": [
+        "distance",
+        "consistency"
+      ]
+    },
+    {
+      "id": "autoclicker",
+      "indicators": [
+        "consistency",
+        "streak",
+        "rate"
+      ]
+    },
+    {
+      "id": "velocity",
+      "indicators": [
+        "vertical",
+        "horizontal"
+      ]
+    },
+    {
+      "id": "autoblock",
+      "indicators": [
+        "swing_block"
+      ]
+    },
+    {
+      "id": "speed",
+      "indicators": [
+        "sustained",
+        "ground",
+        "burst"
+      ]
+    },
+    {
+      "id": "bhop",
+      "indicators": [
+        "short_air",
+        "hop_speed",
+        "air_strafe",
+        "air_accel"
+      ]
+    },
+    {
+      "id": "noslow",
+      "indicators": [
+        "sprint",
+        "speed"
+      ]
+    },
+    {
+      "id": "keepy",
+      "indicators": [
+        "flat_jump"
+      ]
+    },
+    {
+      "id": "flatscaff",
+      "indicators": [
+        "fast_bridge"
+      ]
+    },
+    {
+      "id": "legitscaff",
+      "indicators": [
+        "edge_taps"
+      ]
+    }
+  ]
+}

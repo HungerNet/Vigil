@@ -5,6 +5,7 @@
 
 #include "../src/core/json.h"
 #include "../src/core/settings.h"
+#include "../src/detection/config_binding.h"
 #include "../src/detection/engine.h"
 
 #include <algorithm>
@@ -498,11 +499,13 @@ static void testJsonAndSettings() {
 static void testPresetsKeepDefaults() {
     Engine e;
     e.initialize();
+    Settings& S = Settings::instance();
+    registerEngineSettings(S, e.schema());
     for (const auto& c : e.checks()) {
-        EXPECT(c->presetSetting()->i() == 1, "%s preset should default to Balanced", c->id().c_str());
-        c->applyPreset(1);
-        for (Setting* s : Settings::instance().withPrefix(c->settingsPrefix())) {
-            if (c->isPresetControlled(s)) EXPECT(s->isDefault(), "%s: Balanced value differs from default", s->key.c_str());
+        EXPECT(presetSetting(S, *c)->i() == 1, "%s preset should default to Balanced", c->id().c_str());
+        applyPreset(S, *c, 1);
+        for (Setting* s : S.withPrefix(c->settingsPrefix())) {
+            if (isPresetControlled(*c, *s)) EXPECT(s->isDefault(), "%s: Balanced value differs from default", s->key.c_str());
         }
     }
 }

@@ -1,0 +1,57 @@
+{
+ "format": 1,
+ "kind": "vigil-profile",
+ "vigil": "",
+ "savedAt": 0,
+ "sessionStart": 0,
+ "capturedAt": 0,
+ "origin": "saved",
+ "marks": {
+  "watched": false,
+  "confirmed": false,
+  "exempt": false,
+  "reasons": []
+ },
+ "identity": {
+  "nicked": false,
+  "candidates": []
+ },
+ "player": {
+  "key": "name:Only_Name",
+  "uuid": "",
+  "name": "Only_Name",
+  "local": false,
+  "teammate": false,
+  "firstSeen": 0,
+  "lastSeen": 0,
+  "suspicion": 0,
+  "peakSuspicion": 0,
+  "priorSessions": 0,
+  "priorDetections": 0,
+  "priorPeak": 0,
+  "suspicionHistory": []
+ },
+ "checks": [],
+ "evidence": [],
+ "detections": [],
+ "timeline": [],
+ "stats": {
+  "ticksObserved": 0,
+  "ticksInCombat": 0,
+  "hitsLanded": 0,
+  "hitsTaken": 0,
+  "swings": 0,
+  "reachSum": 0,
+  "reachSamples": 0,
+  "reachMax": 0,
+  "aimOutsideSum": 0,
+  "cpsPeak": 0,
+  "speedPeak": 0,
+  "speedSum": 0,
+  "speedSamples": 0,
+  "jumps": 0,
+  "airTicksSum": 0,
+  "reachRecent": [],
+  "speedRecent": []
+ }
+}

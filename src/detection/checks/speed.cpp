@@ -59,22 +59,23 @@ protected:
         iGround_ = addIndicator("ground", "Ground speed", "Speed while staying on the ground exceeds sprinting.", 1.2f);
         iBurst_ = addIndicator("burst", "Burst", "A short movement far beyond any vanilla speed without a teleport.", 0.6f);
 
-        airLimit_ = &addFloat("limit", "Sprint-jump limit", 0.40, {0.36, 0.7, 0.005, 3, "b/tick"},
-                              "One-second average speed above which movement counts as evidence. Vanilla sprint-jumping "
-                              "averages 0.356 b/tick. Movement modifiers raise this limit automatically.");
-        preset(*airLimit_, 0.43, 0.40, 0.385);
-        groundLimit_ = &addFloat("groundLimit", "Ground limit", 0.31, {0.28, 0.6, 0.005, 3, "b/tick"},
-                                 "Average speed while on the ground above which movement counts as evidence. Vanilla "
-                                 "sprinting is 0.281 b/tick.");
-        preset(*groundLimit_, 0.33, 0.31, 0.30);
-        burstLimit_ = &addFloat("burst", "Burst limit", 1.0, {0.6, 3.0, 0.05, 2, "b/tick"},
-                                "Four-tick average speed treated as a burst. Movement above 4 b/tick is treated as a "
-                                "teleport and ignored.", "Detection", true);
+        airLimit_ = addFloat("limit", "Sprint-jump limit", 0.40, {0.36, 0.7, 0.005, 3, "b/tick"},
+                             "One-second average speed above which movement counts as evidence. Vanilla sprint-jumping "
+                             "averages 0.356 b/tick. Movement modifiers raise this limit automatically.");
+        preset(airLimit_, 0.43, 0.40, 0.385);
+        groundLimit_ = addFloat("groundLimit", "Ground limit", 0.31, {0.28, 0.6, 0.005, 3, "b/tick"},
+                                "Average speed while on the ground above which movement counts as evidence. Vanilla "
+                                "sprinting is 0.281 b/tick.");
+        preset(groundLimit_, 0.33, 0.31, 0.30);
+        burstLimit_ = addFloat("burst", "Burst limit", 1.0, {0.6, 3.0, 0.05, 2, "b/tick"},
+                               "Four-tick average speed treated as a burst. Movement above 4 b/tick is treated as a "
+                               "teleport and ignored.", "Detection", true);
     }
 
 public:
     void onTick(CheckContext& ctx, PlayerTrack& t, PlayerCheckState* base) override {
         auto* st = static_cast<SpeedState*>(base);
+        const EngineConfig& cfg = ctx.config();
         const Exemptions& ex = ctx.exemptions(t);
         if (ex.movement() || ex.ice || ex.slime) return;
         if (t.size() < 24) return;
@@ -89,7 +90,7 @@ public:
         // Sustained (20 ticks). Head-hitter jumping legitimately exceeds the envelope.
         const double avg = t.horizontalSpeedFresh(20);
         const float q20 = t.dataQuality(20);
-        const double limit = airLimit_->value * mult * terrain;
+        const double limit = cfg.value(airLimit_) * mult * terrain;
         if (!underCeiling && q20 >= 0.3f && avg > limit && now - st->lastSustained >= 20) {
             st->lastSustained = now;
             const float sev = static_cast<float>(std::clamp((avg / limit - 1.0) / 0.25 + 0.3, 0.3, 1.0)) * (0.6f + 0.4f * q20);
@@ -106,7 +107,7 @@ public:
         if (!underCeiling && t.groundTicks() >= 12 && !f.sneaking) {
             const double g = t.horizontalSpeedFresh(12);
             const float q12 = t.dataQuality(12);
-            const double glimit = groundLimit_->value * mult;
+            const double glimit = cfg.value(groundLimit_) * mult;
             if (q12 >= 0.3f && g > glimit && now - st->lastGround >= 20) {
                 st->lastGround = now;
                 const float sev = static_cast<float>(std::clamp((g / glimit - 1.0) / 0.25 + 0.35, 0.35, 1.0)) * (0.6f + 0.4f * q12);
@@ -123,7 +124,7 @@ public:
 
         // Burst (4 ticks), only on regular data: a burst is exactly what a lag catch-up looks like.
         const double b = t.horizontalSpeedFresh(4);
-        const double blimit = burstLimit_->value * mult;
+        const double blimit = cfg.value(burstLimit_) * mult;
         if (t.dataQuality(8) >= 0.9f && b > blimit && b < 4.0 && now - st->lastBurst >= 40) {
             st->lastBurst = now;
             ctx.emit(t, iBurst_, static_cast<float>(std::clamp(b / (blimit * 2.0), 0.3, 1.0)),
@@ -135,9 +136,9 @@ public:
 
 private:
     int iSustained_ = 0, iGround_ = 0, iBurst_ = 0;
-    Setting* airLimit_ = nullptr;
-    Setting* groundLimit_ = nullptr;
-    Setting* burstLimit_ = nullptr;
+    ParamId airLimit_ = kNoParam;
+    ParamId groundLimit_ = kNoParam;
+    ParamId burstLimit_ = kNoParam;
 };
 
 }  // namespace

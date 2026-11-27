@@ -7,6 +7,10 @@
         Every relative link in the repository's Markdown files points at an existing file.
     python tools/ci/validate_repo.py golden
         The golden trace and its expected outcome exist and are well formed.
+    python tools/ci/validate_repo.py engine-globals
+        The detection engine owns no global state (RUST_PLAN.md P1): nothing under src/detection
+        except the registry binding (config_binding.*) includes the settings registry or names
+        Settings/Setting, and no file declares a mutable static variable.
 
 Standard library only. Exit code 1 with one line per problem when a check fails.
 """
@@ -104,6 +108,28 @@ def check_golden():
     return problems
 
 
+REGISTRY_RE = re.compile(r'core/settings\.h|\bSettings\s*::|\bSettings\s*&|\bSetting\s*[*&]|\bSettingRange\b')
+STATIC_RE = re.compile(r"^\s*static\s+(?!const\b|constexpr\b|inline\b)([^=;{(]*)[=;{]")
+
+
+def check_engine_globals():
+    problems = []
+    allowed = {"config_binding.h", "config_binding.cpp"}
+    files = sorted(p for p in (ROOT / "src" / "detection").rglob("*") if p.suffix in (".h", ".cpp"))
+    for path in files:
+        if path.name in allowed:
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            code = line.split("//", 1)[0]
+            if REGISTRY_RE.search(code):
+                problems.append(f"{rel}:{n}: the engine reads the settings registry (use EngineConfig; only config_binding.* may)")
+            if STATIC_RE.match(code):
+                problems.append(f"{rel}:{n}: mutable static state in the engine")
+    print(f"engine globals: checked {len(files)} files under src/detection")
+    return problems
+
+
 def main(argv):
     if len(argv) < 2:
         print(__doc__)
@@ -116,6 +142,8 @@ def main(argv):
         return fail(check_links())
     if cmd == "golden":
         return fail(check_golden())
+    if cmd == "engine-globals":
+        return fail(check_engine_globals())
     print(__doc__)
     return 2
 

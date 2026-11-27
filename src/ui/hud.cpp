@@ -251,7 +251,7 @@ void Hud::drawActivation(const Context& c) {
     RuntimeStatus rs;
     if (c.host) rs = c.host->runtimeStatus();
     int enabled = 0;
-    for (const auto& ch : c.engine.checks()) if (ch->enabled()) ++enabled;
+    for (const auto& ch : c.engine.checks()) if (ch->enabled(liveConfig(c.engine))) ++enabled;
     const std::string where = c.engine.active() ? "Monitoring \xC2\xB7 " + (c.engine.contextDetail().empty()
                                                                                 ? std::string(detection::gameContextName(c.engine.context()))
                                                                                 : c.engine.contextDetail())

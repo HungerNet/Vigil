@@ -80,9 +80,10 @@ std::string buildDiagnosticsReport(const PageContext& ctx) {
     line("");
     line("[Engine]");
     int enabled = 0;
-    for (const auto& c : e.checks()) if (c->enabled()) ++enabled;
+    const detection::EngineConfig& cfg = liveConfig(e);
+    for (const auto& c : e.checks()) if (c->enabled(cfg)) ++enabled;
     const auto& st = e.stats();
-    line("monitoring " + std::string(e.monitoringEnabled() ? "on" : "paused") + " \xC2\xB7 phase " + detection::gamePhaseName(e.phase()) +
+    line("monitoring " + std::string(e.monitoringEnabled(cfg) ? "on" : "paused") + " \xC2\xB7 phase " + detection::gamePhaseName(e.phase()) +
          (e.contextDetail().empty() ? "" : " (" + e.contextDetail() + ")") + " \xC2\xB7 checks " + std::to_string(enabled) + "/" +
          std::to_string(e.checks().size()));
     line("tick " + formatNumber(st.avgTickMicros / 1000.0, 2) + " ms avg, " + formatNumber(st.peakTickMicros / 1000.0, 1) + " ms peak \xC2\xB7 players " +
@@ -301,10 +302,11 @@ void drawStatus(PageContext& ctx, const Rect& area) {
     {
         const Rect in = systemCard(ui, {area.x + cw + gap, y, cw, ch}, Icon::Chip, "DETECTION ENGINE");
         int enabled = 0;
-        for (const auto& c : e.checks()) if (c->enabled()) ++enabled;
+        const detection::EngineConfig& cfg = liveConfig(e);
+        for (const auto& c : e.checks()) if (c->enabled(cfg)) ++enabled;
         const auto& st = e.stats();
         float ry = in.y;
-        ry = statusRow(ui, in.x, ry, in.w, e.monitoringEnabled() ? State::Ok : State::Off, "Monitoring", e.monitoringEnabled() ? "on" : "paused");
+        ry = statusRow(ui, in.x, ry, in.w, e.monitoringEnabled(cfg) ? State::Ok : State::Off, "Monitoring", e.monitoringEnabled(cfg) ? "on" : "paused");
         const std::string phase = std::string(detection::gamePhaseName(e.phase())) +
                                   (e.contextDetail().empty() ? std::string() : " \xC2\xB7 " + e.contextDetail());
         ry = statusRow(ui, in.x, ry, in.w, e.active() ? State::Ok : State::Info, "Game phase",

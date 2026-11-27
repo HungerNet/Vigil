@@ -7,6 +7,11 @@
 //
 // Per frame:  phase & scene → tracks → who is a player (NPCs, duplicates) → records (relevance,
 //             presence) → exemptions (incl. server stalls) → checks → combat → history.
+//
+// Configuration: initialize() declares every parameter in the engine's ConfigSchema and starts on
+// its defaults. The host replaces the snapshot between frames with setConfig() (in Vigil, from the
+// settings registry: config_binding.h). The engine reads no global state: what it concludes is a
+// function of the frames it receives and the EngineConfig it runs with (docs/ARCHITECTURE.md §6).
 
 #include "check.h"
 #include "combat.h"
@@ -58,8 +63,17 @@ public:
     Engine();
     ~Engine() override;
 
-    // Creates checks and registers all detection settings. Call before Settings::load().
+    // Creates the checks and declares every parameter in schema(); the engine starts on the
+    // schema's defaults. Hosts that show or persist parameters register them in the settings
+    // registry afterwards (registerEngineSettings, before Settings::load()).
     void initialize();
+
+    // Configuration (config.h). setConfig() takes effect from the next frame; it refuses a
+    // snapshot built for a different schema and returns false.
+    const ConfigSchema& schema() const { return *schema_; }
+    std::shared_ptr<const ConfigSchema> schemaPtr() const { return schema_; }
+    const EngineConfig& config() const override { return config_; }
+    bool setConfig(const EngineConfig& config);
 
     void onFrame(const WorldFrame& frame);
     void onWorldChanged();             // entity ids become invalid; session continues
@@ -78,7 +92,10 @@ public:
     const std::string& contextDetail() const { return contextDetail_; }
     bool active() const { return active_; }           // checks are running
     bool recording() const { return recording_; }     // players are being recorded
-    bool monitoringEnabled() const;
+    bool monitoringEnabled() const { return monitoringEnabled(config_); }
+    // The same question asked of another snapshot of this engine's schema (the UI asks the
+    // registry's current values, so a toggle shows on the frame it happens).
+    bool monitoringEnabled(const EngineConfig& c) const;
     Tick lastTick() const { return tick_; }
     double lastTimeMs() const { return timeMs_; }
     const std::vector<CombatEvent>& recentCombat() const { return recentCombat_; }
@@ -94,7 +111,8 @@ public:
     // The user's marks (watch, confirmed by you, exempt).
     Marks& marks() { return marks_; }
     const Marks& marks() const { return marks_; }
-    PlayerState playerState(const PlayerRecord& r) const;
+    PlayerState playerState(const PlayerRecord& r) const { return playerState(r, config_); }
+    PlayerState playerState(const PlayerRecord& r, const EngineConfig& c) const;
 
     // Persistence hooks (set by the host).
     void setHistoryPath(const std::string& p) { historyPath_ = p; session_.loadHistory(p); }
@@ -131,7 +149,7 @@ private:
         bool isPlayer() const { return verdict.kind == EntityKind::Player && !pending; }
     };
 
-    void registerGlobalSettings();
+    void registerGlobalParams(ConfigSchema& schema);
     bool phaseAnalyzed(GamePhase p) const;
     bool phaseRecorded(GamePhase p) const;
     void computeExemptions(Tracked& t);
@@ -176,23 +194,27 @@ private:
     // Evaluation context for emit()/debug().
     Check* current_ = nullptr;
 
-    Setting* monitoring_ = nullptr;
-    Setting* runInGame_ = nullptr;
-    Setting* runPregame_ = nullptr;
-    Setting* runLobby_ = nullptr;
-    Setting* runReplay_ = nullptr;
-    Setting* analyzeSelf_ = nullptr;
-    Setting* ignoreTeammates_ = nullptr;
-    Setting* kbTicks_ = nullptr;
-    Setting* teleportTicks_ = nullptr;
-    Setting* iceTicks_ = nullptr;
-    Setting* freshTicks_ = nullptr;
-    Setting* swingWindow_ = nullptr;
-    Setting* settleTicks_ = nullptr;
-    Setting* compTicks_ = nullptr;
-    Setting* combatRange_ = nullptr;
-    Setting* journal_ = nullptr;
-    Setting* history_ = nullptr;
+    // The parameters this engine declared, and the snapshot it runs with.
+    std::shared_ptr<ConfigSchema> schema_;
+    EngineConfig config_;
+
+    ParamId monitoring_ = kNoParam;
+    ParamId runInGame_ = kNoParam;
+    ParamId runPregame_ = kNoParam;
+    ParamId runLobby_ = kNoParam;
+    ParamId runReplay_ = kNoParam;
+    ParamId analyzeSelf_ = kNoParam;
+    ParamId ignoreTeammates_ = kNoParam;
+    ParamId kbTicks_ = kNoParam;
+    ParamId teleportTicks_ = kNoParam;
+    ParamId iceTicks_ = kNoParam;
+    ParamId freshTicks_ = kNoParam;
+    ParamId swingWindow_ = kNoParam;
+    ParamId settleTicks_ = kNoParam;
+    ParamId compTicks_ = kNoParam;
+    ParamId combatRange_ = kNoParam;
+    ParamId journal_ = kNoParam;
+    ParamId history_ = kNoParam;
 };
 
 // Implemented in checks/registry.cpp.

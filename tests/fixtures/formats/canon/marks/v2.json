@@ -1,0 +1,64 @@
+{
+ "format": 2,
+ "players": {
+  "B-upper-sorts-first": {
+   "name": "Upper",
+   "watch": true,
+   "confirmed": false,
+   "exempt": false,
+   "added": 3,
+   "updated": 3,
+   "reasons": []
+  },
+  "aaaa-uuid-watched": {
+   "name": "Suspect",
+   "uuid": "aaaa-uuid-watched",
+   "watch": true,
+   "confirmed": false,
+   "exempt": false,
+   "added": 1700000300000,
+   "updated": 1700000300000,
+   "reasons": [
+    "stale"
+   ]
+  },
+  "name:Fallback": {
+   "name": "Fallback",
+   "watch": false,
+   "confirmed": true,
+   "exempt": false,
+   "added": 1700000500000,
+   "confirmedAt": 1700000500000,
+   "updated": 1700000600000,
+   "reasons": []
+  },
+  "user:friend": {
+   "name": "Friend",
+   "watch": false,
+   "confirmed": false,
+   "exempt": true,
+   "added": 1700000400001,
+   "exemptAt": 1700000400000,
+   "updated": 1700000400001,
+   "origin": "name",
+   "reasons": []
+  },
+  "zzzz-uuid-confirmed": {
+   "name": "Cheater",
+   "uuid": "zzzz-uuid-confirmed",
+   "watch": true,
+   "confirmed": true,
+   "exempt": false,
+   "added": 1700000000000,
+   "confirmedAt": 1700000100000.5,
+   "confidenceAtConfirm": 87.25,
+   "updated": 1700000200000,
+   "note": "Snaps every fight — \"reported\"",
+   "origin": "profile",
+   "reasons": [
+    "KillAura",
+    "Reach"
+   ]
+  }
+ }
+}

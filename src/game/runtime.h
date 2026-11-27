@@ -4,6 +4,7 @@
 //   swap:    UI render (menu, activation card, notifications), launcher handshake
 //   wndproc: input routing, shortcuts, Fast Buy
 
+#include "../detection/config_binding.h"
 #include "../detection/engine.h"
 #include "../detection/trace.h"
 #include "../ui/app.h"
@@ -74,6 +75,9 @@ private:
     HWND hwnd_ = nullptr;
 
     detection::Engine engine_;
+    // Hands the engine a snapshot of its parameters whenever the settings registry changed; run at
+    // the top of every pump, so a whole pump sees one consistent configuration (RUST_PLAN.md P1).
+    detection::SettingsSync settingsSync_;
     detection::TraceWriter trace_;   // diagnostic recording (Status → Diagnostics), off by default
     std::string lastTracePath_;
     bool pendingWorldChange_ = false;

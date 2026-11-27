@@ -293,7 +293,7 @@ float formation(PageContext& ctx, const Evidence& ev, float x, float y, float w)
     Ui& ui = ctx.ui;
     const Theme& t = ui.th();
     const auto& chk = *ctx.engine.checks()[static_cast<std::size_t>(ev.check)];
-    const auto params = chk.confidenceParams();
+    const auto params = chk.confidenceParams(liveConfig(ctx.engine));
     const float before = std::max(0.f, ev.confidenceAfter - ev.contribution);
     const float strength = ev.weight * ev.severity;
     const float headroom = 100.f - before;

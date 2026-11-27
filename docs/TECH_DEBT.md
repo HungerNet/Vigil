@@ -1,6 +1,29 @@
 # Technical debt report
 
-Last reviewed in 1.0-dev.9. Long-term direction: [RUST_PLAN.md](../RUST_PLAN.md).
+Last reviewed in the Rust P1/P2 pass. Long-term direction: [RUST_PLAN.md](../RUST_PLAN.md).
+
+## Resolved in Rust P1 (engine configuration)
+
+| Debt | Before | After |
+|---|---|---|
+| Checks read thresholds through `Setting*` into the global registry | 248 live pointers into `Settings::instance()`; the engine's behavior depended on process-wide state | Immutable `EngineConfig` snapshot handed over between frames; only `detection/config_binding.*` knows the registry (CI-enforced) |
+| Traces could only be replayed with default settings | — | `VigilReplay --config`; configuration documents round-trip exactly |
+
+## Found in Rust P1, left as they are (behavior-preserving pass)
+
+| Item | Effect | Suggested fix |
+|---|---|---|
+| `Setting::reset()` snaps to the step, but registration stores the unsnapped default. Indicator weights are declared as `float` (`0.8f` = 0.80000001192…), so "Reset check" stores 0.8, and `isDefault()` (1e-9 tolerance) then reports those weights as modified | After "Reset check", the reset button can stay visible and weights show as changed; detection unaffected beyond a 1e-8 weight difference | Declare weights as exact doubles, or make `isDefault()` compare after snapping; a deliberate change with its own golden review |
+| `Settings::load()` assigns a JSON boolean to any setting type without clamping, and `strtod` accepts `nan`/`inf` | A hand-edited `config.json` can put out-of-range or non-finite values in the registry (the engine then runs with them) | Type-check booleans and refuse non-finite numbers on load |
+
+## Introduced deliberately in Rust P2 (accepted)
+
+| Item | Why | When to revisit |
+|---|---|---|
+| Two implementations of every file format (C++ and `vigil-formats`) | The hybrid period (RUST_PLAN §6); both are held to one contract by shared fixtures and CI round trips | Delete the C++ readers one release after the Rust side owns each format |
+| A hand-written JSON layer in Rust instead of `serde` | Byte-identical output needs the C++ number rule and byte strings; zero dependencies | When no C++ writer remains, consider `serde` for new formats |
+| Rust refuses hexadecimal float literals that the C++ parser (`strtod`) accepts | No Vigil writer produces them; documented in `tests/fixtures/formats/divergences.txt` | Never, unless a format starts using them |
+| `.gitattributes` (with `tests/traces/** -text`) is untracked in this checkout | It protects the golden trace's exact bytes; every reader and test also tolerates `\r` | Commit it, and add `tests/fixtures/** -text` so CRLF test inputs keep their bytes |
 
 ## Resolved in 1.0-dev.9
 
@@ -33,7 +56,6 @@ Last reviewed in 1.0-dev.9. Long-term direction: [RUST_PLAN.md](../RUST_PLAN.md)
 
 | Item | Why it remains | Suggested next step |
 |---|---|---|
-| Checks read thresholds through `Setting*` into the global registry | Works, and every UI row is generated from it | RUST_PLAN P1: an immutable `EngineConfig` snapshot built on change (prerequisite for the Rust engine and for replaying traces with other settings) |
 | UI reads `PlayerRecord`s straight from the engine | Simple and fast in one process | When the engine moves behind an ABI: a revision-based record mirror (RUST_PLAN §6.1) |
 | `game/minecraft_util.cpp` still holds Bed Wars team-name helpers and unused legacy string utilities | Team-color resolution is tangled with them and proven in game | Extract a `TeamResolver`; delete the rest after live validation |
 | `game/world_render.cpp` keeps the legacy JNI cache structure | Proven RenderGlobal hook path | Shrink after live validation |

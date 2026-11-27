@@ -1,0 +1,1548 @@
+{
+ "format": 1,
+ "kind": "vigil-profile",
+ "vigil": "fixture",
+ "savedAt": 1764201600000,
+ "sessionStart": 50050,
+ "capturedAt": 65900,
+ "origin": "saved",
+ "note": "Saved for the format fixtures — \"quotes\", a tab\t and a newline\n.",
+ "marks": {
+  "watched": true,
+  "confirmed": true,
+  "exempt": false,
+  "reasons": [
+   "KillAura",
+   "Reach"
+  ]
+ },
+ "identity": {
+  "nicked": true,
+  "likelyAccount": "Likely_Main",
+  "candidates": [
+   "Likely_Main",
+   "Other"
+  ]
+ },
+ "player": {
+  "key": "00000000-0000-4000-8000-100000000002",
+  "uuid": "00000000-0000-4000-8000-100000000002",
+  "name": "Aura",
+  "local": false,
+  "teammate": false,
+  "firstSeen": 50050,
+  "lastSeen": 65900,
+  "suspicion": 97.9971694946289,
+  "peakSuspicion": 98.75482177734375,
+  "priorSessions": 0,
+  "priorDetections": 0,
+  "priorPeak": 0,
+  "suspicionHistory": [
+   [
+    52000,
+    43.581855773925781
+   ],
+   [
+    52500,
+    67.975738525390625
+   ],
+   [
+    53000,
+    81.6593246459961
+   ],
+   [
+    53500,
+    81.032829284667969
+   ],
+   [
+    54000,
+    88.679061889648438
+   ],
+   [
+    54500,
+    93.014045715332031
+   ],
+   [
+    55000,
+    95.500846862792969
+   ],
+   [
+    55500,
+    96.956123352050781
+   ],
+   [
+    56000,
+    97.835723876953125
+   ],
+   [
+    56500,
+    97.085121154785156
+   ],
+   [
+    57000,
+    97.639205932617188
+   ],
+   [
+    57500,
+    98.015457153320312
+   ],
+   [
+    58000,
+    98.292556762695312
+   ],
+   [
+    58500,
+    98.514411926269531
+   ],
+   [
+    59000,
+    98.705535888671875
+   ],
+   [
+    59500,
+    97.9482650756836
+   ],
+   [
+    60000,
+    98.1209945678711
+   ],
+   [
+    60500,
+    98.284385681152344
+   ],
+   [
+    61000,
+    98.442672729492188
+   ],
+   [
+    61500,
+    98.59820556640625
+   ],
+   [
+    62000,
+    98.752304077148438
+   ],
+   [
+    62500,
+    97.994674682617188
+   ],
+   [
+    63000,
+    98.146903991699219
+   ],
+   [
+    63500,
+    98.2988510131836
+   ],
+   [
+    64000,
+    98.45074462890625
+   ],
+   [
+    64500,
+    98.602714538574219
+   ],
+   [
+    65000,
+    98.75482177734375
+   ],
+   [
+    65500,
+    97.9971694946289
+   ]
+  ]
+ },
+ "checks": [
+  {
+   "id": "killaura",
+   "confidence": 98.830970764160156,
+   "peak": 98.830970764160156,
+   "evidence": 24,
+   "detections": 1,
+   "indicators": {
+    "outside_view": 24
+   },
+   "history": [
+    [
+     52000,
+     43.581851959228516
+    ],
+    [
+     52500,
+     67.975738525390625
+    ],
+    [
+     53000,
+     81.6593246459961
+    ],
+    [
+     53500,
+     81.032829284667969
+    ],
+    [
+     54000,
+     88.679061889648438
+    ],
+    [
+     54500,
+     93.014045715332031
+    ],
+    [
+     55000,
+     95.500846862792969
+    ],
+    [
+     55500,
+     96.956123352050781
+    ],
+    [
+     56000,
+     97.835723876953125
+    ],
+    [
+     56500,
+     97.085121154785156
+    ],
+    [
+     57000,
+     97.639205932617188
+    ],
+    [
+     57500,
+     98.015457153320312
+    ],
+    [
+     58000,
+     98.292556762695312
+    ],
+    [
+     58500,
+     98.514411926269531
+    ],
+    [
+     59500,
+     97.9482650756836
+    ],
+    [
+     60000,
+     98.1209945678711
+    ],
+    [
+     61000,
+     98.442672729492188
+    ],
+    [
+     62000,
+     98.752304077148438
+    ],
+    [
+     62500,
+     97.994674682617188
+    ],
+    [
+     63500,
+     98.2988510131836
+    ],
+    [
+     64000,
+     98.45074462890625
+    ],
+    [
+     65000,
+     98.75482177734375
+    ],
+    [
+     65500,
+     97.9971694946289
+    ]
+   ]
+  }
+ ],
+ "evidence": [
+  {
+   "id": 1,
+   "tick": 1035,
+   "time": 51750,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 43.75,
+   "after": 43.75,
+   "summary": "Hit AuraVictim while aiming 166° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 166° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.29045054524065,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "tick": 1047,
+   "time": 52350,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 24.785457611083984,
+   "after": 68.132980346679688,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "tick": 1059,
+   "time": 52950,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 14.216039657592773,
+   "after": 81.722236633300781,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "tick": 1071,
+   "time": 53550,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 8.3254308700561523,
+   "after": 89.2958755493164,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "tick": 1083,
+   "time": 54150,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 5.0424485206604,
+   "after": 93.516853332519531,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 26,
+   "tick": 1095,
+   "time": 54750,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 3.2127571105957031,
+   "after": 95.869308471679688,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 31,
+   "tick": 1107,
+   "time": 55350,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 2.1930241584777832,
+   "after": 97.1803970336914,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 36,
+   "tick": 1119,
+   "time": 55950,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 1.6247000694274902,
+   "after": 97.911102294921875,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 41,
+   "tick": 1131,
+   "time": 56550,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 1.3079605102539062,
+   "after": 98.3183364868164,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 46,
+   "tick": 1143,
+   "time": 57150,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 1.1314311027526855,
+   "after": 98.545303344726562,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 53,
+   "tick": 1155,
+   "time": 57750,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 1.0330510139465332,
+   "after": 98.671791076660156,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 58,
+   "tick": 1167,
+   "time": 58350,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.97821664810180664,
+   "after": 98.742294311523438,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 63,
+   "tick": 1179,
+   "time": 58950,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.94765853881835938,
+   "after": 98.781585693359375,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 68,
+   "tick": 1191,
+   "time": 59550,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.93062543869018555,
+   "after": 98.803482055664062,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 73,
+   "tick": 1203,
+   "time": 60150,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.92113590240478516,
+   "after": 98.815681457519531,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 78,
+   "tick": 1215,
+   "time": 60750,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.91584539413452148,
+   "after": 98.8224868774414,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 83,
+   "tick": 1227,
+   "time": 61350,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.91289472579956055,
+   "after": 98.826278686523438,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 88,
+   "tick": 1239,
+   "time": 61950,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.911252498626709,
+   "after": 98.8283920288086,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 93,
+   "tick": 1251,
+   "time": 62550,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.910334587097168,
+   "after": 98.8295669555664,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 98,
+   "tick": 1263,
+   "time": 63150,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.90982723236083984,
+   "after": 98.8302230834961,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 105,
+   "tick": 1275,
+   "time": 63750,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.90954017639160156,
+   "after": 98.8305892944336,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 110,
+   "tick": 1287,
+   "time": 64350,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.90938329696655273,
+   "after": 98.830795288085938,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 115,
+   "tick": 1299,
+   "time": 64950,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.90929317474365234,
+   "after": 98.8309097290039,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 120,
+   "tick": 1311,
+   "time": 65550,
+   "check": "killaura",
+   "indicator": "outside_view",
+   "weight": 2,
+   "severity": 1,
+   "contribution": 0.90924644470214844,
+   "after": 98.830970764160156,
+   "summary": "Hit AuraVictim while aiming 167° away",
+   "detail": "A vanilla hit needs the crosshair on the hitbox. Across the whole latency window, the closest aim was still 167° off.",
+   "target": "AuraVictim",
+   "values": [
+    {
+     "name": "Aim outside hitbox",
+     "value": 166.98159342077693,
+     "unit": "°",
+     "limit": 40
+    },
+    {
+     "name": "Yaw error to center",
+     "value": 178.59375,
+     "unit": "°"
+    },
+    {
+     "name": "Distance",
+     "value": 2.19375,
+     "unit": "blocks"
+    }
+   ]
+  }
+ ],
+ "detections": [
+  {
+   "id": 2,
+   "tick": 1059,
+   "time": 52950,
+   "check": "killaura",
+   "confidence": 81.722236633300781,
+   "observations": 3,
+   "indicators": 1,
+   "evidence": [
+    11,
+    6,
+    1
+   ],
+   "summary": "KillAura · 82% · 3 observations, 1 indicator"
+  }
+ ],
+ "timeline": [
+  {
+   "kind": "seen",
+   "time": 50050,
+   "tick": 1001,
+   "value": 0,
+   "text": "Entered view"
+  },
+  {
+   "kind": "hit",
+   "time": 51600,
+   "tick": 1032,
+   "ref": 1,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 51750,
+   "tick": 1035,
+   "check": "killaura",
+   "ref": 1,
+   "value": 43.75,
+   "text": "Hit AuraVictim while aiming 166° away"
+  },
+  {
+   "kind": "hit",
+   "time": 52200,
+   "tick": 1044,
+   "ref": 8,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 52350,
+   "tick": 1047,
+   "check": "killaura",
+   "ref": 6,
+   "value": 68.132980346679688,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 52800,
+   "tick": 1056,
+   "ref": 15,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 52950,
+   "tick": 1059,
+   "check": "killaura",
+   "ref": 11,
+   "value": 81.722236633300781,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "detection",
+   "time": 52950,
+   "tick": 1059,
+   "check": "killaura",
+   "ref": 2,
+   "value": 81.722236633300781,
+   "text": "KillAura · 82% · 3 observations, 1 indicator"
+  },
+  {
+   "kind": "hit",
+   "time": 53400,
+   "tick": 1068,
+   "ref": 22,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 53550,
+   "tick": 1071,
+   "check": "killaura",
+   "ref": 16,
+   "value": 89.2958755493164,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 54000,
+   "tick": 1080,
+   "ref": 29,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 54150,
+   "tick": 1083,
+   "check": "killaura",
+   "ref": 21,
+   "value": 93.516853332519531,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 54600,
+   "tick": 1092,
+   "ref": 36,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 54750,
+   "tick": 1095,
+   "check": "killaura",
+   "ref": 26,
+   "value": 95.869308471679688,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 55200,
+   "tick": 1104,
+   "ref": 43,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 55350,
+   "tick": 1107,
+   "check": "killaura",
+   "ref": 31,
+   "value": 97.1803970336914,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 55800,
+   "tick": 1116,
+   "ref": 50,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 55950,
+   "tick": 1119,
+   "check": "killaura",
+   "ref": 36,
+   "value": 97.911102294921875,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 56400,
+   "tick": 1128,
+   "ref": 57,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 56550,
+   "tick": 1131,
+   "check": "killaura",
+   "ref": 41,
+   "value": 98.3183364868164,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 57000,
+   "tick": 1140,
+   "ref": 64,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 57150,
+   "tick": 1143,
+   "check": "killaura",
+   "ref": 46,
+   "value": 98.545303344726562,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 57600,
+   "tick": 1152,
+   "ref": 71,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 57750,
+   "tick": 1155,
+   "check": "killaura",
+   "ref": 53,
+   "value": 98.671791076660156,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 58200,
+   "tick": 1164,
+   "ref": 78,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 58350,
+   "tick": 1167,
+   "check": "killaura",
+   "ref": 58,
+   "value": 98.742294311523438,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 58800,
+   "tick": 1176,
+   "ref": 85,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 58950,
+   "tick": 1179,
+   "check": "killaura",
+   "ref": 63,
+   "value": 98.781585693359375,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 59400,
+   "tick": 1188,
+   "ref": 92,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 59550,
+   "tick": 1191,
+   "check": "killaura",
+   "ref": 68,
+   "value": 98.803482055664062,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 60000,
+   "tick": 1200,
+   "ref": 99,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 60150,
+   "tick": 1203,
+   "check": "killaura",
+   "ref": 73,
+   "value": 98.815681457519531,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 60600,
+   "tick": 1212,
+   "ref": 106,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 60750,
+   "tick": 1215,
+   "check": "killaura",
+   "ref": 78,
+   "value": 98.8224868774414,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 61200,
+   "tick": 1224,
+   "ref": 113,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 61350,
+   "tick": 1227,
+   "check": "killaura",
+   "ref": 83,
+   "value": 98.826278686523438,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 61800,
+   "tick": 1236,
+   "ref": 120,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 61950,
+   "tick": 1239,
+   "check": "killaura",
+   "ref": 88,
+   "value": 98.8283920288086,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 62400,
+   "tick": 1248,
+   "ref": 127,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 62550,
+   "tick": 1251,
+   "check": "killaura",
+   "ref": 93,
+   "value": 98.8295669555664,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 63000,
+   "tick": 1260,
+   "ref": 134,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 63150,
+   "tick": 1263,
+   "check": "killaura",
+   "ref": 98,
+   "value": 98.8302230834961,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 63600,
+   "tick": 1272,
+   "ref": 141,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 63750,
+   "tick": 1275,
+   "check": "killaura",
+   "ref": 105,
+   "value": 98.8305892944336,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 64200,
+   "tick": 1284,
+   "ref": 148,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 64350,
+   "tick": 1287,
+   "check": "killaura",
+   "ref": 110,
+   "value": 98.830795288085938,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 64800,
+   "tick": 1296,
+   "ref": 155,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 64950,
+   "tick": 1299,
+   "check": "killaura",
+   "ref": 115,
+   "value": 98.8309097290039,
+   "text": "Hit AuraVictim while aiming 167° away"
+  },
+  {
+   "kind": "hit",
+   "time": 65400,
+   "tick": 1308,
+   "ref": 162,
+   "value": 2.1937499046325684,
+   "text": "Hit AuraVictim"
+  },
+  {
+   "kind": "evidence",
+   "time": 65550,
+   "tick": 1311,
+   "check": "killaura",
+   "ref": 120,
+   "value": 98.830970764160156,
+   "text": "Hit AuraVictim while aiming 167° away"
+  }
+ ],
+ "stats": {
+  "ticksObserved": 318,
+  "ticksInCombat": 288,
+  "hitsLanded": 24,
+  "hitsTaken": 0,
+  "swings": 24,
+  "reachSum": 52.65000000000002,
+  "reachSamples": 24,
+  "reachMax": 2.19375,
+  "aimOutsideSum": 4006.8670992231087,
+  "cpsPeak": 2,
+  "speedPeak": 0,
+  "speedSum": 0,
+  "speedSamples": 29,
+  "jumps": 0,
+  "airTicksSum": 0,
+  "reachRecent": [
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684,
+   2.1937499046325684
+  ],
+  "speedRecent": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ }
+}

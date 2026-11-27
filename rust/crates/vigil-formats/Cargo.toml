@@ -1,0 +1,21 @@
+[package]
+name = "vigil-formats"
+description = "Vigil's file formats (traces, outcomes, profiles, marks, engine configuration), byte-for-byte compatible with the C++ implementation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# No dependencies, by design (P2_PLAN.md §2.1).
+[dependencies]
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "vigil-fmt"
+path = "src/bin/vigil-fmt.rs"
+
+[[bin]]
+name = "replay-check"
+path = "src/bin/replay-check.rs"

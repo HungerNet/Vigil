@@ -225,5 +225,10 @@ void playerAvatar(PageContext& ctx, const detection::PlayerRecord& p, const Rect
 // "In this game" / "Left" / "Earlier game" line for a player record.
 std::string presenceLabel(const PageContext& ctx, const detection::PlayerRecord& p);
 std::string keyLabel(const std::string& settingKey);   // name of the key bound to a Key setting
+// The engine's parameters as the user has set them right now (the settings registry), for
+// everything the interface shows or explains: a toggle reads back its new state on the same
+// frame. The engine itself receives the same values at the start of its next frame
+// (detection/config_binding.h).
+const detection::EngineConfig& liveConfig(const detection::Engine& engine);
 
 }  // namespace vigil::ui

@@ -14,75 +14,88 @@ namespace vigil::detection {
 Engine::Engine() = default;
 Engine::~Engine() = default;
 
-void Engine::registerGlobalSettings() {
-    auto& S = Settings::instance();
-    auto group = [](Setting& s, const char* g, bool adv = false) -> Setting& { s.group = g; s.advanced = adv; return s; };
+void Engine::registerGlobalParams(ConfigSchema& S) {
+    monitoring_ = S.addBool("general.monitoring", "Monitoring", true,
+                            "Master switch. When off, Vigil observes nothing and all checks are idle.", "Monitoring");
+    runInGame_ = S.addBool("general.runIn.game", "In games", true,
+                           "Analyze players during matches (Bed Wars, Duels, SkyWars and similar).", "Where checks run");
+    runReplay_ = S.addBool("general.runIn.replay", "Replays & Atlas", true,
+                           "Analyze players while watching Hypixel replays or reviewing Atlas reports.", "Where checks run");
+    runPregame_ = S.addBool("general.runIn.pregame", "Pre-game queues", false,
+                            "Analyze players while waiting for a match to start. They are always listed under "
+                            "This game; this decides whether checks judge them before the match.",
+                            "Where checks run");
+    runLobby_ = S.addBool("general.runIn.lobby", "Main lobbies", false,
+                          "Analyze players in main lobbies. Lobbies contain parkour, launch pads and other "
+                          "mechanics that resemble cheats.", "Where checks run");
+    S.spec(runLobby_).warning = "Lobby mechanics (launch pads, parkour, double jump) produce movement that resembles cheats.";
+    S.spec(runLobby_).warnWhen = [](const ParamView& s) { return s.b(); };
+    analyzeSelf_ = S.addBool("general.analyzeSelf", "Analyze yourself", false,
+                             "Runs every check on your own player. Use it to calibrate thresholds: anything Vigil "
+                             "reports about you while playing legitimately is a false positive.", "Calibration");
 
-    monitoring_ = &group(S.addBool("general.monitoring", "Monitoring", true,
-                                   "Master switch. When off, Vigil observes nothing and all checks are idle."), "Monitoring");
-    runInGame_ = &group(S.addBool("general.runIn.game", "In games", true,
-                                  "Analyze players during matches (Bed Wars, Duels, SkyWars and similar)."), "Where checks run");
-    runReplay_ = &group(S.addBool("general.runIn.replay", "Replays & Atlas", true,
-                                  "Analyze players while watching Hypixel replays or reviewing Atlas reports."), "Where checks run");
-    runPregame_ = &group(S.addBool("general.runIn.pregame", "Pre-game queues", false,
-                                   "Analyze players while waiting for a match to start. They are always listed under "
-                                   "This game; this decides whether checks judge them before the match."),
-                         "Where checks run");
-    runLobby_ = &group(S.addBool("general.runIn.lobby", "Main lobbies", false,
-                                 "Analyze players in main lobbies. Lobbies contain parkour, launch pads and other "
-                                 "mechanics that resemble cheats."), "Where checks run");
-    runLobby_->warning = "Lobby mechanics (launch pads, parkour, double jump) produce movement that resembles cheats.";
-    runLobby_->warnWhen = [](const Setting& s) { return s.b(); };
-    analyzeSelf_ = &group(S.addBool("general.analyzeSelf", "Analyze yourself", false,
-                                    "Runs every check on your own player. Use it to calibrate thresholds: anything Vigil "
-                                    "reports about you while playing legitimately is a false positive."), "Calibration");
+    ignoreTeammates_ = S.addBool("exempt.teammates", "Ignore teammates", true,
+                                 "Skip players on your team (resolved from scoreboard team colors).", "Exemptions");
+    kbTicks_ = S.addInt("exempt.knockbackTicks", "Knockback grace", 30, {0, 100, 1, 0, "ticks"},
+                        "After a player takes damage, movement checks ignore them for this long. Fireballs and TNT "
+                        "can launch players far beyond normal speed.", "Exemptions");
+    S.spec(kbTicks_).warning = "A short grace lets fireball/TNT knockback count as speed.";
+    S.spec(kbTicks_).warnWhen = [](const ParamView& s) { return s.i() < 15; };
+    teleportTicks_ = S.addInt("exempt.teleportTicks", "Teleport grace", 20, {0, 100, 1, 0, "ticks"},
+                              "Movement checks ignore a player for this long after a teleport (respawn, pearl, server correction).",
+                              "Exemptions", true);
+    iceTicks_ = S.addInt("exempt.iceTicks", "Ice grace", 40, {0, 200, 1, 0, "ticks"},
+                         "Speed-related checks ignore a player for this long after touching ice or packed ice.",
+                         "Exemptions", true);
+    freshTicks_ = S.addInt("exempt.freshTicks", "Warm-up", 20, {0, 100, 1, 0, "ticks"},
+                           "Players are observed for this long before any check judges them.", "Exemptions", true);
 
-    ignoreTeammates_ = &group(S.addBool("exempt.teammates", "Ignore teammates", true,
-                                        "Skip players on your team (resolved from scoreboard team colors)."), "Exemptions");
-    kbTicks_ = &group(S.addInt("exempt.knockbackTicks", "Knockback grace", 30, {0, 100, 1, 0, "ticks"},
-                               "After a player takes damage, movement checks ignore them for this long. Fireballs and TNT "
-                               "can launch players far beyond normal speed."), "Exemptions");
-    kbTicks_->warning = "A short grace lets fireball/TNT knockback count as speed.";
-    kbTicks_->warnWhen = [](const Setting& s) { return s.i() < 15; };
-    teleportTicks_ = &group(S.addInt("exempt.teleportTicks", "Teleport grace", 20, {0, 100, 1, 0, "ticks"},
-                                     "Movement checks ignore a player for this long after a teleport (respawn, pearl, server correction)."),
-                            "Exemptions", true);
-    iceTicks_ = &group(S.addInt("exempt.iceTicks", "Ice grace", 40, {0, 200, 1, 0, "ticks"},
-                                "Speed-related checks ignore a player for this long after touching ice or packed ice."),
-                       "Exemptions", true);
-    freshTicks_ = &group(S.addInt("exempt.freshTicks", "Warm-up", 20, {0, 100, 1, 0, "ticks"},
-                                  "Players are observed for this long before any check judges them."), "Exemptions", true);
+    swingWindow_ = S.addInt("combat.swingWindow", "Swing → hurt window", 2, {0, 6, 1, 0, "ticks"},
+                            "How many ticks may separate an attacker's swing from the victim's hurt animation for "
+                            "the hit to be attributed.", "Hit attribution", true);
+    settleTicks_ = S.addInt("combat.settleTicks", "Settle delay", 3, {0, 10, 1, 0, "ticks"},
+                            "Hits are evaluated after this delay so late position and rotation packets are included.",
+                            "Hit attribution", true);
+    compTicks_ = S.addInt("combat.compensationTicks", "Latency compensation", 5, {0, 12, 1, 0, "ticks"},
+                          "How far back the victim's positions are considered when measuring reach and aim. "
+                          "Covers the attacker's ping and entity interpolation.", "Hit attribution", true);
+    S.spec(compTicks_).warning = "Low compensation measures against positions the attacker may never have seen; laggy players will look like they reach.";
+    S.spec(compTicks_).warnWhen = [](const ParamView& s) { return s.i() < 3; };
+    combatRange_ = S.addFloat("combat.range", "Candidate range", 6.0, {3.5, 10.0, 0.5, 1, "blocks"},
+                              "Swinging players farther than this from the victim are not considered as the attacker.",
+                              "Hit attribution", true);
 
-    swingWindow_ = &group(S.addInt("combat.swingWindow", "Swing → hurt window", 2, {0, 6, 1, 0, "ticks"},
-                                   "How many ticks may separate an attacker's swing from the victim's hurt animation for "
-                                   "the hit to be attributed."), "Hit attribution", true);
-    settleTicks_ = &group(S.addInt("combat.settleTicks", "Settle delay", 3, {0, 10, 1, 0, "ticks"},
-                                   "Hits are evaluated after this delay so late position and rotation packets are included."),
-                          "Hit attribution", true);
-    compTicks_ = &group(S.addInt("combat.compensationTicks", "Latency compensation", 5, {0, 12, 1, 0, "ticks"},
-                                 "How far back the victim's positions are considered when measuring reach and aim. "
-                                 "Covers the attacker's ping and entity interpolation."), "Hit attribution", true);
-    compTicks_->warning = "Low compensation measures against positions the attacker may never have seen; laggy players will look like they reach.";
-    compTicks_->warnWhen = [](const Setting& s) { return s.i() < 3; };
-    combatRange_ = &group(S.addFloat("combat.range", "Candidate range", 6.0, {3.5, 10.0, 0.5, 1, "blocks"},
-                                     "Swinging players farther than this from the victim are not considered as the attacker."),
-                          "Hit attribution", true);
-
-    journal_ = &group(S.addBool("data.journal", "Session journal", true,
-                                "Write every detection and its evidence to sessions/ as JSON lines."), "Data");
-    history_ = &group(S.addBool("data.history", "Player history", true,
-                                "Remember players with evidence across sessions (name, sessions, detections, peak "
-                                "suspicion) in history/players.json."), "Data");
+    journal_ = S.addBool("data.journal", "Session journal", true,
+                         "Write every detection and its evidence to sessions/ as JSON lines.", "Data");
+    history_ = S.addBool("data.history", "Player history", true,
+                         "Remember players with evidence across sessions (name, sessions, detections, peak "
+                         "suspicion) in history/players.json.", "Data");
 }
 
 void Engine::initialize() {
-    registerGlobalSettings();
+    schema_ = std::make_shared<ConfigSchema>();
+    registerGlobalParams(*schema_);
     checks_ = createAllChecks();
     for (std::size_t i = 0; i < checks_.size(); ++i) {
         checks_[i]->setIndex(static_cast<int>(i));
-        checks_[i]->registerAll();
+        checks_[i]->registerAll(*schema_);
     }
+    config_ = EngineConfig(schema_);
     session_.reset(0.0, checks_.size());
+}
+
+bool Engine::setConfig(const EngineConfig& config) {
+    if (!schema_ || !config.schema() || config.size() != schema_->size()) return false;
+    if (config.schema() == schema_.get()) {
+        config_ = config;
+        return true;
+    }
+    // A snapshot of another engine of this build (same keys in the same order): adopt its values.
+    if (!config.schema()->compatible(*schema_)) return false;
+    EngineConfig own(schema_);
+    for (std::size_t i = 0; i < schema_->size(); ++i) own.set(static_cast<ParamId>(i), config.value(static_cast<ParamId>(i)));
+    config_ = std::move(own);
+    return true;
 }
 
 Check* Engine::checkById(const std::string& id) const {
@@ -90,15 +103,15 @@ Check* Engine::checkById(const std::string& id) const {
     return nullptr;
 }
 
-bool Engine::monitoringEnabled() const { return monitoring_ && monitoring_->b(); }
+bool Engine::monitoringEnabled(const EngineConfig& c) const { return monitoring_ != kNoParam && !c.empty() && c.b(monitoring_); }
 
 // Where checks judge players.
 bool Engine::phaseAnalyzed(GamePhase p) const {
     switch (p) {
-        case GamePhase::Match: return runInGame_->b();
-        case GamePhase::Replay: return runReplay_->b();
-        case GamePhase::Queue: return runPregame_->b();
-        case GamePhase::Lobby: return runLobby_->b();
+        case GamePhase::Match: return config_.b(runInGame_);
+        case GamePhase::Replay: return config_.b(runReplay_);
+        case GamePhase::Queue: return config_.b(runPregame_);
+        case GamePhase::Lobby: return config_.b(runLobby_);
         // Post-game: winners celebrate, spectators fly, fireworks launch players. Never judged.
         default: return false;
     }
@@ -111,7 +124,7 @@ bool Engine::phaseRecorded(GamePhase p) const {
         case GamePhase::Match:
         case GamePhase::PostGame:
         case GamePhase::Replay: return true;
-        case GamePhase::Lobby: return runLobby_->b();   // main lobbies are crowds, not opponents
+        case GamePhase::Lobby: return config_.b(runLobby_);   // main lobbies are crowds, not opponents
         default: return false;
     }
 }
@@ -148,7 +161,7 @@ void Engine::resetSession(double nowMs) {
 }
 
 void Engine::flushHistory() {
-    if (history_ && history_->b() && !historyPath_.empty()) {
+    if (history_ != kNoParam && config_.b(history_) && !historyPath_.empty()) {
         std::vector<std::string> ids;
         for (const auto& c : checks_) ids.push_back(c->id());
         session_.saveHistory(historyPath_, ids);
@@ -172,15 +185,15 @@ void Engine::computeExemptions(Tracked& t) {
     const PlayerTrack& tr = t.track;
     const PlayerFrame& f = tr.cur();
     Exemptions& e = t.ex;
-    e.knockback = tick_ - tr.lastHurtTick() <= kbTicks_->i();
-    e.teleport = tick_ - tr.lastTeleportTick() <= teleportTicks_->i();
+    e.knockback = tick_ - tr.lastHurtTick() <= config_.i(kbTicks_);
+    e.teleport = tick_ - tr.lastTeleportTick() <= config_.i(teleportTicks_);
     e.riding = tick_ - tr.lastRideTick() <= 10;
     e.liquid = tick_ - tr.lastLiquidTick() <= 10;
     e.climbing = tick_ - tr.lastClimbTick() <= 6;
     e.web = tick_ - tr.lastWebTick() <= 6;
-    e.ice = tick_ - tr.lastIceTick() <= iceTicks_->i();
+    e.ice = tick_ - tr.lastIceTick() <= config_.i(iceTicks_);
     e.slime = tick_ - tr.lastSlimeTick() <= 20;
-    e.fresh = tick_ - tr.firstTick() < freshTicks_->i();
+    e.fresh = tick_ - tr.firstTick() < config_.i(freshTicks_);
     e.dead = f.dead || f.health == 0.f;
     e.stall = tick_ < stallUntil_;
     // Sustained airborne without descending → flight (spectator/creative/server flight). Invisible
@@ -303,21 +316,21 @@ void Engine::pruneRecords() {
 
 bool Engine::shouldAnalyze(const Tracked& t) const {
     const PlayerFrame& f = t.track.cur();
-    if (f.isLocal && !analyzeSelf_->b()) return false;
-    if (f.isTeammate && ignoreTeammates_->b() && context_ != GameContext::Replay) return false;
+    if (f.isLocal && !config_.b(analyzeSelf_)) return false;
+    if (f.isTeammate && config_.b(ignoreTeammates_) && context_ != GameContext::Replay) return false;
     // Exempt by the user: listed, never judged (marks.h).
     if (!t.recordKey.empty() && marks_.exempt(t.recordKey)) return false;
     return true;
 }
 
-PlayerState Engine::playerState(const PlayerRecord& r) const {
+PlayerState Engine::playerState(const PlayerRecord& r, const EngineConfig& c) const {
     PlayerState s;
     s.listed = true;
     s.local = r.local;
     s.teammate = r.teammate;
     s.exempt = marks_.exempt(r.key);
     s.inThisGame = inThisGame(r);
-    s.judged = !s.exempt && (!r.local || analyzeSelf_->b()) && (!r.teammate || !ignoreTeammates_->b() || context_ == GameContext::Replay);
+    s.judged = !s.exempt && (!r.local || c.b(analyzeSelf_)) && (!r.teammate || !c.b(ignoreTeammates_) || context_ == GameContext::Replay);
     return s;
 }
 
@@ -433,7 +446,7 @@ void Engine::sampleHistory(PlayerRecord& r, bool observing) {
     float combined = 1.f;
     for (std::size_t i = 0; i < r.checks.size(); ++i) {
         CheckRecord& cr = r.checks[i];
-        if (observing) cr.model.decayTo(timeMs_, checks_[i]->confidenceParams().halfLifeSec);
+        if (observing) cr.model.decayTo(timeMs_, checks_[i]->confidenceParams(config_).halfLifeSec);
         else cr.model.resume(timeMs_);
         const float v = cr.model.value();
         combined *= (1.f - v / 100.f);
@@ -454,7 +467,7 @@ void Engine::onFrame(const WorldFrame& frame) {
     tick_ = frame.tick;
     timeMs_ = frame.timeMs;
     if (session_.startMs() == 0.0) session_.reset(frame.timeMs, checks_.size());
-    if (journalDir_.size() && journal_->b()) {
+    if (journalDir_.size() && config_.b(journal_)) {
         char name[64];
         std::snprintf(name, sizeof(name), "/session-%llu.jsonl", static_cast<unsigned long long>(session_.startEpochMs()));
         session_.setJournal(journalDir_ + name);
@@ -570,10 +583,10 @@ void Engine::onFrame(const WorldFrame& frame) {
         if (judged) {
             for (std::size_t i = 0; i < checks_.size(); ++i) {
                 Check* c = checks_[i].get();
-                if (!c->enabled()) continue;
-                if (c->samplingOn() && c->supportsTickSampling()) {
-                    if (((tick_ + t.track.entityId()) % c->samplingInterval()) != 0) continue;
-                    if (local && (t.track.cur().pos - local->cur().pos).length() > c->samplingRadius()) continue;
+                if (!c->enabled(config_)) continue;
+                if (c->samplingOn(config_) && c->supportsTickSampling()) {
+                    if (((tick_ + t.track.entityId()) % c->samplingInterval(config_)) != 0) continue;
+                    if (local && (t.track.cur().pos - local->cur().pos).length() > c->samplingRadius(config_)) continue;
                 }
                 current_ = c;
                 c->onTick(*this, t.track, t.states[i].get());
@@ -585,10 +598,10 @@ void Engine::onFrame(const WorldFrame& frame) {
 
     // Combat events (players only: an NPC never attacks, and hits on NPCs are not evidence).
     CombatSettings cs;
-    cs.swingWindowTicks = swingWindow_->i();
-    cs.settleTicks = settleTicks_->i();
-    cs.compensationTicks = compTicks_->i();
-    cs.candidateRange = combatRange_->value;
+    cs.swingWindowTicks = config_.i(swingWindow_);
+    cs.settleTicks = config_.i(settleTicks_);
+    cs.compensationTicks = config_.i(compTicks_);
+    cs.candidateRange = config_.value(combatRange_);
     if (active_) combat_.update(tick_, timeMs_, all, cs);
     else recentCombat_.clear();
     for (const CombatEvent& ev : active_ ? combat_.ready() : std::vector<CombatEvent>{}) {
@@ -618,7 +631,7 @@ void Engine::onFrame(const WorldFrame& frame) {
         const bool judgeVictim = shouldAnalyze(iv->second);
         for (std::size_t i = 0; i < checks_.size(); ++i) {
             Check* c = checks_[i].get();
-            if (!c->enabled()) continue;
+            if (!c->enabled(config_)) continue;
             current_ = c;
             if (judgeAttacker) c->onCombat(*this, ev, ia->second.track, iv->second.track, ia->second.states[i].get());
             // Some checks (Velocity) judge the victim's response to the hit.
@@ -646,21 +659,21 @@ void Engine::onFrame(const WorldFrame& frame) {
 void Engine::emit(const PlayerTrack& subject, int indicator, float severity, std::string summary, std::string detail,
                   std::vector<EvidenceValue> values, std::string target) {
     Check* c = current_;
-    if (!c || !c->indicatorOn(indicator)) return;
+    if (!c || !c->indicatorOn(config_, indicator)) return;
     auto it = tracked_.find(subject.entityId());
     if (it == tracked_.end()) return;
     PlayerRecord& r = recordFor(it->second);
     CheckRecord& cr = r.checks[static_cast<std::size_t>(c->index())];
     if (cr.indicatorCounts.size() < c->indicators().size()) cr.indicatorCounts.resize(c->indicators().size());
 
-    const ConfidenceParams params = c->confidenceParams();
+    const ConfidenceParams params = c->confidenceParams(config_);
     Evidence ev;
     ev.id = session_.nextEvidenceId();
     ev.tick = tick_;
     ev.timeMs = timeMs_;
     ev.check = c->index();
     ev.indicator = indicator;
-    ev.weight = c->indicatorWeight(indicator);
+    ev.weight = c->indicatorWeight(config_, indicator);
     ev.severity = std::clamp(severity, 0.f, 1.f);
     ev.contribution = cr.model.add(timeMs_, ev.weight, ev.severity, indicator, params);
     ev.confidenceAfter = cr.model.value();
@@ -677,7 +690,7 @@ void Engine::emit(const PlayerTrack& subject, int indicator, float severity, std
     session_.countEvidence();
     r.timeline.push_back({TimelineKind::Evidence, timeMs_, tick_, c->index(), ev.id, ev.confidenceAfter, ev.summary});
 
-    if (c->debug()) {
+    if (c->debug(config_)) {
         debug(subject, fmt("evidence %s sev=%.2f +%.1f → %.1f%% | %s", c->indicators()[indicator].id.c_str(),
                            ev.severity, ev.contribution, ev.confidenceAfter, ev.summary.c_str()));
     }
@@ -756,10 +769,10 @@ void Engine::emit(const PlayerTrack& subject, int indicator, float severity, std
     session_.bump();
 }
 
-bool Engine::debugEnabled() const { return current_ && current_->debug(); }
+bool Engine::debugEnabled() const { return current_ && current_->debug(config_); }
 
 void Engine::debug(const PlayerTrack& subject, const std::string& line) {
-    if (!current_ || !current_->debug()) return;
+    if (!current_ || !current_->debug(config_)) return;
     DebugLine d;
     d.timeMs = timeMs_;
     d.tick = tick_;

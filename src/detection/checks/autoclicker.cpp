@@ -44,40 +44,41 @@ protected:
                                 "A long unbroken run of identical swing intervals.", 1.4f);
         iRate_ = addIndicator("rate", "Rate ceiling", "Sustained swing rate above what human clicking sustains.", 0.8f);
 
-        sample_ = &addInt("sample", "Sample size", 30, {10, 80, 1, 0, "intervals"},
-                          "Number of swing intervals analyzed together for timing consistency.");
-        modeShare_ = &addFloat("modeShare", "Consistency limit", 0.92, {0.6, 1.0, 0.01, 2, ""},
-                               "Fraction of intervals sharing the same tick length above which timing is considered robotic.");
-        preset(*modeShare_, 0.96, 0.92, 0.88);
-        streak_ = &addInt("streak", "Identical run", 20, {6, 60, 1, 0, "intervals"},
-                          "Length of an unbroken run of identical intervals that counts as evidence.");
-        preset(*streak_, 26, 20, 15);
-        maxCps_ = &addFloat("maxCps", "Rate ceiling", 18.0, {8.0, 25.0, 0.5, 1, "swings/s"},
-                            "Swings per second, sustained over 40 swings, considered beyond human clicking. Only "
-                            "reachable when the server relays every swing.", "Detection", true);
-        maxInterval_ = &addInt("maxInterval", "Clicking regime", 6, {3, 12, 1, 0, "ticks"},
-                               "Only swing intervals up to this length count as clicking. Slower, rhythmic hits (one per "
-                               "hurt cycle) are combat timing, not clicking, and are ignored.");
-        maxInterval_->warning = "Long intervals include hit timing; steady combo rhythm can then look machine-regular.";
-        maxInterval_->warnWhen = [](const Setting& s) { return s.i() > 8; };
-        combatOnly_ = &addBool("combatOnly", "Combat clicks only", true,
-                               "Only analyze swings while another player is within 6 blocks.");
-        combatOnly_->warning = "Swings while mining or idling will be analyzed and can mix unrelated rhythms.";
-        combatOnly_->warnWhen = [](const Setting& s) { return !s.b(); };
+        sample_ = addInt("sample", "Sample size", 30, {10, 80, 1, 0, "intervals"},
+                         "Number of swing intervals analyzed together for timing consistency.");
+        modeShare_ = addFloat("modeShare", "Consistency limit", 0.92, {0.6, 1.0, 0.01, 2, ""},
+                              "Fraction of intervals sharing the same tick length above which timing is considered robotic.");
+        preset(modeShare_, 0.96, 0.92, 0.88);
+        streak_ = addInt("streak", "Identical run", 20, {6, 60, 1, 0, "intervals"},
+                         "Length of an unbroken run of identical intervals that counts as evidence.");
+        preset(streak_, 26, 20, 15);
+        maxCps_ = addFloat("maxCps", "Rate ceiling", 18.0, {8.0, 25.0, 0.5, 1, "swings/s"},
+                           "Swings per second, sustained over 40 swings, considered beyond human clicking. Only "
+                           "reachable when the server relays every swing.", "Detection", true);
+        maxInterval_ = addInt("maxInterval", "Clicking regime", 6, {3, 12, 1, 0, "ticks"},
+                              "Only swing intervals up to this length count as clicking. Slower, rhythmic hits (one per "
+                              "hurt cycle) are combat timing, not clicking, and are ignored.");
+        spec(maxInterval_).warning = "Long intervals include hit timing; steady combo rhythm can then look machine-regular.";
+        spec(maxInterval_).warnWhen = [](const ParamView& s) { return s.i() > 8; };
+        combatOnly_ = addBool("combatOnly", "Combat clicks only", true,
+                              "Only analyze swings while another player is within 6 blocks.");
+        spec(combatOnly_).warning = "Swings while mining or idling will be analyzed and can mix unrelated rhythms.";
+        spec(combatOnly_).warnWhen = [](const ParamView& s) { return !s.b(); };
     }
 
 public:
     void onTick(CheckContext& ctx, PlayerTrack& t, PlayerCheckState* base) override {
         auto* st = static_cast<ClickerState*>(base);
+        const EngineConfig& cfg = ctx.config();
         if (!t.swingStarted()) return;
         const PlayerFrame& f = t.cur();
         if (mc::isBlockItem(f.heldItem)) return;  // block placement swings
-        if (combatOnly_->b() && ctx.exemptions(t).nearestOpponent > 6.0) { st->lastSwing = -1; return; }
+        if (cfg.b(combatOnly_) && ctx.exemptions(t).nearestOpponent > 6.0) { st->lastSwing = -1; return; }
 
         const Tick now = ctx.tick();
         if (st->lastSwing >= 0) {
             const int interval = static_cast<int>(now - st->lastSwing);
-            if (interval > maxInterval_->i()) {
+            if (interval > cfg.i(maxInterval_)) {
                 st->intervals.clear();  // a pause (or slow hit rhythm) starts a new burst
             } else if (interval > 0) {
                 st->intervals.push_back(interval);
@@ -96,21 +97,21 @@ public:
             run = (iv[i] == iv[i - 1]) ? run + 1 : 0;
             if (run > best && iv[i] > floor) { best = run; bestValue = iv[i]; }
         }
-        if (best + 1 >= streak_->i() && st->sinceEvidence >= streak_->i()) {
+        if (best + 1 >= cfg.i(streak_) && st->sinceEvidence >= cfg.i(streak_)) {
             st->sinceEvidence = 0;
-            const float sev = static_cast<float>(std::clamp((best + 1.0) / (streak_->i() * 1.5), 0.5, 1.0));
+            const float sev = static_cast<float>(std::clamp((best + 1.0) / (cfg.i(streak_) * 1.5), 0.5, 1.0));
             ctx.emit(t, iStreak_, sev, fmt("%d identical swing intervals of %d ticks", best + 1, bestValue),
                      fmt("Exactly %.0f ms between swings, %d times in a row. Human clicking at this pace drifts by a "
                          "tick every few clicks.",
                          bestValue * 50.0, best + 1),
-                     {{"Run length", best + 1.0, "intervals", static_cast<double>(streak_->i()), true},
+                     {{"Run length", best + 1.0, "intervals", static_cast<double>(cfg.i(streak_)), true},
                       {"Interval", bestValue * 50.0, "ms"},
                       {"Server relay floor", floor * 50.0, "ms"}});
             return;
         }
 
         // Consistency over the sample.
-        const int n = sample_->i();
+        const int n = cfg.i(sample_);
         if (static_cast<int>(iv.size()) >= n && st->sinceEvidence >= n) {
             std::map<int, int> hist;
             double mean = 0.0;
@@ -123,14 +124,14 @@ public:
             for (const auto& kv : hist) if (kv.second > modeCount) { modeCount = kv.second; modeValue = kv.first; }
             const double share = static_cast<double>(modeCount) / n;
             if (ctx.debugEnabled()) ctx.debug(t, fmt("intervals n=%d mode=%d share=%.2f mean=%.2f floor=%d", n, modeValue, share, mean, floor));
-            if (modeValue > floor && share >= modeShare_->value) {
+            if (modeValue > floor && share >= cfg.value(modeShare_)) {
                 st->sinceEvidence = 0;
-                const float sev = static_cast<float>(std::clamp((share - modeShare_->value) / (1.0 - modeShare_->value + 1e-6) * 0.6 + 0.4, 0.4, 1.0));
+                const float sev = static_cast<float>(std::clamp((share - cfg.value(modeShare_)) / (1.0 - cfg.value(modeShare_) + 1e-6) * 0.6 + 0.4, 0.4, 1.0));
                 ctx.emit(t, iMode_, sev, fmt("%.0f%% of swings exactly %d ticks apart", share * 100.0, modeValue),
                          fmt("%d of the last %d swings were exactly %.0f ms apart. Human clicking spreads across two "
                              "or three neighboring intervals.",
                              modeCount, n, modeValue * 50.0),
-                         {{"Dominant interval share", share * 100.0, "%", modeShare_->value * 100.0, true},
+                         {{"Dominant interval share", share * 100.0, "%", cfg.value(modeShare_) * 100.0, true},
                           {"Dominant interval", modeValue * 50.0, "ms"},
                           {"Mean rate", 20.0 / std::max(1.0, mean), "swings/s"}});
             }
@@ -141,24 +142,24 @@ public:
         if (sw.size() >= 40 && now - st->lastRateEvidence > 100) {
             const double span = static_cast<double>(sw.back() - sw[sw.size() - 40]) * mc::kTickSeconds;
             const double cps = span > 0 ? 39.0 / span : 0.0;
-            if (cps >= maxCps_->value) {
+            if (cps >= cfg.value(maxCps_)) {
                 st->lastRateEvidence = now;
-                ctx.emit(t, iRate_, static_cast<float>(std::clamp(cps / (maxCps_->value * 1.3), 0.4, 1.0)),
+                ctx.emit(t, iRate_, static_cast<float>(std::clamp(cps / (cfg.value(maxCps_) * 1.3), 0.4, 1.0)),
                          fmt("Sustained %.1f swings per second", cps),
                          "Forty consecutive swings at this rate exceed what human clicking sustains.",
-                         {{"Swing rate", cps, "swings/s", maxCps_->value, true}});
+                         {{"Swing rate", cps, "swings/s", cfg.value(maxCps_), true}});
             }
         }
     }
 
 private:
     int iMode_ = 0, iStreak_ = 0, iRate_ = 0;
-    Setting* sample_ = nullptr;
-    Setting* modeShare_ = nullptr;
-    Setting* streak_ = nullptr;
-    Setting* maxCps_ = nullptr;
-    Setting* maxInterval_ = nullptr;
-    Setting* combatOnly_ = nullptr;
+    ParamId sample_ = kNoParam;
+    ParamId modeShare_ = kNoParam;
+    ParamId streak_ = kNoParam;
+    ParamId maxCps_ = kNoParam;
+    ParamId maxInterval_ = kNoParam;
+    ParamId combatOnly_ = kNoParam;
 };
 
 }  // namespace

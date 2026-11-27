@@ -60,42 +60,43 @@ protected:
         iTrack_ = addIndicator("tracking", "Robotic tracking",
                                "Aim stays locked onto a moving target with near-zero error for a sustained period.", 1.0f);
 
-        unambiguous_ = &addBool("unambiguous", "Unambiguous hits only", true,
-                                "Only judge hits where exactly one swinging player could have caused the damage.");
-        unambiguous_->warning = "Ambiguous hits can be attributed to the wrong player in crowded fights.";
-        unambiguous_->warnWhen = [](const Setting& s) { return !s.b(); };
-        outsideAngle_ = &addFloat("outsideAngle", "View angle limit", 40.0, {15.0, 90.0, 1.0, 0, "°"},
-                                  "How far outside the victim's hitbox the attacker's aim may be at the moment of a hit "
-                                  "before it counts as evidence.");
-        preset(*outsideAngle_, 55.0, 40.0, 30.0);
-        multiWindow_ = &addInt("multiWindow", "Multi-target window", 3, {0, 10, 1, 0, "ticks"},
-                               "Two hits on different players within this many ticks are compared for multi-targeting.");
-        multiSeparation_ = &addFloat("multiSeparation", "Target separation", 60.0, {20.0, 180.0, 5.0, 0, "°"},
-                                     "Minimum angle between two victims (as seen by the attacker) for near-simultaneous hits to count.");
-        preset(*multiSeparation_, 75.0, 60.0, 45.0);
-        snapAngle_ = &addFloat("snapAngle", "Snap rotation", 45.0, {15.0, 180.0, 5.0, 0, "°"},
-                               "Rotation within two ticks before a hit that qualifies as a snap.", "Detection", true);
-        snapError_ = &addFloat("snapError", "Snap landing error", 3.0, {0.5, 10.0, 0.5, 1, "°"},
-                               "A snap must end within this angle of the victim's center.", "Detection", true);
-        trackError_ = &addFloat("trackError", "Tracking error limit", 1.6, {0.5, 5.0, 0.1, 1, "°"},
-                                "Average aim error to the victim's center below which tracking is considered robotic. "
-                                "Rotation packets are 1.4° coarse, so perfect tracking reads as roughly 0.7°.",
+        unambiguous_ = addBool("unambiguous", "Unambiguous hits only", true,
+                               "Only judge hits where exactly one swinging player could have caused the damage.");
+        spec(unambiguous_).warning = "Ambiguous hits can be attributed to the wrong player in crowded fights.";
+        spec(unambiguous_).warnWhen = [](const ParamView& s) { return !s.b(); };
+        outsideAngle_ = addFloat("outsideAngle", "View angle limit", 40.0, {15.0, 90.0, 1.0, 0, "°"},
+                                 "How far outside the victim's hitbox the attacker's aim may be at the moment of a hit "
+                                 "before it counts as evidence.");
+        preset(outsideAngle_, 55.0, 40.0, 30.0);
+        multiWindow_ = addInt("multiWindow", "Multi-target window", 3, {0, 10, 1, 0, "ticks"},
+                              "Two hits on different players within this many ticks are compared for multi-targeting.");
+        multiSeparation_ = addFloat("multiSeparation", "Target separation", 60.0, {20.0, 180.0, 5.0, 0, "°"},
+                                    "Minimum angle between two victims (as seen by the attacker) for near-simultaneous hits to count.");
+        preset(multiSeparation_, 75.0, 60.0, 45.0);
+        snapAngle_ = addFloat("snapAngle", "Snap rotation", 45.0, {15.0, 180.0, 5.0, 0, "°"},
+                              "Rotation within two ticks before a hit that qualifies as a snap.", "Detection", true);
+        snapError_ = addFloat("snapError", "Snap landing error", 3.0, {0.5, 10.0, 0.5, 1, "°"},
+                              "A snap must end within this angle of the victim's center.", "Detection", true);
+        trackError_ = addFloat("trackError", "Tracking error limit", 1.6, {0.5, 5.0, 0.1, 1, "°"},
+                               "Average aim error to the victim's center below which tracking is considered robotic. "
+                               "Rotation packets are 1.4° coarse, so perfect tracking reads as roughly 0.7°.",
+                               "Detection", true);
+        trackMotion_ = addFloat("trackMotion", "Target motion", 4.0, {1.0, 20.0, 0.5, 1, "°/tick"},
+                                "The victim must move across the attacker's view at least this fast for tracking to be judged.",
                                 "Detection", true);
-        trackMotion_ = &addFloat("trackMotion", "Target motion", 4.0, {1.0, 20.0, 0.5, 1, "°/tick"},
-                                 "The victim must move across the attacker's view at least this fast for tracking to be judged.",
-                                 "Detection", true);
     }
 
 public:
     void onCombat(CheckContext& ctx, const CombatEvent& ev, PlayerTrack& attacker, PlayerTrack& victim,
                   PlayerCheckState* stateBase) override {
         auto* st = static_cast<KillAuraState*>(stateBase);
-        if (unambiguous_->b() && ev.candidates != 1) return;
+        const EngineConfig& cfg = ctx.config();
+        if (cfg.b(unambiguous_) && ev.candidates != 1) return;
         const Exemptions& ex = ctx.exemptions(attacker);
         if (ex.teleport || ex.riding || ex.dead) return;
 
         // 1) Hit outside view.
-        const double limit = outsideAngle_->value;
+        const double limit = cfg.value(outsideAngle_);
         if (ev.aimOutside > limit) {
             const float sev = static_cast<float>(std::clamp((ev.aimOutside - limit) / 40.0 + 0.5, 0.4, 1.0));
             ctx.emit(attacker, iOutside_, sev, fmt("Hit %s while aiming %.0f° away", victim.name().c_str(), ev.aimOutside),
@@ -113,9 +114,9 @@ public:
         for (const auto& h : st->hits) {
             if (h.victim == ev.victim) continue;
             const Tick gap = ev.tick - h.tick;
-            if (gap < 0 || gap > multiWindow_->i()) continue;
+            if (gap < 0 || gap > cfg.i(multiWindow_)) continue;
             const double sep = std::fabs(wrapDegrees(bearing - h.bearing));
-            if (sep < multiSeparation_->value) continue;
+            if (sep < cfg.value(multiSeparation_)) continue;
             const float sev = static_cast<float>(std::clamp(0.55 + sep / 360.0 + (gap == 0 ? 0.25 : 0.0), 0.5, 1.0));
             ctx.emit(attacker, iMulti_, sev,
                      fmt("Hit %s and %s %lld tick%s apart, %.0f° apart", h.victimName.c_str(), victim.name().c_str(),
@@ -123,7 +124,7 @@ public:
                      fmt("Two players %.0f° apart were hit %.0f ms apart. Turning that far and landing both hits "
                          "that quickly is not achievable by hand.",
                          sep, gap * 50.0),
-                     {{"Angle between targets", sep, "°", multiSeparation_->value, true},
+                     {{"Angle between targets", sep, "°", cfg.value(multiSeparation_), true},
                       {"Time between hits", gap * 50.0, "ms"}},
                      victim.name());
             break;
@@ -136,14 +137,14 @@ public:
         if (attacker.has(k + 2) && k >= 2) {
             const double before = std::fabs(wrapDegrees(attacker.back(k).yaw - attacker.back(k + 2).yaw));
             const double after = std::fabs(wrapDegrees(attacker.back(k - 2).yaw - attacker.back(k).yaw));
-            if (before >= snapAngle_->value && ev.yawError <= snapError_->value && after <= 3.0) {
+            if (before >= cfg.value(snapAngle_) && ev.yawError <= cfg.value(snapError_) && after <= 3.0) {
                 const float sev = static_cast<float>(std::clamp(before / 120.0, 0.35, 1.0));
                 ctx.emit(attacker, iSnap_, sev, fmt("Snapped %.0f° onto %s", before, victim.name().c_str()),
                          fmt("Turned %.0f° in 100 ms, landed %.1f° from the hitbox center, then stopped dead. Human "
                              "flicks overshoot or keep moving.",
                              before, ev.yawError),
-                         {{"Rotation before hit", before, "°", snapAngle_->value, true},
-                          {"Landing error", ev.yawError, "°", snapError_->value, true},
+                         {{"Rotation before hit", before, "°", cfg.value(snapAngle_), true},
+                          {"Landing error", ev.yawError, "°", cfg.value(snapError_), true},
                           {"Rotation after hit", after, "°"}},
                          victim.name());
             }
@@ -161,6 +162,7 @@ public:
 
     void onTick(CheckContext& ctx, PlayerTrack& subject, PlayerCheckState* stateBase) override {
         auto* st = static_cast<KillAuraState*>(stateBase);
+        const EngineConfig& cfg = ctx.config();
         if (st->trackVictim < 0 || ctx.tick() > st->trackUntil) {
             st->trackVictim = -1;
             return;
@@ -189,15 +191,15 @@ public:
                 ctx.debug(subject, fmt("tracking %s meanErr=%.2f° motion=%.2f°/t n=%d", victim->name().c_str(), meanErr,
                                        meanMotion, st->samples));
             }
-            if (meanMotion >= trackMotion_->value && meanErr <= trackError_->value && ctx.tick() - st->lastTrackingEvidence > 40) {
+            if (meanMotion >= cfg.value(trackMotion_) && meanErr <= cfg.value(trackError_) && ctx.tick() - st->lastTrackingEvidence > 40) {
                 st->lastTrackingEvidence = ctx.tick();
-                const float sev = static_cast<float>(std::clamp((trackError_->value - meanErr) / trackError_->value + 0.4, 0.4, 1.0));
+                const float sev = static_cast<float>(std::clamp((cfg.value(trackError_) - meanErr) / cfg.value(trackError_) + 0.4, 0.4, 1.0));
                 ctx.emit(subject, iTrack_, sev, fmt("Locked onto %s (%.1f° average error)", victim->name().c_str(), meanErr),
                          fmt("For a second, aim stayed within %.1f° of a target moving %.1f° per tick. Rotations are "
                              "only 1.4° precise, so this is as close to perfect as the data can show.",
                              meanErr, meanMotion),
-                         {{"Average aim error", meanErr, "°", trackError_->value, true},
-                          {"Target angular speed", meanMotion, "°/tick", trackMotion_->value, true},
+                         {{"Average aim error", meanErr, "°", cfg.value(trackError_), true},
+                          {"Target angular speed", meanMotion, "°/tick", cfg.value(trackMotion_), true},
                           {"Samples", static_cast<double>(st->samples), "ticks"}},
                          victim->name());
             }
@@ -208,14 +210,14 @@ public:
 
 private:
     int iOutside_ = 0, iMulti_ = 0, iSnap_ = 0, iTrack_ = 0;
-    Setting* unambiguous_ = nullptr;
-    Setting* outsideAngle_ = nullptr;
-    Setting* multiWindow_ = nullptr;
-    Setting* multiSeparation_ = nullptr;
-    Setting* snapAngle_ = nullptr;
-    Setting* snapError_ = nullptr;
-    Setting* trackError_ = nullptr;
-    Setting* trackMotion_ = nullptr;
+    ParamId unambiguous_ = kNoParam;
+    ParamId outsideAngle_ = kNoParam;
+    ParamId multiWindow_ = kNoParam;
+    ParamId multiSeparation_ = kNoParam;
+    ParamId snapAngle_ = kNoParam;
+    ParamId snapError_ = kNoParam;
+    ParamId trackError_ = kNoParam;
+    ParamId trackMotion_ = kNoParam;
 };
 
 }  // namespace

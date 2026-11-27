@@ -29,14 +29,22 @@ long-term Rust plan in [../RUST_PLAN.md](../RUST_PLAN.md).
 | launcher | `VigilApp` → `Vigil.exe` | `vigil_ui` | Win32, BCrypt, version.lib | JNI |
 
 The library split is enforced by the linker: `detection_tests`, `records_tests`,
-`validation_tests` and `VigilReplay` link **only** `vigil_detection`, so any accidental dependency
-on Windows, the UI or the network fails the build.
+`validation_tests`, `VigilReplay`, `VigilParity` and `VigilFormats` link **only** `vigil_detection`,
+so any accidental dependency on Windows, the UI or the network fails the build.
+
+**Rust (`rust/`, RUST_PLAN P2).** A Cargo workspace beside the C++ tree, not linked into any
+shipped binary yet. `vigil-formats` reads and writes every persisted format and the trace/outcome
+pair byte-for-byte like `core/json` and the C++ readers (VALIDATION.md §8); the C++ tool
+`VigilFormats` is its twin and generates the shared fixtures in `tests/fixtures/formats`. The
+engine (P3) and the DLL link (P4) come later; until then a file's meaning is defined by the C++
+reader, and the Rust reader is proven to agree.
 
 ## 2. Data flow (one client tick)
 
 ```
  Minecraft client thread (scheduled VigilClientPump, ~20 Hz)
    Runtime::pump
+     settingsSync.sync ────────── registry changed? → engine.setConfig(EngineConfig snapshot)
      context.poll ─────────────── scoreboard → GameContext
      chat.poll ────────────────── chat lines → utilities, identity, next frame
      sampler.sample ───────────── WorldFrame { tick, time, context, chat, players[PlayerFrame] }
@@ -56,9 +64,18 @@ on Windows, the UI or the network fails the build.
    App::render ─────── menu (pages) or HUD (notifications, briefing, notices)
 ```
 
-`WorldFrame` is the **only input** to detection. Everything Vigil concludes is a function of the
-frame sequence and the settings, which is what makes traces, golden tests and a future Rust port
-checkable (§6).
+`WorldFrame` is the **only input** to detection besides its configuration. Everything Vigil
+concludes is a function of the frame sequence and one `EngineConfig` snapshot, which is what makes
+traces, golden tests and a future Rust port checkable (§6).
+
+**Configuration (RUST_PLAN P1).** The engine declares its 248 parameters in a `ConfigSchema`
+(`detection/config.h`) and reads them only from an immutable `EngineConfig` snapshot. The settings
+registry never reaches the engine directly: `detection/config_binding.*` registers the parameters
+in the registry (labels, ranges, warnings, presets — what the UI shows) and, at the top of every
+pump, hands the engine a new snapshot if anything changed. The UI reads the registry itself
+(`ui::liveConfig`), so a toggle shows its new state on the frame it is clicked; the engine applies
+it from the next pump. Since the UI and the pump run on the same client thread, no setting can
+change in the middle of `Engine::onFrame`.
 
 ## 3. Threads
 
@@ -90,6 +107,8 @@ checkable (§6).
 | Module | Responsibility |
 |---|---|
 | `detection/engine.*` | The per-frame pipeline; owns tracks, records, checks, combat, match tracker, marks |
+| `detection/config.*` | `ConfigSchema` (the engine's parameter declaration), `EngineConfig` (the snapshot it runs on), their JSON documents |
+| `detection/config_binding.*` | The only detection code that knows the settings registry: registration, snapshots, sync, presets |
 | `detection/check.*`, `checks/*` | One file per check; each emits evidence through indicators, never decides |
 | `detection/evidence.h`, `confidence.cpp` | Evidence, the behavioral envelope, the confidence model and its gate |
 | `detection/match.*`, `roster.*` | Game phases and scenes; who is a player |
@@ -109,18 +128,29 @@ checkable (§6).
 
 ## 6. The engine contract (what a port must preserve)
 
-* **Input:** a sequence of `WorldFrame`s (types.h) and the settings registry's values.
+* **Input:** a sequence of `WorldFrame`s (types.h) and an `EngineConfig` (config.h), which may be
+  replaced between frames. Nothing else: the engine reads no global state (enforced by
+  `validate_repo.py engine-globals` and the "engines share nothing" test).
+* **Configuration document:** `{"kind":"vigil-engine-config","format":1,"values":{key: value}}`,
+  in schema order, switches as JSON booleans, numbers exact. Unknown keys are ignored and missing
+  ones keep their default; wrong types and newer formats are refused. The declaration itself is
+  `tests/fixtures/engine-schema.json` (`VigilReplay --engine-schema`).
 * **Output:** `Session` records (per player: evidence with values and envelopes, per-check
-  confidence history, detections, timeline, behavior stats), alerts, engine stats.
-* **Determinism:** the same frames and settings produce the same outcome. Wall-clock time is used
-  only for statistics (tick cost) and epoch stamps on marks/history, never for decisions.
+  confidence history, detections, timeline, behavior stats), alerts, engine stats; plus write-only
+  diagnostic lines to `core/log` ("detections" channel), which never influence a decision.
+* **Determinism:** the same frames and configuration produce the same outcome. Wall-clock time is
+  used only for statistics (tick cost) and epoch stamps on marks/history, never for decisions.
 * **Comparison:** `detection/replay.h` reduces an engine's state to an outcome (per player and
-  check: observations, detections, confidence) that two implementations must agree on.
+  check: observations, detections, confidence) that two implementations must agree on;
+  `VigilParity` compares the *full* state (every evidence value, contribution, timeline entry and
+  alert) across a scenario corpus and every parameter (VALIDATION.md §4).
 
 ## 7. Boundaries worth keeping
 
 1. Nothing below `ui/` knows the UI exists; the UI reaches the game only through `Host`.
 2. The engine never reads marks to judge anyone; it only skips players the user exempted.
-3. JNI calls happen on the Minecraft thread only, through `game/`.
-4. The UI never blocks: file and network work is small (records) or on the identity worker.
-5. Persisted formats carry a format number; readers never destroy what they don't understand.
+3. The engine never reads the settings registry or any other global; parameters arrive as an
+   `EngineConfig` between frames (only `detection/config_binding.*` may include `core/settings.h`).
+4. JNI calls happen on the Minecraft thread only, through `game/`.
+5. The UI never blocks: file and network work is small (records) or on the identity worker.
+6. Persisted formats carry a format number; readers never destroy what they don't understand.

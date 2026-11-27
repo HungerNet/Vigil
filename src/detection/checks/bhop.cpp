@@ -44,24 +44,25 @@ protected:
                                 "Mid-air change of direction beyond vanilla air control while keeping speed.", 1.3f);
         iAccel_ = addIndicator("air_accel", "Air acceleration", "Speed gained in the air beyond vanilla air control.", 1.0f);
 
-        maxAir_ = &addInt("maxAirTicks", "Short hop limit", 8, {5, 11, 1, 0, "ticks"},
-                          "Flat-ground jumps that land within this many ticks count as low hops. Vanilla is 12 ticks; "
-                          "packet timing can shorten an observed jump by up to two.");
-        preset(*maxAir_, 7, 8, 9);
-        hopLimit_ = &addFloat("hopLimit", "Hop speed limit", 0.40, {0.36, 0.7, 0.005, 3, "b/tick"},
-                              "Average speed across three or more consecutive hops above which the chain counts as "
-                              "evidence. Scaled by Speed potions.");
-        preset(*hopLimit_, 0.43, 0.40, 0.385);
-        tolerance_ = &addFloat("airTolerance", "Air control tolerance", 0.06, {0.02, 0.2, 0.005, 3, "b/tick"},
-                               "Extra velocity change allowed in the air on top of vanilla air control, covering the "
-                               "1/32-block precision of position packets.", "Detection", true);
-        tolerance_->warning = "Low tolerance lets position-packet rounding look like air control.";
-        tolerance_->warnWhen = [](const Setting& s) { return s.value < 0.04; };
+        maxAir_ = addInt("maxAirTicks", "Short hop limit", 8, {5, 11, 1, 0, "ticks"},
+                         "Flat-ground jumps that land within this many ticks count as low hops. Vanilla is 12 ticks; "
+                         "packet timing can shorten an observed jump by up to two.");
+        preset(maxAir_, 7, 8, 9);
+        hopLimit_ = addFloat("hopLimit", "Hop speed limit", 0.40, {0.36, 0.7, 0.005, 3, "b/tick"},
+                             "Average speed across three or more consecutive hops above which the chain counts as "
+                             "evidence. Scaled by Speed potions.");
+        preset(hopLimit_, 0.43, 0.40, 0.385);
+        tolerance_ = addFloat("airTolerance", "Air control tolerance", 0.06, {0.02, 0.2, 0.005, 3, "b/tick"},
+                              "Extra velocity change allowed in the air on top of vanilla air control, covering the "
+                              "1/32-block precision of position packets.", "Detection", true);
+        spec(tolerance_).warning = "Low tolerance lets position-packet rounding look like air control.";
+        spec(tolerance_).warnWhen = [](const ParamView& s) { return s.value < 0.04; };
     }
 
 public:
     void onTick(CheckContext& ctx, PlayerTrack& t, PlayerCheckState* base) override {
         auto* st = static_cast<BHopState*>(base);
+        const EngineConfig& cfg = ctx.config();
         if (!t.landed() || t.airSegments().empty()) return;
         const AirSegment& seg = t.airSegments().back();
         const Exemptions& ex = ctx.exemptions(t);
@@ -80,13 +81,13 @@ public:
 
         // 1) Short air time on flat ground.
         const bool flat = std::fabs(seg.landY - seg.takeoffY) < 0.1;
-        if (flat && !seg.ceilingAtTakeoff && seg.jumpBoost < 0 && seg.airTicks <= maxAir_->i() && seg.airTicks >= 2) {
-            const float sev = static_cast<float>(std::clamp((maxAir_->i() + 1.0 - seg.airTicks) / 4.0, 0.35, 1.0));
+        if (flat && !seg.ceilingAtTakeoff && seg.jumpBoost < 0 && seg.airTicks <= cfg.i(maxAir_) && seg.airTicks >= 2) {
+            const float sev = static_cast<float>(std::clamp((cfg.i(maxAir_) + 1.0 - seg.airTicks) / 4.0, 0.35, 1.0));
             ctx.emit(t, iShort_, sev, fmt("Landed after %d ticks on flat ground", seg.airTicks),
                      fmt("A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted %d and peaked at %.2f, "
                          "with nothing overhead.",
                          seg.airTicks, seg.apexY - seg.takeoffY),
-                     {{"Air time", static_cast<double>(seg.airTicks), "ticks", static_cast<double>(maxAir_->i()), true},
+                     {{"Air time", static_cast<double>(seg.airTicks), "ticks", static_cast<double>(cfg.i(maxAir_)), true},
                       {"Vanilla flat jump", static_cast<double>(mc::kFlatJumpAirTicks), "ticks", 0.0, false, EvidenceValue::Role::Expected},
                       {"Apex", seg.apexY - seg.takeoffY, "blocks"},
                       {"Height change", seg.landY - seg.takeoffY, "blocks"}});
@@ -109,7 +110,7 @@ public:
                 const double avg = t.horizontalSpeedFresh(window);
                 const double mult = t.maxSpeedMultiplier(window + 10);
                 const float q = t.dataQuality(window);
-                const double limit = hopLimit_->value * mult * terrain;
+                const double limit = cfg.value(hopLimit_) * mult * terrain;
                 if (q >= 0.3f && avg > limit) {
                     st->lastChainEvidence = ctx.tick();
                     const float sev = static_cast<float>(std::clamp((avg / limit - 1.0) / 0.25 + 0.3, 0.3, 1.0)) * (0.6f + 0.4f * q);
@@ -141,7 +142,7 @@ public:
             const Vec3 v1 = seg.endVelocity;
             const double along = v1.dot(dir);
             const double lateral = std::sqrt(std::max(0.0, v1.dot(v1) - along * along));
-            const double tol = tolerance_->value;
+            const double tol = cfg.value(tolerance_);
             const double maxLateral = control + tol;
             const double maxSpeed = v0 * decay + control + tol;
             const double v1len = v1.horizontalLength();
@@ -168,9 +169,9 @@ public:
 
 private:
     int iShort_ = 0, iChain_ = 0, iStrafe_ = 0, iAccel_ = 0;
-    Setting* maxAir_ = nullptr;
-    Setting* hopLimit_ = nullptr;
-    Setting* tolerance_ = nullptr;
+    ParamId maxAir_ = kNoParam;
+    ParamId hopLimit_ = kNoParam;
+    ParamId tolerance_ = kNoParam;
 };
 
 }  // namespace

@@ -1,0 +1,14 @@
+{
+  "escapes": "\"\\\/\b\f\n\r\t\u0000\u001f\u007fé€",
+  "pair": "😀",
+  "lone high": "\ud800",
+  "lone low": "\udc00",
+  "high then a non-surrogate": "\ud800A",
+  "high then text": "\ud800x",
+  "nested": [[[]], {}, {"a": [1, -0, 0.5e-3, 1E+2, 12345678901234567890, 1e400, -1e-400]}],
+  "dup": 1,
+  "dup": "second wins, in the first position",
+  "lenient numbers": [+1, .5, 1., 01, -.25e1, 1e+5, 7E-1],
+  "non-finite": [inf, -Infinity, NaN, nan(ind)],
+  "literals": [true, false, null]
+}

@@ -7,13 +7,23 @@
 //   determinism   the same frames produce the same outcome, in one engine or two
 //   traces        frames survive the trace format exactly; the golden trace replays to its
 //                 committed outcome (tests/traces)
+//   config        the engine runs on an EngineConfig snapshot (RUST_PLAN.md P1): the declaration
+//                 matches its committed fixture, registry changes arrive only between frames,
+//                 engines share nothing, configuration documents round-trip exactly and hostile
+//                 ones are refused
 
+#include "../src/core/json.h"
+#include "../src/core/settings.h"
+#include "../src/detection/config_binding.h"
 #include "../src/detection/replay.h"
 #include "../src/detection/trace.h"
 #include "scenarios.h"
 #include "test_framework.h"
 
+#include <algorithm>
+#include <cstring>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 
 using namespace vigil;
@@ -21,6 +31,9 @@ using namespace vigil::test;
 
 #ifndef VIGIL_TRACE_DIR
 #define VIGIL_TRACE_DIR "tests/traces"
+#endif
+#ifndef VIGIL_FIXTURE_DIR
+#define VIGIL_FIXTURE_DIR "tests/fixtures"
 #endif
 
 namespace {
@@ -64,6 +77,33 @@ std::string readAll(const std::string& path) {
     std::ostringstream ss;
     ss << in.rdbuf();
     return ss.str();
+}
+
+// Line endings of committed text fixtures depend on the checkout; compare content.
+std::string withoutCarriageReturns(std::string s) {
+    s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+    return s;
+}
+
+// Puts every engine parameter in the registry back to the value a fresh install has (the declared
+// default, as registered). Not Setting::reset(): reset() snaps to the step, which moves defaults
+// such as 0.8f (0.80000001192…) to 0.8 (docs/TECH_DEBT.md).
+void resetEngineSettings(const ConfigSchema& schema) {
+    for (const ParamSpec& p : schema.params()) {
+        if (Setting* s = Settings::instance().find(p.key)) s->value = s->def;
+    }
+    Settings::instance().touch();
+}
+
+bool sameBits(double a, double b) { return std::memcmp(&a, &b, sizeof a) == 0; }
+
+// Every preset-controlled parameter at its Strict value, built without the registry.
+EngineConfig strictConfig(const Engine& e) {
+    EngineConfig c(e.schemaPtr());
+    for (const auto& chk : e.checks()) {
+        for (const PresetEntry& p : chk->presets()) c.set(p.param, p.strict);
+    }
+    return c;
 }
 
 }  // namespace
@@ -310,6 +350,186 @@ static void testGoldenTrace() {
            "the committed trace matches tests/scenarios.h");
 }
 
+// ── Engine configuration (RUST_PLAN.md P1) ─────────────────────────────────────────────────
+
+// The engine declares its parameters once, consistently, and the declaration is the committed one.
+static void testConfigSchema() {
+    Engine e;
+    e.initialize();
+    const ConfigSchema& s = e.schema();
+    bool unique = true;
+    for (std::size_t i = 0; i < s.size(); ++i) unique = unique && s.find(s.params()[i].key) == static_cast<ParamId>(i);
+    EXPECT(unique && s.size() > 0, "%zu parameters, each key declared once", s.size());
+    int presetIssues = 0, indicatorIssues = 0;
+    for (const auto& c : e.checks()) {
+        EXPECT(c->presetParam() != kNoParam && s.spec(c->presetParam()).key == c->settingsPrefix() + "preset", "%s has a Sensitivity choice",
+               c->id().c_str());
+        for (const PresetEntry& p : c->presets()) {
+            const ParamSpec& spec = s.spec(p.param);
+            // Balanced is the default, bit for bit; every preset value is inside the range.
+            if (!sameBits(p.balanced, spec.def)) ++presetIssues;
+            for (double v : {p.relaxed, p.strict}) if (v < spec.range.min || v > spec.range.max) ++presetIssues;
+        }
+        for (const Indicator& ind : c->indicators()) {
+            if (ind.enabled == kNoParam || ind.weight == kNoParam || s.spec(ind.enabled).type != ParamType::Bool ||
+                s.spec(ind.weight).type != ParamType::Float) {
+                ++indicatorIssues;
+            }
+        }
+    }
+    EXPECT(presetIssues == 0, "presets: Balanced equals the default and every value is in range (%d issues)", presetIssues);
+    EXPECT(indicatorIssues == 0, "every indicator declares a switch and a weight (%d issues)", indicatorIssues);
+    // The engine's defaults are exactly what the registry holds for an untouched install.
+    Settings& S = Settings::instance();
+    registerEngineSettings(S, s);
+    resetEngineSettings(s);
+    const EngineConfig fromRegistry = configFromSettings(S, e.schemaPtr());
+    const auto diffs = e.config().differences(fromRegistry);
+    EXPECT(e.config() == fromRegistry, "engine defaults equal the registry's defaults (%s)", diffs.empty() ? "" : diffs.front().c_str());
+    // The declaration is committed (tests/fixtures/engine-schema.json, also the Rust side's fixture):
+    // adding or changing a parameter is a reviewed change. Regenerate with
+    // VigilReplay --engine-schema tests/fixtures/engine-schema.json.
+    const std::string committed = withoutCarriageReturns(readAll(VIGIL_FIXTURE_DIR "/engine-schema.json"));
+    EXPECT(!committed.empty() && schemaToJson(s) + "\n" == committed, "the declaration matches tests/fixtures/engine-schema.json");
+    const std::string committedConfig = withoutCarriageReturns(readAll(VIGIL_FIXTURE_DIR "/engine-config.default.json"));
+    EXPECT(!committedConfig.empty() && configToJson(e.config()) + "\n" == committedConfig,
+           "the default configuration matches tests/fixtures/engine-config.default.json");
+}
+
+// Registry changes reach the engine only through a sync, between frames — never in the middle of
+// one — and arrive bit for bit.
+static void testSettingsReachEngineBetweenFrames() {
+    Engine e;
+    e.initialize();
+    Settings& S = Settings::instance();
+    registerEngineSettings(S, e.schema());
+    resetEngineSettings(e.schema());
+    SettingsSync sync;
+    EXPECT(sync.sync(e, S), "the first sync hands the engine a snapshot");
+    EXPECT(!sync.sync(e, S), "nothing changed, nothing handed over");
+    EXPECT(e.monitoringEnabled(), "monitoring is on by default");
+    S.find("general.monitoring")->set(0.0);
+    EXPECT(e.monitoringEnabled(), "a registry change does not reach a running engine by itself");
+    EXPECT(!e.monitoringEnabled(configFromSettings(S, e.schemaPtr())), "the registry's own view changes at once (what the UI shows)");
+    EXPECT(sync.sync(e, S) && !e.monitoringEnabled(), "the next sync applies it");
+    Setting* reach = S.find("checks.reach.threshold");
+    reach->set(3.35);   // snapped to the 0.05 step by the registry
+    sync.sync(e, S);
+    EXPECT(sameBits(e.config().value(e.schema().find("checks.reach.threshold")), reach->value), "values arrive bit for bit (%.17g)",
+           reach->value);
+    const Check* bhop = e.checkById("bhop");
+    applyPreset(S, *bhop, 2);
+    sync.sync(e, S);
+    EXPECT(e.config().i(e.schema().find("checks.bhop.maxAirTicks")) == 9 && presetSetting(S, *bhop)->i() == 2,
+           "a preset applied in the registry reaches the engine");
+    EXPECT(isPresetControlled(*bhop, *S.find("checks.bhop.hopLimit")) && !isPresetControlled(*bhop, *S.find("checks.bhop.airTolerance")),
+           "preset membership");
+    // Snapshots for another schema are refused; an identical schema of another engine is adopted.
+    auto other = std::make_shared<ConfigSchema>();
+    other->addBool("general.monitoring", "Monitoring", true, "");
+    EXPECT(!e.setConfig(EngineConfig(other)) && !e.setConfig(EngineConfig{}), "a snapshot of another schema is refused");
+    Engine twin;
+    twin.initialize();
+    EXPECT(e.setConfig(twin.config()) && e.monitoringEnabled() && e.config() == twin.config(), "a twin engine's snapshot is adopted");
+    resetEngineSettings(e.schema());
+}
+
+// Two engines with different configurations, fed the same frames alternately in one process, each
+// reach exactly the outcome they reach alone: nothing is shared, nothing global is read.
+static void testEnginesShareNothing() {
+    const auto frames = goldenArena();
+    Engine a, b, soloA, soloB;
+    for (Engine* e : {&a, &b, &soloA, &soloB}) e->initialize();
+    const EngineConfig strict = strictConfig(b);
+    EXPECT(b.setConfig(strict) && soloB.setConfig(strict), "strict configuration accepted");
+    const std::uint64_t revision = Settings::instance().revision();
+    a.resetSession(frames.front().timeMs);
+    b.resetSession(frames.front().timeMs);
+    for (const WorldFrame& f : frames) {
+        a.onFrame(f);
+        b.onFrame(f);
+    }
+    const int n = static_cast<int>(frames.size());
+    const ReplayOutcome oa = summarize(a, n), ob = summarize(b, n);
+    const auto da = compareOutcomes(replayFrames(soloA, frames), oa, 0.f);
+    const auto db = compareOutcomes(replayFrames(soloB, frames), ob, 0.f);
+    EXPECT(da.empty(), "default engine unaffected by its neighbour (%s)", da.empty() ? "" : da.front().c_str());
+    EXPECT(db.empty(), "strict engine unaffected by its neighbour (%s)", db.empty() ? "" : db.front().c_str());
+    EXPECT(!compareOutcomes(oa, ob, 0.f).empty(), "the two configurations really differ in outcome");
+    EXPECT(Settings::instance().revision() == revision, "running engines never touches the settings registry");
+}
+
+// Configuration documents: exact round trips (text and bits) and refusal of hostile input.
+static void testConfigDocuments() {
+    Engine e;
+    e.initialize();
+    const auto schema = e.schemaPtr();
+    EngineConfig odd(schema);
+    for (std::size_t i = 0; i < schema->size(); ++i) {
+        const ParamSpec& p = schema->params()[i];
+        const ParamId id = static_cast<ParamId>(i);
+        if (p.type == ParamType::Bool) odd.set(id, p.def != 0.0 ? 0.0 : 1.0);
+        else if (p.type == ParamType::Float) odd.set(id, p.def + 0.1 + 1.0 / 3.0);   // digits that need 17 significant places
+        else odd.set(id, p.def + 1.0);
+    }
+    int exact = 0;
+    const EngineConfig configs[] = {e.config(), strictConfig(e), odd};
+    for (const EngineConfig& c : configs) {
+        for (int indent : {2, -1}) {
+            const std::string text = configToJson(c, indent);
+            EngineConfig back;
+            std::string error;
+            ConfigReadReport report;
+            const bool ok = configFromJson(text, schema, back, error, &report);
+            if (ok && back == c && configToJson(back, indent) == text && report.unknown.empty() && report.missing.empty()) ++exact;
+            else EXPECT(false, "round trip failed: %s", error.c_str());
+        }
+    }
+    EXPECT(exact == 6, "defaults, strict and every-parameter-moved survive the document exactly (%d of 6)", exact);
+    json::Value sj;
+    EXPECT(json::parse(schemaToJson(*schema), sj) && sj.get("kind").asString() == "vigil-engine-schema" &&
+               sj.get("parameters").size() == schema->size(),
+           "the declaration is a well-formed document");
+
+    const std::string head = R"({"kind":"vigil-engine-config","format":1,"values":)";
+    const std::pair<const char*, std::string> refused[] = {
+        {"malformed JSON", "{\"kind\":"},
+        {"not an object", "[1,2]"},
+        {"another kind", R"({"kind":"vigil-trace","format":1,"values":{}})"},
+        {"no format", R"({"kind":"vigil-engine-config","values":{}})"},
+        {"fractional format", R"({"kind":"vigil-engine-config","format":1.5,"values":{}})"},
+        {"newer format", R"({"kind":"vigil-engine-config","format":2,"values":{}})"},
+        {"no values", R"({"kind":"vigil-engine-config","format":1})"},
+        {"values not an object", head + "[]}"},
+        {"number for a switch", head + R"({"general.monitoring":1}})"},
+        {"switch for a number", head + R"({"checks.reach.threshold":true}})"},
+        {"fraction for a whole number", head + R"({"exempt.knockbackTicks":2.5}})"},
+        {"text for a number", head + R"({"checks.reach.threshold":"3.3"}})"},
+        {"infinite number", head + R"({"checks.reach.threshold":1e999}})"},
+        {"oversized document", head + "{\"pad\":\"" + std::string(kEngineConfigMaxBytes, 'x') + "\"}}"},
+    };
+    int refusedCleanly = 0;
+    for (const auto& c : refused) {
+        EngineConfig out = odd;
+        std::string error;
+        if (!configFromJson(c.second, schema, out, error) && !error.empty() && out == odd) ++refusedCleanly;
+        else EXPECT(false, "%s: not refused cleanly", c.first);
+    }
+    EXPECT(refusedCleanly == static_cast<int>(std::size(refused)), "hostile documents are refused, leaving the target untouched (%d)",
+           refusedCleanly);
+    // Another version's document: unknown keys are ignored and listed, missing ones keep defaults.
+    EngineConfig tolerant;
+    std::string error;
+    ConfigReadReport report;
+    EXPECT(configFromJson(head + R"({"future.parameter":1,"checks.reach.threshold":3.5}})", schema, tolerant, error, &report),
+           "a document from another version is read (%s)", error.c_str());
+    EXPECT(report.unknown.size() == 1 && report.unknown[0] == "future.parameter" && report.missing.size() == schema->size() - 1,
+           "unknown and missing keys are reported");
+    EXPECT(tolerant.value(schema->find("checks.reach.threshold")) == 3.5 &&
+               tolerant.value(schema->find("checks.speed.limit")) == schema->spec(schema->find("checks.speed.limit")).def,
+           "given values are taken, the rest are defaults");
+}
+
 int main(int argc, char** argv) {
     const Test tests[] = {
         {"confidence invariants", testConfidenceInvariants},
@@ -319,6 +539,10 @@ int main(int argc, char** argv) {
         {"determinism", testDeterminism},
         {"trace round trip", testTraceRoundTrip},
         {"golden trace", testGoldenTrace},
+        {"config schema", testConfigSchema},
+        {"config sync between frames", testSettingsReachEngineBetweenFrames},
+        {"config engines share nothing", testEnginesShareNothing},
+        {"config documents", testConfigDocuments},
     };
     return runSuite(argc, argv, tests, "validation");
 }

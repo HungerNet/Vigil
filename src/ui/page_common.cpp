@@ -1,10 +1,19 @@
 #include "pages.h"
 
+#include "../core/settings.h"
+#include "../detection/config_binding.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 
 namespace vigil::ui {
+
+const detection::EngineConfig& liveConfig(const detection::Engine& engine) {
+    // The UI runs on one thread; the cache is rebuilt only when a setting changed.
+    static detection::ConfigCache cache;
+    return cache.get(Settings::instance(), engine.schemaPtr());
+}
 
 const char* pageTitle(Page p) {
     switch (p) {
@@ -227,7 +236,7 @@ Health computeHealth(const PageContext& ctx) {
         if (!rs.clientPump) ++h.issues;
         if (rs.samplerResolved) for (const auto& s : rs.signals) if (!s.available) ++h.issues;
     }
-    if (!e.monitoringEnabled()) {
+    if (!e.monitoringEnabled(liveConfig(e))) {
         h.level = Health::Paused;
         h.title = "Paused";
         h.detail = "Monitoring is turned off";

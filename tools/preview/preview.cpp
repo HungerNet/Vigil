@@ -15,6 +15,7 @@
 
 #include "../../src/core/log.h"
 #include "../../src/core/settings.h"
+#include "../../src/detection/config_binding.h"
 #include "../../src/detection/engine.h"
 #include "../../src/identity/identity.h"
 #include "../../src/ui/app.h"
@@ -598,6 +599,13 @@ int main(int argc, char** argv) {
     log::write("runtime", "window procedure hooked");
     Engine engine;
     engine.initialize();
+    registerEngineSettings(Settings::instance(), engine.schema());
+    // Like the runtime: the engine receives the registry's values between frames.
+    SettingsSync settingsSync;
+    auto engineFrame = [&](const WorldFrame& frame) {
+        settingsSync.sync(engine, Settings::instance());
+        engine.onFrame(frame);
+    };
     PreviewHost host;
     host.engine = &engine;
     ui::App& app = ui::App::instance();
@@ -657,13 +665,14 @@ int main(int argc, char** argv) {
     seedDemoServices(arena);
     const int warmTicks = 20 * 240;
     const double start = qpcMs() - warmTicks * 50.0;
+    settingsSync.sync(engine, Settings::instance());
     engine.resetSession(start);
     Tick tick = 0;
     arena.previousGame = true;   // the first minute is an earlier game in another world
     for (; tick < warmTicks; ++tick) {
         if (tick == 20 * 60) arena.endPreviousGame();
         arena.step(tick);
-        engine.onFrame(arena.frame(tick, start + tick * 50.0));
+        engineFrame(arena.frame(tick, start + tick * 50.0));
     }
     // A saved profile for Records → Saved.
     for (const auto& pr : engine.session().players()) {
@@ -683,7 +692,7 @@ int main(int argc, char** argv) {
         for (int f = 0; f < o.frames; ++f) {
             // Keep the simulation running in real time during the capture.
             arena.step(tick);
-            engine.onFrame(arena.frame(tick, start + tick * 50.0));
+            engineFrame(arena.frame(tick, start + tick * 50.0));
             ++tick;
             now += 1000.0 / 60.0;
             if (f == 1 && !o.hud && !o.activation) {
@@ -736,7 +745,7 @@ int main(int argc, char** argv) {
         const double now = qpcMs();
         while (now >= nextTick) {
             arena.step(tick);
-            engine.onFrame(arena.frame(tick, start + tick * 50.0));
+            engineFrame(arena.frame(tick, start + tick * 50.0));
             ++tick;
             nextTick += 50.0;
         }

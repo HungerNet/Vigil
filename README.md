@@ -80,12 +80,20 @@ Requirements: Visual Studio 2022 Build Tools (x64), CMake ≥ 3.20, and a JDK fo
 ```powershell
 cmake -S . -B build -A x64
 cmake --build build --config Release
-ctest --test-dir build -C Release           # five suites: detection, features, records, validation, ui_logic
+ctest --test-dir build -C Release           # five suites + format fixtures
 build\Release\VigilPreview.exe              # UI + engine with a simulated arena
 build\Release\VigilPreview.exe --shot out.png --page players --player Kestrel --tab evidence --theme 7
 build\Release\VigilReplay.exe tests\traces\golden-arena.vtrace --expect tests\traces\golden-arena.expect.json
 build\Release\Vigil.exe --self-check report.json   # verifies the exe and its embedded runtime; starts nothing
+build\Release\VigilParity.exe parity.txt           # full engine state over the scenario corpus (compare two builds)
+
+# Rust (rust/, not part of the shipped binaries yet; toolchain pinned in rust/rust-toolchain.toml)
+cd rust; cargo fmt --check; cargo clippy --all-targets -- -D warnings; cargo test --release; cd ..
+python tools\ci\cross_formats.py --cpp build\Release\VigilFormats.exe --rust rust\target\release\vigil-fmt.exe --fixtures tests\fixtures --work build\round-trips
 ```
+
+`-DVIGIL_BUILD_RUST=ON` makes `cmake --build` build the Rust workspace and adds the Rust tests and
+the C++ ↔ Rust format round trips to CTest.
 
 `build\Release\Vigil.exe` is the distributable (published as `Vigil-<version>.exe`); it embeds
 `Vigil.dll`. The version comes from `version.yaml`. The Java shims (`src/game/bytecode/`) are
@@ -96,14 +104,17 @@ generated from `java/src` with `python tools/build_java.py`; brand assets with
 
 ```
 src/core/        logging, JSON, paths, typed settings registry                  (vigil_core)
-src/detection/   engine, checks, records formats, traces (pure C++, std only)    (vigil_detection)
+src/detection/   engine, checks, engine configuration, records formats, traces   (vigil_detection)
 src/utilities/   Auto Who, Fast Buy, party detectors (pure logic)                (vigil_services)
 src/identity/    nick detection and denickers; src/net/ HTTPS for them           (vigil_services)
 src/ui/          native OpenGL interface: renderer, fonts, icons, themes, widgets, pages, records
 src/game/        Minecraft adapter over JNI: sampler, context, chat, utilities, alerts, highlight
 src/platform/    DLL bootstrap, render/input hooks, runtime version guard, Vigil.exe launcher
-tests/           five suites, shared framework and simulator, golden trace
-tools/           preview harness, trace replay, CI checks, Java and brand asset builders
+tests/           five suites, shared framework, simulator and scenario corpus, golden trace,
+                 fixtures shared with Rust (tests/fixtures)
+tools/           preview harness, trace replay, parity probe, format fixtures, CI checks,
+                 Java and brand asset builders
+rust/            Cargo workspace: vigil-formats (every file format, byte-compatible), replay-check
 docs/            architecture, validation, release process, audits and reports
 ```
 
@@ -112,7 +123,8 @@ docs/            architecture, validation, release process, audits and reports
 **Current:** [Plan](PLAN.md) · [Final report](docs/FINAL_REPORT.md) ·
 [Architecture](docs/ARCHITECTURE.md) · [Validation](docs/VALIDATION.md) ·
 [Live validation](docs/LIVE_VALIDATION.md) · [Release process](docs/RELEASE_PROCESS.md) ·
-[Rust plan](RUST_PLAN.md) · [Tech debt](docs/TECH_DEBT.md)
+[Rust plan](RUST_PLAN.md) ([P1](P1_PLAN.md), [P2](P2_PLAN.md), [report](docs/RUST_P1_P2_REPORT.md)) ·
+[Tech debt](docs/TECH_DEBT.md)
 
 **Design and earlier passes:** [Quality report](docs/QUALITY_REPORT.md) ·
 [Polish report](docs/POLISH_REPORT.md) · [Trust audit](docs/TRUST_AUDIT.md) ·

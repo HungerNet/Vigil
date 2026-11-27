@@ -1,0 +1,6 @@
+# The toolchain every Vigil Rust build uses (local and CI), pinned so outputs never drift.
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+targets = ["x86_64-pc-windows-msvc"]
+profile = "minimal"

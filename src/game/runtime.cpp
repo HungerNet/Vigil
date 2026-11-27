@@ -91,6 +91,8 @@ void Runtime::initialize(const std::string& dllDirectory, HWND gameWindow) {
     }
 
     engine_.initialize();
+    // Engine parameters first, so the registry (and config.json) keep their order.
+    detection::registerEngineSettings(Settings::instance(), engine_.schema());
     registerSettings();
     // UI, utility and identity settings are registered by the UI; do it before loading.
     ui::App::instance().initialize(this, &engine_);
@@ -120,6 +122,7 @@ void Runtime::initialize(const std::string& dllDirectory, HWND gameWindow) {
         if (n > 0) log::writef("vigil", "migrated %d legacy settings", n);
         S.save();
     }
+    settingsSync_.sync(engine_, S);   // the loaded values, before anything reads them
     engine_.setHistoryPath((std::filesystem::path(dataDir_) / "history" / "players.json").string());
     engine_.setMarksPath((std::filesystem::path(dataDir_) / "history" / "marks.json").string());
     engine_.setJournalDirectory((std::filesystem::path(dataDir_) / "sessions").string());
@@ -315,6 +318,9 @@ void Runtime::pump(JNIEnv* env, jobject mc) {
     inPump_ = true;
     ++pumpsInWindow_;
     updateRates(now);
+    // Settings changed since the last pump (the menu, a preset, a reset) reach the engine here,
+    // before anything in this pump runs it.
+    settingsSync_.sync(engine_, Settings::instance());
 
     jclass mcClass = env->GetObjectClass(mc);
     VigilUpdateHypixelServerWhitelist(env, mc, mcClass);
@@ -788,6 +794,7 @@ bool Runtime::onWindowMessage(HWND, UINT msg, WPARAM wParam, LPARAM lParam, LRES
 void Runtime::shutdown(JNIEnv* env) {
     if (!initialized_) return;
     trace_.stop("game closed");
+    settingsSync_.sync(engine_, Settings::instance());   // "Player history" may have changed since the last pump
     engine_.flushHistory();
     Settings::instance().save();
     identity::Service::instance().stop();

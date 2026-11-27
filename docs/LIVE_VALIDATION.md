@@ -40,6 +40,7 @@ item without guessing.
 | L16 | Clipboard import of a file copied in Explorer (`CF_HDROP`) | dev.9 | 🆕 | Imports folder |
 | L17 | Trace recording during real play | dev.9 | 🆕 | — |
 | L18 | Records, exemptions, saved profiles persist across game restarts | dev.9 | 🆕 | — |
+| L19 | Settings reach the engine on the next client tick (EngineConfig sync at the top of each pump) | Rust P1 | 🆕 | — |
 
 ## 3. How to validate each item
 
@@ -64,6 +65,7 @@ second pass. For every ⚠️/🆕 item, record ✅ or ❌ in the checklist (§4
 | L16 | Export a profile; in Explorer copy the file (Ctrl+C); Records → Saved → Import | "Imported 1 profile"; it opens | The file |
 | L17 | Record a 2-minute trace in a match; stop | File in `traces/`; `VigilReplay` on it reproduces the session's detections | The trace (contains names) |
 | L18 | Exempt a friend, confirm someone by name, save a profile; restart the game | All three are still in Records; the friend is listed but never judged | `history/marks.json`, report |
+| L19 | Settings → General → Analyze yourself on, sprint-jump low under a slab (or any self-evidence); then switch Checks → Speed off, then Monitoring off; finally restart the game | Evidence on yourself starts as soon as Analyze yourself is on; stops at once when Speed is off; Status says *paused* immediately with Monitoring off; after the restart every setting is as you left it and is applied | Report (changed settings), trace |
 
 ## 4. Per-release checklist
 
@@ -84,6 +86,7 @@ L7  tab list / NPCs ............ [ ]     L15 interface sounds ........... [ ]
 L8  ping / Velocity window ..... [ ]     L16 clipboard import ........... [ ]
 L9  isBurning .................. [ ]     L17 trace recording ............ [ ]
 L10 over-head markers .......... [ ]     L18 records persist ............ [ ]
+                                         L19 settings applied live ...... [ ]
 [ ] One full Bed Wars game: no false detection on legitimate players you know
 [ ] Two minutes of sprint-jumping with Analyze yourself on: no evidence on yourself
 Notes / failures (attach report, logs, traces):

@@ -10,7 +10,11 @@ pipeline in [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
 |---|---|---|---|
 | Unit & scenario suites | Detection, utilities, records, lifecycle and UI logic behave as specified | `tests/*.cpp` (5 executables) | Every build (CTest), CI |
 | Golden trace | The engine still reaches the committed outcome on a recorded session | `tests/traces/` + `VigilReplay` | CI, `validation_tests` |
-| Determinism | Same frames → same outcome (one engine or two; through the trace format) | `validation_tests` | CI |
+| Determinism | Same frames → same outcome (one engine or two; through the trace format; the whole corpus under 416 configurations, run twice) | `validation_tests`, `VigilParity` | CI |
+| Full-state parity | Two builds of the engine produce identical state — every evidence value, contribution, timeline entry, alert — on a scenario corpus covering all 24 indicators, under every parameter | `VigilParity` (tools/parity) | Every engine refactor or port, by hand against a baseline build (§4.1) |
+| Engine owns no globals | Nothing in `src/detection` reads the settings registry or keeps mutable static state | `validate_repo.py engine-globals` | CI |
+| Format fixtures | The committed format fixtures are exactly what the C++ code writes, and every canonical form is a fixed point | `VigilFormats check` (CTest `format_fixtures`) | Every build, CI |
+| Rust formats | The Rust readers/writers produce the C++ bytes for every fixture, number and refusal; the engine's math functions match the CRT | `cargo test` (rust/), `cross_formats.py` | CI (§8) |
 | Self-check | `Vigil.exe` embeds the runtime of the same version and build | `Vigil.exe --self-check` | CI (build + publish) |
 | UI smoke | Every page renders | `VigilPreview --shot` | CI (informational) |
 | Preview review | Layout, language, motion look right | `VigilPreview` screenshots | Each UI change, by hand |
@@ -23,7 +27,7 @@ pipeline in [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
 | `detection` | 32 | 152 | Every check against vanilla physics: legitimate play stays quiet, cheating traces are detected; latency, lag catch-ups, stalls, potions, ceilings, walls; NPCs and duplicates; match tracker |
 | `features` | 7 | 52 | Auto Who (incl. "disabled means disabled"), party detectors, Fast Buy, identity helpers, denicker service |
 | `records` | 11 | 78 | Marks (confirm/watch/exempt rules, notes, reasons, search), add-by-name binding, engine exemption, marks/settings format guards, JSON round trip, saved profiles (round trip, check remapping, hostile files, store) |
-| `validation` | 7 | 169 | Confidence invariants, match lifecycle, player-state table, envelopes, determinism, trace round trip, golden trace |
+| `validation` | 11 | 208 | Confidence invariants, match lifecycle, player-state table, envelopes, determinism, trace round trip, golden trace; engine configuration (declaration = committed fixture, registry changes only between frames, engines share nothing, exact config documents, hostile documents refused) |
 | `ui_logic` | 5 | 60 | Typed slider values, focus order, uncertain-finding wording, interface sounds, higher contrast |
 
 Run them:
@@ -80,6 +84,35 @@ trace) can be added the same way: commit `name.vtrace` + `name.expect.json` and 
 `validation_tests`. Traces contain player names; only commit traces from sessions where that is
 acceptable, or synthetic ones.
 
+**Other settings than the defaults:** a trace replays under any engine configuration document
+(`VigilReplay trace.vtrace --config cfg.json`). `VigilReplay --engine-config out.json` writes the
+defaults to start from; `--engine-schema out.json` writes the declaration of every parameter. The
+committed `tests/fixtures/engine-schema.json` and `engine-config.default.json` are checked by
+`validation_tests`: adding or changing a parameter means regenerating them and reviewing the diff.
+
+### 4.1 Full-state parity (`VigilParity`)
+
+`VigilParity out.txt` replays the scenario corpus ([`tests/corpus.h`](../tests/corpus.h): the
+golden arena plus six scenarios that make all 11 checks and all 24 indicators fire, through every
+game phase, teammates, the local player, ice, knockback, lag and teleports) through fresh engines
+under 416 configurations: defaults, Relaxed and Strict presets, **each of the 248 parameters moved
+up and down on its own**, and settings changed mid-session the way the UI changes them. For each it
+writes a digest of the engine's entire state, and it dumps the settings registry the engine
+declares (order, labels, ranges, warning predicates). Two builds agree when the files are
+byte-identical. Use it for every behavior-preserving engine change:
+
+```powershell
+# before the change: build the untouched tree (e.g. git archive HEAD into a scratch folder)
+base\VigilParity.exe before.txt
+# after the change
+build\Release\VigilParity.exe after.txt
+fc /b before.txt after.txt
+```
+
+It catches what the suites cannot: in P1, hard-coding one parameter to its default (`airTolerance`)
+passed every suite and the golden trace, and `VigilParity` pinpointed exactly the two
+`airTolerance` configurations. CI runs it twice per build to prove determinism.
+
 ## 5. Invariants the suites enforce
 
 * Confidence stays within 0–100, never drops when evidence arrives, halves per half-life, reaches
@@ -104,8 +137,8 @@ acceptable, or synthetic ones.
 | Job | Required | What |
 |---|---|---|
 | Workflow lint | ✅ | `actionlint` (with shellcheck) on every workflow |
-| Version, release notes, docs, golden trace | ✅ | `tools/ci/validate_repo.py metadata · links · golden` |
-| Build, test and self-check | ✅ | MSVC `/W4 /WX`; all suites; golden replay; `--self-check`; embedded runtime hash = built DLL hash; build ID = commit |
+| Version, release notes, docs, golden trace, engine globals | ✅ | `tools/ci/validate_repo.py metadata · links · golden · engine-globals` |
+| Build, test and self-check | ✅ | MSVC `/W4 /WX`; all suites and the format fixtures; golden replay; corpus determinism (`VigilParity` twice); Rust `fmt --check`, `clippy -D warnings`, `cargo test`; C++ ↔ Rust round trips; `replay-check --strict` on the golden pair; `--self-check`; embedded runtime hash = built DLL hash; build ID = commit |
 | UI smoke renders | informational | Every page rendered on the runner; screenshots uploaded |
 | Java shims reproducible | informational | javac output differs across JDK patches |
 | Validation complete | ✅ | One status for branch protection |
@@ -122,8 +155,43 @@ cmake --build build-ci --config Release
 ctest --test-dir build-ci -C Release --output-on-failure
 build-ci\Release\VigilReplay.exe tests\traces\golden-arena.vtrace --expect tests\traces\golden-arena.expect.json
 Start-Process build-ci\Release\Vigil.exe -ArgumentList '--self-check','selfcheck.json' -Wait
-python tools\ci\validate_repo.py metadata; python tools\ci\validate_repo.py links
+python tools\ci\validate_repo.py metadata; python tools\ci\validate_repo.py links; python tools\ci\validate_repo.py engine-globals
 ```
 
 `--self-check` never extracts the runtime, opens a window or touches the game; it writes the
 report and a temporary copy of the runtime in `%TEMP%` (deleted immediately).
+
+## 8. Rust formats (RUST_PLAN P2)
+
+`rust/crates/vigil-formats` reads and writes every Vigil file format — traces, outcomes, saved
+profiles, marks, engine schema and configuration — **byte for byte like the C++ code**, with no
+third-party crates and no `unsafe`. Strings are bytes (real traces can hold JNI modified UTF-8),
+numbers are written with a mirror of the C++ `%.0f` / `%.15g` / `%.17g` rule, and every reader
+normalizes exactly like its C++ counterpart (defaults, clamps, bounds, unknown ids dropped).
+
+**The contract.** For any input, the *canonical form* (parse + write) is the same bytes in both
+languages, or both refuse it with the same reason. [`tests/fixtures/formats`](../tests/fixtures/formats/README.md)
+holds the inputs (hand-written edge cases and C++-generated files), the C++ canonical forms, a table
+of 4 000+ doubles and a table of the engine's math functions on its input ranges.
+
+| Check | Where | Proves |
+|---|---|---|
+| `format_fixtures` (CTest) | `VigilFormats check` | The committed fixtures are what this C++ build writes; C++ canonical forms are fixed points |
+| `cargo test` | `rust/crates/vigil-formats/tests` | Rust canonical form = committed C++ form for every input (identical refusal messages); numbers and math bit-exact; 3 000+ mutated inputs never panic; `replay-check` behavior |
+| `cross_formats.py` | CI, CTest with `-DVIGIL_BUILD_RUST=ON` | Live round trips in both directions (C++ → Rust → C++, Rust → C++ → Rust) over every fixture, the golden pair and the 7 corpus traces generated fresh |
+| `replay-check --strict` | CI | Rust reads the golden trace and outcome, they agree, and both are canonical |
+
+**Deliberate differences** are listed in `tests/fixtures/formats/divergences.txt`, each with its
+classification; the tests check that each still diverges exactly as stated and that nothing else
+does. Today there is one: hexadecimal float literals, which C's `strtod` reads and Rust refuses.
+
+**Changing a format or adding a fixture:** change both sides in the same pull request, then
+regenerate and review the diff:
+
+```powershell
+build\Release\VigilFormats.exe generate tests\fixtures\formats    # generated inputs and tables
+build\Release\VigilFormats.exe canon-all tests\fixtures\formats   # C++ canonical forms
+cd rust; cargo test --release
+```
+
+A format change bumps its format number (RUST_PLAN §11.5); readers keep accepting older formats.

@@ -45,19 +45,20 @@ protected:
     void registerSettings() override {
         iSprint_ = addIndicator("sprint", "Sprinting while using", "The sprint flag stayed on during item use.", 0.8f);
         iSpeed_ = addIndicator("speed", "Speed while using", "Ground speed during item use exceeds the vanilla limit.", 1.2f);
-        sprintTicks_ = &addInt("sprintTicks", "Sprint overlap", 8, {3, 30, 1, 0, "ticks"},
-                               "Consecutive ticks of sprinting during item use before it counts as evidence. A legitimate "
-                               "player's sprint flag can lag item use by a tick or two.");
-        preset(*sprintTicks_, 12, 8, 6);
-        speedLimit_ = &addFloat("speedLimit", "Speed limit", 0.17, {0.08, 0.3, 0.005, 3, "b/tick"},
-                                "Ground speed during item use above which it counts as evidence. Vanilla item-use "
-                                "walking is about 0.06 b/tick.");
-        preset(*speedLimit_, 0.20, 0.17, 0.14);
+        sprintTicks_ = addInt("sprintTicks", "Sprint overlap", 8, {3, 30, 1, 0, "ticks"},
+                              "Consecutive ticks of sprinting during item use before it counts as evidence. A legitimate "
+                              "player's sprint flag can lag item use by a tick or two.");
+        preset(sprintTicks_, 12, 8, 6);
+        speedLimit_ = addFloat("speedLimit", "Speed limit", 0.17, {0.08, 0.3, 0.005, 3, "b/tick"},
+                               "Ground speed during item use above which it counts as evidence. Vanilla item-use "
+                               "walking is about 0.06 b/tick.");
+        preset(speedLimit_, 0.20, 0.17, 0.14);
     }
 
 public:
     void onTick(CheckContext& ctx, PlayerTrack& t, PlayerCheckState* base) override {
         auto* st = static_cast<NoSlowState*>(base);
+        const EngineConfig& cfg = ctx.config();
         const PlayerFrame& f = t.cur();
         const Exemptions& ex = ctx.exemptions(t);
         if (!slowingItemInUse(f) || f.riding || ex.movement() || ex.ice || ex.slime) { st->sprintUsingTicks = 0; return; }
@@ -70,14 +71,14 @@ public:
 
         if (f.sprinting) {
             ++st->sprintUsingTicks;
-            if (st->sprintUsingTicks >= sprintTicks_->i() && now - st->lastSprintEvidence > 40) {
+            if (st->sprintUsingTicks >= cfg.i(sprintTicks_) && now - st->lastSprintEvidence > 40) {
                 st->lastSprintEvidence = now;
-                ctx.emit(t, iSprint_, static_cast<float>(std::clamp(st->sprintUsingTicks / (sprintTicks_->value * 2.0), 0.4, 1.0)),
+                ctx.emit(t, iSprint_, static_cast<float>(std::clamp(st->sprintUsingTicks / (cfg.value(sprintTicks_) * 2.0), 0.4, 1.0)),
                          fmt("Sprinted %d ticks while using an item", st->sprintUsingTicks),
                          fmt("Using an item ends sprinting within a tick or two; the sprint flag stayed on for %d ms.",
                              st->sprintUsingTicks * 50),
                          {{"Sprinting while using", static_cast<double>(st->sprintUsingTicks), "ticks",
-                           static_cast<double>(sprintTicks_->i()), true},
+                           static_cast<double>(cfg.i(sprintTicks_)), true},
                           {"Item", static_cast<double>(f.heldItem), ""}});
             }
         } else {
@@ -91,7 +92,7 @@ public:
             const double mult = t.maxSpeedMultiplier(static_cast<int>(std::min<Tick>(usingFor, 30)));
             // Momentum from before the use decays by ground friction each tick (4-tick window).
             const double carry = st->speedAtUseStart * std::pow(kGroundFriction, static_cast<double>(std::max<Tick>(0, usingFor - 4)));
-            const double limit = std::max(speedLimit_->value * mult, carry);
+            const double limit = std::max(cfg.value(speedLimit_) * mult, carry);
             if (q >= 0.6f && sp > limit) {
                 st->lastSpeedEvidence = now;
                 ctx.emit(t, iSpeed_, static_cast<float>(std::clamp((sp / limit - 1.0) / 0.8 + 0.35, 0.35, 1.0)) * (0.6f + 0.4f * q),
@@ -108,8 +109,8 @@ public:
 
 private:
     int iSprint_ = 0, iSpeed_ = 0;
-    Setting* sprintTicks_ = nullptr;
-    Setting* speedLimit_ = nullptr;
+    ParamId sprintTicks_ = kNoParam;
+    ParamId speedLimit_ = kNoParam;
 };
 
 }  // namespace

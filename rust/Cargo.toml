@@ -1,0 +1,29 @@
+# Vigil — Rust workspace (RUST_PLAN.md §6.2).
+#
+# P2: `vigil-formats` reads and writes every Vigil file format byte-for-byte like the C++ code, and
+# `replay-check` reads a trace and an outcome. Later phases add the engine (P3) and link a staticlib
+# into Vigil.dll (P4). Nothing here is part of the shipped binaries yet.
+#
+#   cargo fmt --check · cargo clippy --all-targets -- -D warnings · cargo test
+#   (from this directory; docs/VALIDATION.md §8)
+
+[workspace]
+resolver = "2"
+members = ["crates/vigil-formats"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+# RUST_PLAN.md §5: unwinding, never abort, so a future FFI boundary can catch panics.
+panic = "unwind"

@@ -4,6 +4,9 @@
 
 #include "pages.h"
 
+#include "../core/settings.h"
+#include "../detection/config_binding.h"
+
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -93,7 +96,7 @@ void drawChecks(PageContext& ctx, const Rect& area) {
             if (ui.pressable(rid, row, &h) && !overToggle) st.selectedCheck = c->index();
             const float hv = ui.anim(mixId(rid, 1), sel ? 1.f : (h ? 0.5f : 0.f), 16.f);
             if (hv > 0.01f) ui.r.roundRect(row.inset(4.f, 2.f), 11.f, (sel ? t.accentSoft() : t.surfaceHover).alpha(sel ? 1.f : hv * 1.6f));
-            const bool on = c->enabled();
+            const bool on = c->enabled(liveConfig(ctx.engine));
             const Rect ic{row.x + 14.f, row.cy() - 16.f, 32.f, 32.f};
             ui.r.roundRect(ic, 9.f, (on ? t.accent : t.textFaint).withAlpha(t.light ? 0.10f : 0.13f));
             drawIcon(ui.r, checkIcon(c->id()), ic.x + 7.f, ic.y + 7.f, 18.f, on ? t.accent : t.textFaint);
@@ -209,13 +212,13 @@ void drawChecks(PageContext& ctx, const Rect& area) {
 
     // Sensitivity.
     {
-        Setting* preset = c.presetSetting();
+        Setting* preset = detection::presetSetting(Settings::instance(), c);
         const Rect sc{detail.x, dy, w, 120.f};
         float cy = sectionCard(ui, sc, "SENSITIVITY", nullptr);
         int sel = std::min(preset->i(), 2);
         const bool custom = preset->i() == 3;
         std::vector<std::string> opts = {"Relaxed", "Balanced", "Strict"};
-        if (segmented(ui, hashId("preset", c.index()), {sc.x + 22.f, cy, 330.f, 32.f}, opts, sel)) c.applyPreset(sel);
+        if (segmented(ui, hashId("preset", c.index()), {sc.x + 22.f, cy, 330.f, 32.f}, opts, sel)) detection::applyPreset(Settings::instance(), c, sel);
         if (custom) chip(ui, {sc.x + 364.f, cy + 6.f, chipWidth(ui, "Custom"), 20.f}, "Custom", t.accent);
         const char* explain = custom ? "You have adjusted individual thresholds. Choose a preset to return to a tested combination."
                             : sel == 0 ? "Favors certainty: requires stronger and more frequent evidence before reporting."
@@ -226,7 +229,8 @@ void drawChecks(PageContext& ctx, const Rect& area) {
     }
 
     auto onEdited = [&c](Setting& s) {
-        if (c.isPresetControlled(&s) && c.presetSetting()->i() != 3) c.presetSetting()->set(3);
+        Setting* preset = detection::presetSetting(Settings::instance(), c);
+        if (detection::isPresetControlled(c, s) && preset->i() != 3) preset->set(3);
     };
     SettingRowOptions rowOpt;
     rowOpt.onEdited = onEdited;
@@ -246,27 +250,32 @@ void drawChecks(PageContext& ctx, const Rect& area) {
         }
         for (std::size_t i = 0; i < inds.size(); ++i) {
             const auto& ind = inds[i];
-            const Id iid = hashId(ind.enabled->key);
+            // The indicator's two registry entries (on/off and weight).
+            Setting* const enabledSetting = detection::settingFor(Settings::instance(), c, ind.enabled);
+            Setting* const weightSetting = detection::settingFor(Settings::instance(), c, ind.weight);
+            if (!enabledSetting || !weightSetting) continue;
+            const Id iid = hashId(enabledSetting->key);
             const float rx = ic.x + 22.f;
-            const bool on = ind.enabled->b();
-            if (toggle(ui, iid, {rx, iy + 6.f, 36.f, 20.f}, on)) ind.enabled->set(on ? 0.0 : 1.0);
+            const bool on = enabledSetting->b();
+            if (toggle(ui, iid, {rx, iy + 6.f, 36.f, 20.f}, on)) enabledSetting->set(on ? 0.0 : 1.0);
             ui.fonts.draw(ui.r, type::BodyStrong, rx + 50.f, iy + 4.f, ind.name, on ? t.text : t.textMuted);
             const float textW = ic.w - 50.f - 22.f - 300.f;
             ui.fonts.draw(ui.r, type::Small, rx + 50.f, iy + 24.f, ind.description, t.textFaint, Align::Left, textW);
             ui.tooltip(mixId(iid, 10), {rx + 50.f, iy + 22.f, textW, 18.f}, ind.description);
             // Weight.
-            double wv = ind.weight->value;
+            double wv = weightSetting->value;
             const float sx = ic.r() - 286.f;
             if (i == 0) ui.fonts.draw(ui.r, type::Overline, sx, iy - 20.f, "WEIGHT", t.textFaint);
-            if (slider(ui, mixId(iid, 7), {sx, iy + 10.f, 120.f, 14.f}, wv, ind.weight->range.min, ind.weight->range.max,
-                       ind.weight->range.step, ind.weight->def)) {
-                ind.weight->set(wv);
+            if (slider(ui, mixId(iid, 7), {sx, iy + 10.f, 120.f, 14.f}, wv, weightSetting->range.min, weightSetting->range.max,
+                       weightSetting->range.step, weightSetting->def)) {
+                weightSetting->set(wv);
             }
-            ui.tooltip(mixId(iid, 8), {sx, iy + 2.f, 120.f, 30.f}, ind.weight->tooltip);
-            double typed = ind.weight->value;
-            if (numberBox(ui, mixId(iid, 13), mixId(iid, 7), {sx + 128.f, iy + 4.f, 60.f, 24.f}, typed, ind.weight->range.min,
-                          ind.weight->range.max, ind.weight->range.step, formatNumber(ind.weight->value, 2) + "x", !ind.weight->isDefault())) {
-                ind.weight->set(typed);
+            ui.tooltip(mixId(iid, 8), {sx, iy + 2.f, 120.f, 30.f}, weightSetting->tooltip);
+            double typed = weightSetting->value;
+            if (numberBox(ui, mixId(iid, 13), mixId(iid, 7), {sx + 128.f, iy + 4.f, 60.f, 24.f}, typed, weightSetting->range.min,
+                          weightSetting->range.max, weightSetting->range.step, formatNumber(weightSetting->value, 2) + "x",
+                          !weightSetting->isDefault())) {
+                weightSetting->set(typed);
             }
             // Session observations from this indicator.
             if (i == 0) ui.fonts.draw(ui.r, type::Overline, ic.r() - 22.f, iy - 20.f, "THIS SESSION", t.textFaint, Align::Right);
@@ -276,10 +285,10 @@ void drawChecks(PageContext& ctx, const Rect& area) {
             ui.r.roundRect(cr, 11.f, counts[i] ? t.accentSoft() : t.inset);
             ui.fonts.draw(ui.r, type::SmallStrong, cr.cx(), cr.cy() - ui.fonts.lineHeight(type::SmallStrong) * 0.5f, cnt,
                           counts[i] ? t.accent : t.textFaint, Align::Center);
-            if (ind.enabled->warningActive()) {
+            if (enabledSetting->warningActive()) {
                 drawIcon(ui.r, Icon::Warning, rx + 50.f + ui.fonts.width(type::BodyStrong, ind.name) + 8.f, iy + 4.f, 14.f, t.sevNotice, 1.5f);
                 ui.tooltip(mixId(iid, 9), {rx + 50.f + ui.fonts.width(type::BodyStrong, ind.name) + 4.f, iy, 22.f, 22.f},
-                           ind.enabled->warning);
+                           enabledSetting->warning);
             }
             if (i + 1 < inds.size()) divider(ui, ic.x + 22.f, ic.r() - 22.f, iy + rowH - 7.f);
             iy += rowH;
@@ -309,7 +318,7 @@ void drawChecks(PageContext& ctx, const Rect& area) {
         float h = 52.f;
         for (Setting* s : rows) h += 54.f + (s->warningActive() ? 26.f : 0.f);
         if (hasAdvanced) h += 36.f;
-        if (std::string(g.key) == "Debug" && c.debug()) h += 150.f;
+        if (std::string(g.key) == "Debug" && c.debug(liveConfig(ctx.engine))) h += 150.f;
         const Rect gc{detail.x, dy, w, h};
         float gy = sectionCard(ui, gc, g.title, g.subtitle);
         for (Setting* s : rows) gy += settingRow(ui, *s, gc.x + 12.f, gy, gc.w - 34.f, rowOpt);
@@ -322,7 +331,7 @@ void drawChecks(PageContext& ctx, const Rect& area) {
             }
             gy += 36.f;
         }
-        if (std::string(g.key) == "Debug" && c.debug()) {
+        if (std::string(g.key) == "Debug" && c.debug(liveConfig(ctx.engine))) {
             const Rect log{gc.x + 22.f, gy + 4.f, gc.w - 44.f, 136.f};
             ui.r.roundRect(log, 10.f, t.inset);
             float ly = log.y + 10.f;

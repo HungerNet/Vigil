@@ -1,0 +1,14 @@
+{
+ "format": 2,
+ "players": {
+  "k1": {
+   "name": "Old",
+   "watch": true,
+   "confirmed": false,
+   "exempt": false,
+   "added": 1600000000000,
+   "updated": 1600000000000,
+   "reasons": []
+  }
+ }
+}

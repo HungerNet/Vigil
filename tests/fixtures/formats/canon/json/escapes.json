@@ -1,0 +1,1 @@
+{"escapes":"\"\\/\u0008\u000c\n\r\t\u0000\u001fÃ©â‚¬","pair":"ðŸ˜€","lone high":"í €","lone low":"í°€","high then a non-surrogate":"í €A","high then text":"í €x","nested":[[[]],{},{"a":[1,-0,0.0005,100,1.2345678901234567e+19,0,-0]}],"dup":"second wins, in the first position","lenient numbers":[1,0.5,1,1,-2.5,100000,0.7],"non-finite":[0,0,0,0],"literals":[true,false,null]}

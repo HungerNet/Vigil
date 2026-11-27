@@ -1,0 +1,7 @@
+{"kind": "vigil-outcome", "format": 1, "frames": 1200.9, "players": {
+  "zed": {"suspicion": 12.345, "peak": 0.125, "evidence": {"speed": 2.9, "bhop": 1}, "detections": {}},
+  "Alpha": {"suspicion": 99.999, "peak": 100, "evidence": {}, "detections": {"reach": 1}},
+  "alpha": {"suspicion": -0.004, "peak": 0.005, "evidence": {"killaura": 3}, "detections": {"killaura": 0}},
+  "\u00e9l\u00e8ve": {"suspicion": 50, "peak": 50, "evidence": {"z": 1, "a": 2}, "detections": {"z": 1}},
+  "Empty": {}
+}}

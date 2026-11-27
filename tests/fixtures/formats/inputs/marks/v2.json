@@ -1,0 +1,13 @@
+{"format": 2, "players": {
+  "zzzz-uuid-confirmed": {"name": "Cheater", "uuid": "zzzz-uuid-confirmed", "watch": true, "confirmed": true, "exempt": false,
+    "added": 1700000000000, "confirmedAt": 1700000100000.5, "confidenceAtConfirm": 87.25, "updated": 1700000200000,
+    "note": "Snaps every fight \u2014 \"reported\"", "origin": "profile", "reasons": ["KillAura", "Reach"]},
+  "aaaa-uuid-watched": {"name": "Suspect", "uuid": "aaaa-uuid-watched", "watch": true, "confirmed": false, "exempt": false,
+    "added": 1700000300000, "confidenceAtConfirm": 50, "exemptAt": 5, "updated": 1700000300000, "reasons": ["stale"]},
+  "user:friend": {"name": "Friend", "watch": false, "confirmed": false, "exempt": true, "added": 0,
+    "exemptAt": 1700000400000, "updated": 1700000400001, "origin": "name"},
+  "name:Fallback": {"name": "Fallback", "confirmed": true, "added": -1, "confirmedAt": 1700000500000, "updated": 1700000600000,
+    "confidenceAtConfirm": -1},
+  "mmmm-no-flags": {"name": "Nobody", "watch": false, "confirmed": false, "exempt": false, "added": 1},
+  "B-upper-sorts-first": {"name": "Upper", "watch": true, "updated": 3}
+}}

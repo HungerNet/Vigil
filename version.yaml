@@ -1,5 +1,5 @@
 run: false
-version: '1.0-dev.11'
+version: '1.0-dev.12'
 description: |
   Dev 1:
   - Initial release
@@ -34,3 +34,7 @@ description: |
   - Fix line-end workflow issue
   Dev 11:
   - Update app title
+  Dev 12:
+  - Rust rewrite Phases 1-2:
+    - Decouple config
+    - Build Rust toolchain and formats

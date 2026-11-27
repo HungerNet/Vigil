@@ -78,15 +78,15 @@ protected:
                               "The victim barely rose after a hit that lifts any grounded player.", 1.5f);
         iHoriz_ = addIndicator("horizontal", "Horizontal knockback",
                                "The victim was not pushed away from the attacker.", 1.0f);
-        evalTicks_ = &addInt("evalTicks", "Observation window", 5, {3, 10, 1, 0, "ticks"},
-                             "How many ticks of the victim's response are observed, after their latency.");
-        minRise_ = &addFloat("minRise", "Minimum rise", 0.12, {0.02, 0.4, 0.01, 2, "blocks"},
-                             "A grounded victim rising less than this after a hit counts as evidence. Vanilla knockback "
-                             "rises over 0.6 blocks.");
-        preset(*minRise_, 0.07, 0.12, 0.18);
-        minPush_ = &addFloat("minPush", "Minimum push", 0.15, {0.02, 0.6, 0.01, 2, "blocks"},
-                             "Displacement away from the attacker below which the push counts as cancelled.");
-        preset(*minPush_, 0.08, 0.15, 0.22);
+        evalTicks_ = addInt("evalTicks", "Observation window", 5, {3, 10, 1, 0, "ticks"},
+                            "How many ticks of the victim's response are observed, after their latency.");
+        minRise_ = addFloat("minRise", "Minimum rise", 0.12, {0.02, 0.4, 0.01, 2, "blocks"},
+                            "A grounded victim rising less than this after a hit counts as evidence. Vanilla knockback "
+                            "rises over 0.6 blocks.");
+        preset(minRise_, 0.07, 0.12, 0.18);
+        minPush_ = addFloat("minPush", "Minimum push", 0.15, {0.02, 0.6, 0.01, 2, "blocks"},
+                            "Displacement away from the attacker below which the push counts as cancelled.");
+        preset(minPush_, 0.08, 0.15, 0.22);
     }
 
 public:
@@ -121,7 +121,7 @@ public:
         auto* st = static_cast<VelocityState*>(base);
         if (st->pending.empty()) return;
         const Tick now = ctx.tick();
-        const int window = evalTicks_->i();
+        const int window = ctx.config().i(evalTicks_);
         for (auto it = st->pending.begin(); it != st->pending.end();) {
             if (now - it->hitTick < it->delay + window) { ++it; continue; }
             evaluate(ctx, t, *it);
@@ -131,6 +131,7 @@ public:
 
 private:
     void evaluate(CheckContext& ctx, PlayerTrack& t, const VelocityState::Pending& p) {
+        const EngineConfig& cfg = ctx.config();
         const Tick now = ctx.tick();
         const int kHit = static_cast<int>(now - p.hitTick);
         if (!t.has(kHit + 1)) return;
@@ -161,14 +162,14 @@ private:
         }
         if (lateUpdates < 2 || gap > 5 || quality < 0.4f) return;   // cannot see the response
 
-        if (!p.ceiling && maxRise < minRise_->value) {
-            const float sev = static_cast<float>(std::clamp(1.0 - std::max(0.0, maxRise) / minRise_->value * 0.6, 0.4, 1.0)) *
+        if (!p.ceiling && maxRise < cfg.value(minRise_)) {
+            const float sev = static_cast<float>(std::clamp(1.0 - std::max(0.0, maxRise) / cfg.value(minRise_) * 0.6, 0.4, 1.0)) *
                               (0.6f + 0.4f * quality);
             ctx.emit(t, iVert_, sev, fmt("Rose %.2f blocks after %s's hit", std::max(0.0, maxRise), p.attacker.c_str()),
                      fmt("Knockback lifts a grounded player over 0.6 blocks. %s rose %.2f within %d ticks of the response "
                          "arriving (ping %s), with nothing above them.",
                          t.name().c_str(), std::max(0.0, maxRise), observed - p.delay, pingText.c_str()),
-                     {{"Rise after hit", std::max(0.0, maxRise), "blocks", minRise_->value, true},
+                     {{"Rise after hit", std::max(0.0, maxRise), "blocks", cfg.value(minRise_), true},
                       {"Push away from attacker", std::max(0.0, push), "blocks"},
                       {"Response window", static_cast<double>(observed), "ticks"},
                       {"Victim ping", static_cast<double>(std::max(0, p.ping)), "ms"},
@@ -178,12 +179,12 @@ private:
         // A wall in the push direction (or either neighbouring direction) stops the push.
         const int oct = octantOf(p.dir.x, p.dir.z);
         const std::uint8_t blocking = static_cast<std::uint8_t>((1u << oct) | (1u << ((oct + 1) & 7)) | (1u << ((oct + 7) & 7)));
-        if ((p.walls & blocking) == 0 && p.dir.horizontalLength() > 0.5 && expected >= 0.3 && push < minPush_->value) {
+        if ((p.walls & blocking) == 0 && p.dir.horizontalLength() > 0.5 && expected >= 0.3 && push < cfg.value(minPush_)) {
             const float sev = static_cast<float>(std::clamp(1.0 - std::max(0.0, push) / expected, 0.35, 1.0)) * (0.6f + 0.4f * quality);
             ctx.emit(t, iHoriz_, sev, fmt("Pushed %.2f blocks by %s's hit", std::max(0.0, push), p.attacker.c_str()),
                      fmt("This hit should push %s about %.2f blocks away; they moved %.2f, with no wall behind them.",
                          t.name().c_str(), expected, std::max(0.0, push)),
-                     {{"Push away from attacker", std::max(0.0, push), "blocks", minPush_->value, true},
+                     {{"Push away from attacker", std::max(0.0, push), "blocks", cfg.value(minPush_), true},
                       {"Vanilla push", expected, "blocks", 0.0, false, EvidenceValue::Role::Expected},
                       {"Rise after hit", std::max(0.0, maxRise), "blocks"},
                       {"Victim ping", static_cast<double>(std::max(0, p.ping)), "ms"},
@@ -193,9 +194,9 @@ private:
     }
 
     int iVert_ = 0, iHoriz_ = 0;
-    Setting* evalTicks_ = nullptr;
-    Setting* minRise_ = nullptr;
-    Setting* minPush_ = nullptr;
+    ParamId evalTicks_ = kNoParam;
+    ParamId minRise_ = kNoParam;
+    ParamId minPush_ = kNoParam;
 };
 
 }  // namespace

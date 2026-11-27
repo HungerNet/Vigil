@@ -1,0 +1,4 @@
+max_width = 120
+use_small_heuristics = "Max"
+# The repository converts line endings on checkout (core.autocrlf); keep each file's own.
+newline_style = "Auto"

@@ -1,0 +1,5742 @@
+{
+ "format": 1,
+ "kind": "vigil-profile",
+ "vigil": "fixture",
+ "savedAt": 1764201600000,
+ "sessionStart": 50050,
+ "capturedAt": 80000,
+ "origin": "saved",
+ "note": "Saved for the format fixtures — \"quotes\", a tab\t and a newline\n.",
+ "marks": {
+  "watched": true,
+  "confirmed": true,
+  "exempt": false,
+  "reasons": [
+   "KillAura",
+   "Reach"
+  ]
+ },
+ "identity": {
+  "nicked": true,
+  "likelyAccount": "Likely_Main",
+  "candidates": [
+   "Likely_Main",
+   "Other"
+  ]
+ },
+ "player": {
+  "key": "00000000-0000-4000-8000-100000000003",
+  "uuid": "00000000-0000-4000-8000-100000000003",
+  "name": "LowHopper",
+  "local": false,
+  "teammate": false,
+  "firstSeen": 50050,
+  "lastSeen": 80000,
+  "suspicion": 99.502761840820312,
+  "peakSuspicion": 99.609001159667969,
+  "priorSessions": 0,
+  "priorDetections": 0,
+  "priorPeak": 0,
+  "suspicionHistory": [
+   [
+    51500,
+    33.293281555175781
+   ],
+   [
+    52000,
+    60.421310424804688
+   ],
+   [
+    52500,
+    73.189208984375
+   ],
+   [
+    53000,
+    75.653068542480469
+   ],
+   [
+    53500,
+    83.284347534179688
+   ],
+   [
+    54000,
+    86.350776672363281
+   ],
+   [
+    54500,
+    92.829765319824219
+   ],
+   [
+    55000,
+    93.176345825195312
+   ],
+   [
+    55500,
+    95.068931579589844
+   ],
+   [
+    56000,
+    95.750137329101562
+   ],
+   [
+    56500,
+    96.851699829101562
+   ],
+   [
+    57000,
+    97.618247985839844
+   ],
+   [
+    57500,
+    98.14337158203125
+   ],
+   [
+    58000,
+    98.276374816894531
+   ],
+   [
+    58500,
+    98.623497009277344
+   ],
+   [
+    59000,
+    98.524574279785156
+   ],
+   [
+    59500,
+    99.0752944946289
+   ],
+   [
+    60000,
+    99.071731567382812
+   ],
+   [
+    60500,
+    99.202850341796875
+   ],
+   [
+    61000,
+    99.0887451171875
+   ],
+   [
+    61500,
+    99.213249206542969
+   ],
+   [
+    62000,
+    99.373916625976562
+   ],
+   [
+    62500,
+    99.430709838867188
+   ],
+   [
+    63000,
+    99.3175048828125
+   ],
+   [
+    63500,
+    99.386039733886719
+   ],
+   [
+    64000,
+    99.514701843261719
+   ],
+   [
+    64500,
+    99.539375305175781
+   ],
+   [
+    65000,
+    99.428749084472656
+   ],
+   [
+    65500,
+    99.47149658203125
+   ],
+   [
+    66000,
+    99.4301528930664
+   ],
+   [
+    66500,
+    99.60333251953125
+   ],
+   [
+    67000,
+    99.494697570800781
+   ],
+   [
+    67500,
+    99.522491455078125
+   ],
+   [
+    68000,
+    99.476455688476562
+   ],
+   [
+    68500,
+    99.513664245605469
+   ],
+   [
+    69000,
+    99.543037414550781
+   ],
+   [
+    69500,
+    99.5598373413086
+   ],
+   [
+    70000,
+    99.51031494140625
+   ],
+   [
+    70500,
+    99.53973388671875
+   ],
+   [
+    71000,
+    99.432540893554688
+   ],
+   [
+    71500,
+    99.5926742553711
+   ],
+   [
+    72000,
+    99.539955139160156
+   ],
+   [
+    72500,
+    99.5624771118164
+   ],
+   [
+    73000,
+    99.4556655883789
+   ],
+   [
+    73500,
+    99.494094848632812
+   ],
+   [
+    74000,
+    99.569412231445312
+   ],
+   [
+    74500,
+    99.584999084472656
+   ],
+   [
+    75000,
+    99.4784927368164
+   ],
+   [
+    75500,
+    99.511528015136719
+   ],
+   [
+    76000,
+    99.6008529663086
+   ],
+   [
+    76500,
+    99.609001159667969
+   ],
+   [
+    77000,
+    99.502761840820312
+   ],
+   [
+    77500,
+    99.502761840820312
+   ],
+   [
+    78000,
+    99.502761840820312
+   ],
+   [
+    78500,
+    99.502761840820312
+   ],
+   [
+    79000,
+    99.502761840820312
+   ],
+   [
+    79500,
+    99.502761840820312
+   ],
+   [
+    80000,
+    99.502761840820312
+   ]
+  ]
+ },
+ "checks": [
+  {
+   "id": "speed",
+   "confidence": 90.366294860839844,
+   "peak": 92.393081665039062,
+   "evidence": 26,
+   "detections": 2,
+   "indicators": {
+    "sustained": 26
+   },
+   "history": [
+    [
+     51500,
+     24.792919158935547
+    ],
+    [
+     52000,
+     24.451587677001953
+    ],
+    [
+     52500,
+     42.879135131835938
+    ],
+    [
+     53000,
+     42.2888069152832
+    ],
+    [
+     53500,
+     56.072872161865234
+    ],
+    [
+     54000,
+     55.300899505615234
+    ],
+    [
+     54500,
+     65.697586059570312
+    ],
+    [
+     55000,
+     64.793106079101562
+    ],
+    [
+     55500,
+     72.7187271118164
+    ],
+    [
+     56000,
+     71.71759033203125
+    ],
+    [
+     56500,
+     77.840591430664062
+    ],
+    [
+     57000,
+     76.768936157226562
+    ],
+    [
+     57500,
+     81.576942443847656
+    ],
+    [
+     58000,
+     80.453849792480469
+    ],
+    [
+     58500,
+     84.302581787109375
+    ],
+    [
+     59000,
+     83.141960144042969
+    ],
+    [
+     59500,
+     86.290908813476562
+    ],
+    [
+     60000,
+     85.102912902832031
+    ],
+    [
+     60500,
+     87.741371154785156
+    ],
+    [
+     61000,
+     86.533409118652344
+    ],
+    [
+     61500,
+     88.799476623535156
+    ],
+    [
+     62000,
+     87.576950073242188
+    ],
+    [
+     62500,
+     89.571365356445312
+    ],
+    [
+     63000,
+     88.338211059570312
+    ],
+    [
+     63500,
+     90.134437561035156
+    ],
+    [
+     64000,
+     88.8935317993164
+    ],
+    [
+     64500,
+     90.545196533203125
+    ],
+    [
+     65000,
+     89.298637390136719
+    ],
+    [
+     65500,
+     90.8448486328125
+    ],
+    [
+     66000,
+     89.594161987304688
+    ],
+    [
+     66500,
+     91.063438415527344
+    ],
+    [
+     67000,
+     89.809738159179688
+    ],
+    [
+     67500,
+     91.222892761230469
+    ],
+    [
+     68000,
+     89.967002868652344
+    ],
+    [
+     68500,
+     91.339218139648438
+    ],
+    [
+     69000,
+     90.08172607421875
+    ],
+    [
+     69500,
+     91.424072265625
+    ],
+    [
+     70000,
+     90.165412902832031
+    ],
+    [
+     70500,
+     91.4859848022461
+    ],
+    [
+     71000,
+     90.226470947265625
+    ],
+    [
+     71500,
+     91.531135559082031
+    ],
+    [
+     72000,
+     90.27099609375
+    ],
+    [
+     72500,
+     91.564071655273438
+    ],
+    [
+     73000,
+     90.303482055664062
+    ],
+    [
+     73500,
+     91.588104248046875
+    ],
+    [
+     74000,
+     90.327186584472656
+    ],
+    [
+     74500,
+     91.605636596679688
+    ],
+    [
+     75000,
+     90.344474792480469
+    ],
+    [
+     75500,
+     91.6184310913086
+    ],
+    [
+     76000,
+     90.357093811035156
+    ],
+    [
+     76500,
+     91.627761840820312
+    ],
+    [
+     77000,
+     90.366294860839844
+    ],
+    [
+     78000,
+     90.366294860839844
+    ],
+    [
+     80000,
+     90.366294860839844
+    ]
+   ]
+  },
+  {
+   "id": "bhop",
+   "confidence": 94.838516235351562,
+   "peak": 95.860702514648438,
+   "evidence": 76,
+   "detections": 2,
+   "indicators": {
+    "short_air": 65,
+    "hop_speed": 11
+   },
+   "history": [
+    [
+     51500,
+     11.302610397338867
+    ],
+    [
+     52000,
+     47.611492156982422
+    ],
+    [
+     52500,
+     53.063056945800781
+    ],
+    [
+     53000,
+     57.812469482421875
+    ],
+    [
+     53500,
+     61.946857452392578
+    ],
+    [
+     54000,
+     69.4642105102539
+    ],
+    [
+     54500,
+     79.09698486328125
+    ],
+    [
+     55000,
+     80.618423461914062
+    ],
+    [
+     55500,
+     81.925079345703125
+    ],
+    [
+     56000,
+     84.973472595214844
+    ],
+    [
+     56500,
+     85.792495727539062
+    ],
+    [
+     57000,
+     89.74755859375
+    ],
+    [
+     58000,
+     91.1817626953125
+    ],
+    [
+     59500,
+     93.2547836303711
+    ],
+    [
+     60000,
+     93.768814086914062
+    ],
+    [
+     60500,
+     93.497283935546875
+    ],
+    [
+     61000,
+     93.23321533203125
+    ],
+    [
+     61500,
+     92.975746154785156
+    ],
+    [
+     62000,
+     94.960342407226562
+    ],
+    [
+     62500,
+     94.54107666015625
+    ],
+    [
+     63000,
+     94.147590637207031
+    ],
+    [
+     63500,
+     93.776748657226562
+    ],
+    [
+     64000,
+     95.630523681640625
+    ],
+    [
+     64500,
+     95.128158569335938
+    ],
+    [
+     65000,
+     94.661880493164062
+    ],
+    [
+     65500,
+     94.227264404296875
+    ],
+    [
+     66000,
+     94.523765563964844
+    ],
+    [
+     66500,
+     95.561279296875
+    ],
+    [
+     67000,
+     95.041297912597656
+    ],
+    [
+     67500,
+     94.559638977050781
+    ],
+    [
+     68000,
+     94.781791687011719
+    ],
+    [
+     68500,
+     94.384658813476562
+    ],
+    [
+     69000,
+     95.392669677734375
+    ],
+    [
+     69500,
+     94.867446899414062
+    ],
+    [
+     70000,
+     95.020736694335938
+    ],
+    [
+     70500,
+     94.593986511230469
+    ],
+    [
+     71000,
+     94.193931579589844
+    ],
+    [
+     71500,
+     95.190315246582031
+    ],
+    [
+     72000,
+     95.271392822265625
+    ],
+    [
+     72500,
+     94.813552856445312
+    ],
+    [
+     73000,
+     94.386283874511719
+    ],
+    [
+     73500,
+     93.985847473144531
+    ],
+    [
+     74000,
+     95.548446655273438
+    ],
+    [
+     74500,
+     95.056259155273438
+    ],
+    [
+     75000,
+     94.5988998413086
+    ],
+    [
+     75500,
+     94.1720962524414
+    ],
+    [
+     76000,
+     95.860702514648438
+    ],
+    [
+     76500,
+     95.329803466796875
+    ],
+    [
+     77000,
+     94.838516235351562
+    ],
+    [
+     78000,
+     94.838516235351562
+    ],
+    [
+     80000,
+     94.838516235351562
+    ]
+   ]
+  }
+ ],
+ "evidence": [
+  {
+   "id": 1,
+   "tick": 1024,
+   "time": 51200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 25,
+   "after": 25,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) and stair tolerance is 9.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.44800000000000006
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "tick": 1024,
+   "time": 51200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 11.381226539611816,
+   "after": 11.381226539611816,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "tick": 1032,
+   "time": 51600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 10.097819328308105,
+   "after": 21.374343872070312,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "tick": 1040,
+   "time": 52000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 8.9709434509277344,
+   "after": 30.148656845092773,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "tick": 1040,
+   "time": 52000,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 17.462835311889648,
+   "after": 47.611492156982422,
+   "summary": "3 hops at 0.55 b/tick",
+   "detail": "3 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54947916666666663,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 3
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "tick": 1044,
+   "time": 52200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 18.920906066894531,
+   "after": 43.237281799316406,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "tick": 1048,
+   "time": 52400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 6.0123043060302734,
+   "after": 53.185798645019531,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "tick": 1056,
+   "time": 52800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 5.3837161064147949,
+   "after": 58.080238342285156,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "tick": 1064,
+   "time": 53200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 14.486260414123535,
+   "after": 56.541217803955078,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "tick": 1064,
+   "time": 53200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 4.8317933082580566,
+   "after": 62.377731323242188,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "tick": 1072,
+   "time": 53600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 4.3471856117248535,
+   "after": 66.151077270507812,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "tick": 1080,
+   "time": 54000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 3.9216833114624023,
+   "after": 69.4642105102539,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "tick": 1084,
+   "time": 54200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 11.251226425170898,
+   "after": 66.246322631835938,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "tick": 1088,
+   "time": 54400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 3.548076868057251,
+   "after": 72.373260498046875,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "tick": 1088,
+   "time": 54400,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 6.9066848754882812,
+   "after": 79.279945373535156,
+   "summary": "9 hops at 0.55 b/tick",
+   "detail": "9 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54991319444444442,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 9
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "tick": 1096,
+   "time": 54800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 2.4412024021148682,
+   "after": 80.9918212890625,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "tick": 1104,
+   "time": 55200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 8.89129638671875,
+   "after": 73.32611083984375,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "tick": 1104,
+   "time": 55200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 2.2481622695922852,
+   "after": 82.494911193847656,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "tick": 1112,
+   "time": 55600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 2.0786664485931396,
+   "after": 83.8146743774414,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "tick": 1120,
+   "time": 56000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.9298425912857056,
+   "after": 84.973472595214844,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "tick": 1124,
+   "time": 56200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 7.1697483062744141,
+   "after": 78.490753173828125,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 22,
+   "tick": 1128,
+   "time": 56400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.7991702556610107,
+   "after": 85.9909439086914,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 23,
+   "tick": 1136,
+   "time": 56800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.6844348907470703,
+   "after": 86.884315490722656,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 24,
+   "tick": 1136,
+   "time": 56800,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 3.2789211273193359,
+   "after": 90.163238525390625,
+   "summary": "15 hops at 0.55 b/tick",
+   "detail": "15 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 15
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 25,
+   "tick": 1144,
+   "time": 57200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 5.9138965606689453,
+   "after": 82.258308410644531,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 26,
+   "tick": 1144,
+   "time": 57200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.2139451503753662,
+   "after": 90.547737121582031,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 27,
+   "tick": 1152,
+   "time": 57600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.170587420463562,
+   "after": 90.885337829589844,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 28,
+   "tick": 1160,
+   "time": 58000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.1325176954269409,
+   "after": 91.1817626953125,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 29,
+   "tick": 1164,
+   "time": 58200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 4.9977607727050781,
+   "after": 85.0067138671875,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 30,
+   "tick": 1168,
+   "time": 58400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.0990909337997437,
+   "after": 91.4420394897461,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 31,
+   "tick": 1176,
+   "time": 58800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.069740891456604,
+   "after": 91.670570373535156,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 32,
+   "tick": 1184,
+   "time": 59200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 4.3294506072998047,
+   "after": 87.011650085449219,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 33,
+   "tick": 1184,
+   "time": 59200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 1.0439708232879639,
+   "after": 91.871223449707031,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 34,
+   "tick": 1184,
+   "time": 59200,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.0321941375732422,
+   "after": 93.9034194946289,
+   "summary": "21 hops at 0.55 b/tick",
+   "detail": "21 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54985119047619047,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 21
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 35,
+   "tick": 1192,
+   "time": 59600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.7921828031539917,
+   "after": 93.831748962402344,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 36,
+   "tick": 1200,
+   "time": 60000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.80026507377624512,
+   "after": 93.768814086914062,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 37,
+   "tick": 1204,
+   "time": 60200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 3.8419227600097656,
+   "after": 88.474227905273438,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 38,
+   "tick": 1208,
+   "time": 60400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.80736184120178223,
+   "after": 93.71356201171875,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 39,
+   "tick": 1216,
+   "time": 60800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.81359291076660156,
+   "after": 93.6650390625,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 40,
+   "tick": 1224,
+   "time": 61200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 3.4862766265869141,
+   "after": 89.541168212890625,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 41,
+   "tick": 1224,
+   "time": 61200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.81906330585479736,
+   "after": 93.622444152832031,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 42,
+   "tick": 1232,
+   "time": 61600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.82386684417724609,
+   "after": 93.585044860839844,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 43,
+   "tick": 1232,
+   "time": 61600,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 1.6037387847900391,
+   "after": 95.18878173828125,
+   "summary": "27 hops at 0.55 b/tick",
+   "detail": "27 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54993718592964824,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 27
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 44,
+   "tick": 1240,
+   "time": 62000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.64723867177963257,
+   "after": 94.960342407226562,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 45,
+   "tick": 1244,
+   "time": 62200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 3.2268333435058594,
+   "after": 90.319503784179688,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 46,
+   "tick": 1248,
+   "time": 62400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.67299818992614746,
+   "after": 94.759765625,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 47,
+   "tick": 1256,
+   "time": 62800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.69561707973480225,
+   "after": 94.583648681640625,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 48,
+   "tick": 1264,
+   "time": 63200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 3.0375709533691406,
+   "after": 90.887283325195312,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 49,
+   "tick": 1264,
+   "time": 63200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.715476393699646,
+   "after": 94.42901611328125,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 50,
+   "tick": 1272,
+   "time": 63600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.73291397094726562,
+   "after": 94.293243408203125,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 51,
+   "tick": 1280,
+   "time": 64000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.748224139213562,
+   "after": 94.174026489257812,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 52,
+   "tick": 1280,
+   "time": 64000,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 1.4564933776855469,
+   "after": 95.630523681640625,
+   "summary": "33 hops at 0.55 b/tick",
+   "detail": "33 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54993718592964824,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 33
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 53,
+   "tick": 1284,
+   "time": 64200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.8995094299316406,
+   "after": 91.301467895507812,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 54,
+   "tick": 1288,
+   "time": 64400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.59742581844329834,
+   "after": 95.34820556640625,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 55,
+   "tick": 1296,
+   "time": 64800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.62926101684570312,
+   "after": 95.100326538085938,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 56,
+   "tick": 1304,
+   "time": 65200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.7987918853759766,
+   "after": 91.603622436523438,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 57,
+   "tick": 1304,
+   "time": 65200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.65721392631530762,
+   "after": 94.8826675415039,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 58,
+   "tick": 1312,
+   "time": 65600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.68175780773162842,
+   "after": 94.691558837890625,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 59,
+   "tick": 1320,
+   "time": 66000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.70330774784088135,
+   "after": 94.523765563964844,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 60,
+   "tick": 1324,
+   "time": 66200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.7253189086914062,
+   "after": 91.824043273925781,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 61,
+   "tick": 1328,
+   "time": 66400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.72222930192947388,
+   "after": 94.376434326171875,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 62,
+   "tick": 1328,
+   "time": 66400,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 1.4058914184570312,
+   "after": 95.7823257446289,
+   "summary": "39 hops at 0.55 b/tick",
+   "detail": "39 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55009422110552764,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 39
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 63,
+   "tick": 1336,
+   "time": 66800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.58030694723129272,
+   "after": 95.481498718261719,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 64,
+   "tick": 1344,
+   "time": 67200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.6717243194580078,
+   "after": 91.984825134277344,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 65,
+   "tick": 1344,
+   "time": 67200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.61423039436340332,
+   "after": 95.217353820800781,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 66,
+   "tick": 1352,
+   "time": 67600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.6440163254737854,
+   "after": 94.985435485839844,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 67,
+   "tick": 1360,
+   "time": 68000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.67016923427581787,
+   "after": 94.781791687011719,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 68,
+   "tick": 1364,
+   "time": 68200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.6326255798339844,
+   "after": 92.102127075195312,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 69,
+   "tick": 1368,
+   "time": 68400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.69313281774520874,
+   "after": 94.602989196777344,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 70,
+   "tick": 1376,
+   "time": 68800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.71329599618911743,
+   "after": 94.445991516113281,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 71,
+   "tick": 1376,
+   "time": 68800,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 1.3885021209716797,
+   "after": 95.8344955444336,
+   "summary": "45 hops at 0.55 b/tick",
+   "detail": "45 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55009422110552764,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 45
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 72,
+   "tick": 1384,
+   "time": 69200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.6041030883789062,
+   "after": 92.187690734863281,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 73,
+   "tick": 1384,
+   "time": 69200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.57442408800125122,
+   "after": 95.527305603027344,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 74,
+   "tick": 1392,
+   "time": 69600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.60906565189361572,
+   "after": 95.257568359375,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 75,
+   "tick": 1400,
+   "time": 70000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.63948196172714233,
+   "after": 95.020736694335938,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 76,
+   "tick": 1404,
+   "time": 70200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.5832958221435547,
+   "after": 92.250114440917969,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 77,
+   "tick": 1408,
+   "time": 70400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.66618800163269043,
+   "after": 94.812797546386719,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 78,
+   "tick": 1416,
+   "time": 70800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.6896369457244873,
+   "after": 94.630210876464844,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 79,
+   "tick": 1424,
+   "time": 71200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.5681171417236328,
+   "after": 92.295646667480469,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 80,
+   "tick": 1424,
+   "time": 71200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.71022653579711914,
+   "after": 94.469894409179688,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 81,
+   "tick": 1424,
+   "time": 71200,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 1.3825263977050781,
+   "after": 95.8524169921875,
+   "summary": "51 hops at 0.55 b/tick",
+   "detail": "51 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54993718592964824,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 51
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 82,
+   "tick": 1432,
+   "time": 71600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.57240349054336548,
+   "after": 95.543037414550781,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 83,
+   "tick": 1440,
+   "time": 72000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.60729080438613892,
+   "after": 95.271392822265625,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 84,
+   "tick": 1444,
+   "time": 72200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.5570468902587891,
+   "after": 92.328857421875,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 85,
+   "tick": 1448,
+   "time": 72400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.63792335987091064,
+   "after": 95.032875061035156,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 86,
+   "tick": 1456,
+   "time": 72800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.66481953859329224,
+   "after": 94.823448181152344,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 87,
+   "tick": 1464,
+   "time": 73200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.5489711761474609,
+   "after": 92.35308837890625,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 88,
+   "tick": 1464,
+   "time": 73200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.68843519687652588,
+   "after": 94.639572143554688,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 89,
+   "tick": 1472,
+   "time": 73600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.7091706395149231,
+   "after": 94.478111267089844,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 90,
+   "tick": 1472,
+   "time": 73600,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 1.3804721832275391,
+   "after": 95.85858154296875,
+   "summary": "57 hops at 0.55 b/tick",
+   "detail": "57 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54993718592964824,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 57
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 91,
+   "tick": 1480,
+   "time": 74000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.57170885801315308,
+   "after": 95.548446655273438,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 92,
+   "tick": 1484,
+   "time": 74200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.5430774688720703,
+   "after": 92.370765686035156,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 93,
+   "tick": 1488,
+   "time": 74400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.606681227684021,
+   "after": 95.276138305664062,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 94,
+   "tick": 1496,
+   "time": 74800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.63738757371902466,
+   "after": 95.03704833984375,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 95,
+   "tick": 1504,
+   "time": 75200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.5387783050537109,
+   "after": 92.3836669921875,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 96,
+   "tick": 1504,
+   "time": 75200,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.66434890031814575,
+   "after": 94.827117919921875,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 97,
+   "tick": 1512,
+   "time": 75600,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.68802183866500854,
+   "after": 94.642784118652344,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 98,
+   "tick": 1520,
+   "time": 76000,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.7088085412979126,
+   "after": 94.4809341430664,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 99,
+   "tick": 1520,
+   "time": 76000,
+   "check": "bhop",
+   "indicator": "hop_speed",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 1.3797664642333984,
+   "after": 95.860702514648438,
+   "summary": "63 hops at 0.55 b/tick",
+   "detail": "63 jumps with almost no ground time at 11.0 m/s. Vanilla sprint-jumping averages 7.1 m/s; the limit here is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.54993718592964824,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Hops in chain",
+     "value": 63
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 100,
+   "tick": 1524,
+   "time": 76200,
+   "check": "speed",
+   "indicator": "sustained",
+   "weight": 1,
+   "severity": 1,
+   "contribution": 2.5356407165527344,
+   "after": 92.393081665039062,
+   "summary": "Averaged 0.55 b/tick for a second",
+   "detail": "11.0 m/s over one second; the limit with 1.00x movement (no speed modifiers) is 8.0 m/s.",
+   "values": [
+    {
+     "name": "Average speed",
+     "value": 0.55,
+     "unit": "b/tick",
+     "limit": 0.4
+    },
+    {
+     "name": "Vanilla sprint-jump",
+     "value": 0.3563,
+     "unit": "b/tick",
+     "role": "expected"
+    },
+    {
+     "name": "Movement multiplier",
+     "value": 1,
+     "unit": "x"
+    },
+    {
+     "name": "Data quality",
+     "value": 100,
+     "unit": "%"
+    }
+   ]
+  },
+  {
+   "id": 101,
+   "tick": 1528,
+   "time": 76400,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.57146918773651123,
+   "after": 95.5503158569336,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  },
+  {
+   "id": 102,
+   "tick": 1536,
+   "time": 76800,
+   "check": "bhop",
+   "indicator": "short_air",
+   "weight": 1.2000000476837158,
+   "severity": 0.34999999403953552,
+   "contribution": 0.60647022724151611,
+   "after": 95.277778625488281,
+   "summary": "Landed after 8 ticks on flat ground",
+   "detail": "A vanilla jump stays up 12 ticks and peaks at 1.25 blocks; this one lasted 8 and peaked at 0.53, with nothing overhead.",
+   "values": [
+    {
+     "name": "Air time",
+     "value": 8,
+     "unit": "ticks",
+     "limit": 8
+    },
+    {
+     "name": "Vanilla flat jump",
+     "value": 12,
+     "unit": "ticks",
+     "role": "expected"
+    },
+    {
+     "name": "Apex",
+     "value": 0.53125,
+     "unit": "blocks"
+    },
+    {
+     "name": "Height change",
+     "value": 0,
+     "unit": "blocks"
+    }
+   ]
+  }
+ ],
+ "detections": [
+  {
+   "id": 1,
+   "tick": 1088,
+   "time": 54400,
+   "check": "bhop",
+   "confidence": 72.373260498046875,
+   "observations": 10,
+   "indicators": 2,
+   "evidence": [
+    14,
+    12,
+    11,
+    10,
+    8,
+    7,
+    5,
+    4,
+    3,
+    2
+   ],
+   "summary": "BHop · 72% · 10 observations, 2 indicators"
+  },
+  {
+   "id": 2,
+   "tick": 1104,
+   "time": 55200,
+   "check": "speed",
+   "confidence": 73.32611083984375,
+   "observations": 5,
+   "indicators": 1,
+   "evidence": [
+    17,
+    13,
+    9,
+    6,
+    1
+   ],
+   "summary": "Speed · 73% · 5 observations, 1 indicator"
+  },
+  {
+   "id": 3,
+   "tick": 1488,
+   "time": 74400,
+   "check": "bhop",
+   "confidence": 95.276138305664062,
+   "observations": 69,
+   "indicators": 2,
+   "evidence": [
+    93,
+    91,
+    90,
+    89,
+    88,
+    86,
+    85,
+    83,
+    82,
+    81,
+    80,
+    78,
+    77,
+    75,
+    74,
+    73,
+    71,
+    70,
+    69,
+    67,
+    66,
+    65,
+    63,
+    62,
+    61,
+    59,
+    58,
+    57,
+    55,
+    54,
+    52,
+    51,
+    50,
+    49,
+    47,
+    46,
+    44,
+    43,
+    42,
+    41,
+    39,
+    38,
+    36,
+    35,
+    34,
+    33,
+    31,
+    30,
+    28,
+    27,
+    26,
+    24,
+    23,
+    22,
+    20,
+    19,
+    18,
+    16,
+    15,
+    14,
+    12,
+    11,
+    10,
+    8,
+    7,
+    5,
+    4,
+    3,
+    2
+   ],
+   "summary": "BHop · 95% · 69 observations, 2 indicators"
+  },
+  {
+   "id": 4,
+   "tick": 1504,
+   "time": 75200,
+   "check": "speed",
+   "confidence": 92.3836669921875,
+   "observations": 25,
+   "indicators": 1,
+   "evidence": [
+    95,
+    92,
+    87,
+    84,
+    79,
+    76,
+    72,
+    68,
+    64,
+    60,
+    56,
+    53,
+    48,
+    45,
+    40,
+    37,
+    32,
+    29,
+    25,
+    21,
+    17,
+    13,
+    9,
+    6,
+    1
+   ],
+   "summary": "Speed · 92% · 25 observations, 1 indicator"
+  }
+ ],
+ "timeline": [
+  {
+   "kind": "seen",
+   "time": 50050,
+   "tick": 1001,
+   "value": 0,
+   "text": "Entered view"
+  },
+  {
+   "kind": "evidence",
+   "time": 51200,
+   "tick": 1024,
+   "check": "speed",
+   "ref": 1,
+   "value": 25,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 51200,
+   "tick": 1024,
+   "check": "bhop",
+   "ref": 2,
+   "value": 11.381226539611816,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 51600,
+   "tick": 1032,
+   "check": "bhop",
+   "ref": 3,
+   "value": 21.374343872070312,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 52000,
+   "tick": 1040,
+   "check": "bhop",
+   "ref": 4,
+   "value": 30.148656845092773,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 52000,
+   "tick": 1040,
+   "check": "bhop",
+   "ref": 5,
+   "value": 47.611492156982422,
+   "text": "3 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 52200,
+   "tick": 1044,
+   "check": "speed",
+   "ref": 6,
+   "value": 43.237281799316406,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 52400,
+   "tick": 1048,
+   "check": "bhop",
+   "ref": 7,
+   "value": 53.185798645019531,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 52800,
+   "tick": 1056,
+   "check": "bhop",
+   "ref": 8,
+   "value": 58.080238342285156,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 53200,
+   "tick": 1064,
+   "check": "speed",
+   "ref": 9,
+   "value": 56.541217803955078,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 53200,
+   "tick": 1064,
+   "check": "bhop",
+   "ref": 10,
+   "value": 62.377731323242188,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 53600,
+   "tick": 1072,
+   "check": "bhop",
+   "ref": 11,
+   "value": 66.151077270507812,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 54000,
+   "tick": 1080,
+   "check": "bhop",
+   "ref": 12,
+   "value": 69.4642105102539,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 54200,
+   "tick": 1084,
+   "check": "speed",
+   "ref": 13,
+   "value": 66.246322631835938,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 54400,
+   "tick": 1088,
+   "check": "bhop",
+   "ref": 14,
+   "value": 72.373260498046875,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "detection",
+   "time": 54400,
+   "tick": 1088,
+   "check": "bhop",
+   "ref": 1,
+   "value": 72.373260498046875,
+   "text": "BHop · 72% · 10 observations, 2 indicators"
+  },
+  {
+   "kind": "evidence",
+   "time": 54400,
+   "tick": 1088,
+   "check": "bhop",
+   "ref": 15,
+   "value": 79.279945373535156,
+   "text": "9 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 54800,
+   "tick": 1096,
+   "check": "bhop",
+   "ref": 16,
+   "value": 80.9918212890625,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 55200,
+   "tick": 1104,
+   "check": "speed",
+   "ref": 17,
+   "value": 73.32611083984375,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "detection",
+   "time": 55200,
+   "tick": 1104,
+   "check": "speed",
+   "ref": 2,
+   "value": 73.32611083984375,
+   "text": "Speed · 73% · 5 observations, 1 indicator"
+  },
+  {
+   "kind": "evidence",
+   "time": 55200,
+   "tick": 1104,
+   "check": "bhop",
+   "ref": 18,
+   "value": 82.494911193847656,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 55600,
+   "tick": 1112,
+   "check": "bhop",
+   "ref": 19,
+   "value": 83.8146743774414,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 56000,
+   "tick": 1120,
+   "check": "bhop",
+   "ref": 20,
+   "value": 84.973472595214844,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 56200,
+   "tick": 1124,
+   "check": "speed",
+   "ref": 21,
+   "value": 78.490753173828125,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 56400,
+   "tick": 1128,
+   "check": "bhop",
+   "ref": 22,
+   "value": 85.9909439086914,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 56800,
+   "tick": 1136,
+   "check": "bhop",
+   "ref": 23,
+   "value": 86.884315490722656,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 56800,
+   "tick": 1136,
+   "check": "bhop",
+   "ref": 24,
+   "value": 90.163238525390625,
+   "text": "15 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 57200,
+   "tick": 1144,
+   "check": "speed",
+   "ref": 25,
+   "value": 82.258308410644531,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 57200,
+   "tick": 1144,
+   "check": "bhop",
+   "ref": 26,
+   "value": 90.547737121582031,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 57600,
+   "tick": 1152,
+   "check": "bhop",
+   "ref": 27,
+   "value": 90.885337829589844,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 58000,
+   "tick": 1160,
+   "check": "bhop",
+   "ref": 28,
+   "value": 91.1817626953125,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 58200,
+   "tick": 1164,
+   "check": "speed",
+   "ref": 29,
+   "value": 85.0067138671875,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 58400,
+   "tick": 1168,
+   "check": "bhop",
+   "ref": 30,
+   "value": 91.4420394897461,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 58800,
+   "tick": 1176,
+   "check": "bhop",
+   "ref": 31,
+   "value": 91.670570373535156,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 59200,
+   "tick": 1184,
+   "check": "speed",
+   "ref": 32,
+   "value": 87.011650085449219,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 59200,
+   "tick": 1184,
+   "check": "bhop",
+   "ref": 33,
+   "value": 91.871223449707031,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 59200,
+   "tick": 1184,
+   "check": "bhop",
+   "ref": 34,
+   "value": 93.9034194946289,
+   "text": "21 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 59600,
+   "tick": 1192,
+   "check": "bhop",
+   "ref": 35,
+   "value": 93.831748962402344,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 60000,
+   "tick": 1200,
+   "check": "bhop",
+   "ref": 36,
+   "value": 93.768814086914062,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 60200,
+   "tick": 1204,
+   "check": "speed",
+   "ref": 37,
+   "value": 88.474227905273438,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 60400,
+   "tick": 1208,
+   "check": "bhop",
+   "ref": 38,
+   "value": 93.71356201171875,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 60800,
+   "tick": 1216,
+   "check": "bhop",
+   "ref": 39,
+   "value": 93.6650390625,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 61200,
+   "tick": 1224,
+   "check": "speed",
+   "ref": 40,
+   "value": 89.541168212890625,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 61200,
+   "tick": 1224,
+   "check": "bhop",
+   "ref": 41,
+   "value": 93.622444152832031,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 61600,
+   "tick": 1232,
+   "check": "bhop",
+   "ref": 42,
+   "value": 93.585044860839844,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 61600,
+   "tick": 1232,
+   "check": "bhop",
+   "ref": 43,
+   "value": 95.18878173828125,
+   "text": "27 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 62000,
+   "tick": 1240,
+   "check": "bhop",
+   "ref": 44,
+   "value": 94.960342407226562,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 62200,
+   "tick": 1244,
+   "check": "speed",
+   "ref": 45,
+   "value": 90.319503784179688,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 62400,
+   "tick": 1248,
+   "check": "bhop",
+   "ref": 46,
+   "value": 94.759765625,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 62800,
+   "tick": 1256,
+   "check": "bhop",
+   "ref": 47,
+   "value": 94.583648681640625,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 63200,
+   "tick": 1264,
+   "check": "speed",
+   "ref": 48,
+   "value": 90.887283325195312,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 63200,
+   "tick": 1264,
+   "check": "bhop",
+   "ref": 49,
+   "value": 94.42901611328125,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 63600,
+   "tick": 1272,
+   "check": "bhop",
+   "ref": 50,
+   "value": 94.293243408203125,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 64000,
+   "tick": 1280,
+   "check": "bhop",
+   "ref": 51,
+   "value": 94.174026489257812,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 64000,
+   "tick": 1280,
+   "check": "bhop",
+   "ref": 52,
+   "value": 95.630523681640625,
+   "text": "33 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 64200,
+   "tick": 1284,
+   "check": "speed",
+   "ref": 53,
+   "value": 91.301467895507812,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 64400,
+   "tick": 1288,
+   "check": "bhop",
+   "ref": 54,
+   "value": 95.34820556640625,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 64800,
+   "tick": 1296,
+   "check": "bhop",
+   "ref": 55,
+   "value": 95.100326538085938,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 65200,
+   "tick": 1304,
+   "check": "speed",
+   "ref": 56,
+   "value": 91.603622436523438,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 65200,
+   "tick": 1304,
+   "check": "bhop",
+   "ref": 57,
+   "value": 94.8826675415039,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 65600,
+   "tick": 1312,
+   "check": "bhop",
+   "ref": 58,
+   "value": 94.691558837890625,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 66000,
+   "tick": 1320,
+   "check": "bhop",
+   "ref": 59,
+   "value": 94.523765563964844,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 66200,
+   "tick": 1324,
+   "check": "speed",
+   "ref": 60,
+   "value": 91.824043273925781,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 66400,
+   "tick": 1328,
+   "check": "bhop",
+   "ref": 61,
+   "value": 94.376434326171875,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 66400,
+   "tick": 1328,
+   "check": "bhop",
+   "ref": 62,
+   "value": 95.7823257446289,
+   "text": "39 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 66800,
+   "tick": 1336,
+   "check": "bhop",
+   "ref": 63,
+   "value": 95.481498718261719,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 67200,
+   "tick": 1344,
+   "check": "speed",
+   "ref": 64,
+   "value": 91.984825134277344,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 67200,
+   "tick": 1344,
+   "check": "bhop",
+   "ref": 65,
+   "value": 95.217353820800781,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 67600,
+   "tick": 1352,
+   "check": "bhop",
+   "ref": 66,
+   "value": 94.985435485839844,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 68000,
+   "tick": 1360,
+   "check": "bhop",
+   "ref": 67,
+   "value": 94.781791687011719,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 68200,
+   "tick": 1364,
+   "check": "speed",
+   "ref": 68,
+   "value": 92.102127075195312,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 68400,
+   "tick": 1368,
+   "check": "bhop",
+   "ref": 69,
+   "value": 94.602989196777344,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 68800,
+   "tick": 1376,
+   "check": "bhop",
+   "ref": 70,
+   "value": 94.445991516113281,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 68800,
+   "tick": 1376,
+   "check": "bhop",
+   "ref": 71,
+   "value": 95.8344955444336,
+   "text": "45 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 69200,
+   "tick": 1384,
+   "check": "speed",
+   "ref": 72,
+   "value": 92.187690734863281,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 69200,
+   "tick": 1384,
+   "check": "bhop",
+   "ref": 73,
+   "value": 95.527305603027344,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 69600,
+   "tick": 1392,
+   "check": "bhop",
+   "ref": 74,
+   "value": 95.257568359375,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 70000,
+   "tick": 1400,
+   "check": "bhop",
+   "ref": 75,
+   "value": 95.020736694335938,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 70200,
+   "tick": 1404,
+   "check": "speed",
+   "ref": 76,
+   "value": 92.250114440917969,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 70400,
+   "tick": 1408,
+   "check": "bhop",
+   "ref": 77,
+   "value": 94.812797546386719,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 70800,
+   "tick": 1416,
+   "check": "bhop",
+   "ref": 78,
+   "value": 94.630210876464844,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 71200,
+   "tick": 1424,
+   "check": "speed",
+   "ref": 79,
+   "value": 92.295646667480469,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 71200,
+   "tick": 1424,
+   "check": "bhop",
+   "ref": 80,
+   "value": 94.469894409179688,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 71200,
+   "tick": 1424,
+   "check": "bhop",
+   "ref": 81,
+   "value": 95.8524169921875,
+   "text": "51 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 71600,
+   "tick": 1432,
+   "check": "bhop",
+   "ref": 82,
+   "value": 95.543037414550781,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 72000,
+   "tick": 1440,
+   "check": "bhop",
+   "ref": 83,
+   "value": 95.271392822265625,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 72200,
+   "tick": 1444,
+   "check": "speed",
+   "ref": 84,
+   "value": 92.328857421875,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 72400,
+   "tick": 1448,
+   "check": "bhop",
+   "ref": 85,
+   "value": 95.032875061035156,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 72800,
+   "tick": 1456,
+   "check": "bhop",
+   "ref": 86,
+   "value": 94.823448181152344,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 73200,
+   "tick": 1464,
+   "check": "speed",
+   "ref": 87,
+   "value": 92.35308837890625,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 73200,
+   "tick": 1464,
+   "check": "bhop",
+   "ref": 88,
+   "value": 94.639572143554688,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 73600,
+   "tick": 1472,
+   "check": "bhop",
+   "ref": 89,
+   "value": 94.478111267089844,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 73600,
+   "tick": 1472,
+   "check": "bhop",
+   "ref": 90,
+   "value": 95.85858154296875,
+   "text": "57 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 74000,
+   "tick": 1480,
+   "check": "bhop",
+   "ref": 91,
+   "value": 95.548446655273438,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 74200,
+   "tick": 1484,
+   "check": "speed",
+   "ref": 92,
+   "value": 92.370765686035156,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 74400,
+   "tick": 1488,
+   "check": "bhop",
+   "ref": 93,
+   "value": 95.276138305664062,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "detection",
+   "time": 74400,
+   "tick": 1488,
+   "check": "bhop",
+   "ref": 3,
+   "value": 95.276138305664062,
+   "text": "BHop · 95% · 69 observations, 2 indicators"
+  },
+  {
+   "kind": "evidence",
+   "time": 74800,
+   "tick": 1496,
+   "check": "bhop",
+   "ref": 94,
+   "value": 95.03704833984375,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 75200,
+   "tick": 1504,
+   "check": "speed",
+   "ref": 95,
+   "value": 92.3836669921875,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "detection",
+   "time": 75200,
+   "tick": 1504,
+   "check": "speed",
+   "ref": 4,
+   "value": 92.3836669921875,
+   "text": "Speed · 92% · 25 observations, 1 indicator"
+  },
+  {
+   "kind": "evidence",
+   "time": 75200,
+   "tick": 1504,
+   "check": "bhop",
+   "ref": 96,
+   "value": 94.827117919921875,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 75600,
+   "tick": 1512,
+   "check": "bhop",
+   "ref": 97,
+   "value": 94.642784118652344,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 76000,
+   "tick": 1520,
+   "check": "bhop",
+   "ref": 98,
+   "value": 94.4809341430664,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 76000,
+   "tick": 1520,
+   "check": "bhop",
+   "ref": 99,
+   "value": 95.860702514648438,
+   "text": "63 hops at 0.55 b/tick"
+  },
+  {
+   "kind": "evidence",
+   "time": 76200,
+   "tick": 1524,
+   "check": "speed",
+   "ref": 100,
+   "value": 92.393081665039062,
+   "text": "Averaged 0.55 b/tick for a second"
+  },
+  {
+   "kind": "evidence",
+   "time": 76400,
+   "tick": 1528,
+   "check": "bhop",
+   "ref": 101,
+   "value": 95.5503158569336,
+   "text": "Landed after 8 ticks on flat ground"
+  },
+  {
+   "kind": "evidence",
+   "time": 76800,
+   "tick": 1536,
+   "check": "bhop",
+   "ref": 102,
+   "value": 95.277778625488281,
+   "text": "Landed after 8 ticks on flat ground"
+  }
+ ],
+ "stats": {
+  "ticksObserved": 600,
+  "ticksInCombat": 0,
+  "hitsLanded": 0,
+  "hitsTaken": 0,
+  "swings": 0,
+  "reachSum": 0,
+  "reachSamples": 0,
+  "reachMax": 0,
+  "aimOutsideSum": 0,
+  "cpsPeak": 0,
+  "speedPeak": 0.55,
+  "speedSum": 31.900000000000027,
+  "speedSamples": 58,
+  "jumps": 74,
+  "airTicksSum": 592,
+  "reachRecent": [],
+  "speedRecent": [
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929,
+   0.550000011920929
+  ]
+ }
+}
