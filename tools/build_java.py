@@ -51,7 +51,7 @@ def write_header(name: str, data: bytes) -> None:
     lines.append(f"static const unsigned int k{name}Size = {len(data)};")
     lines.append("")
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"{name}.h").write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    (OUT / f"{name}.h").write_text("\n".join(lines), encoding="utf-8", newline="\r\n")
 
 
 def main() -> None:

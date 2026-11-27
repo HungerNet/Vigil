@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.9'
+version: '1.0-dev.10'
 description: |
   Dev 1:
   - Initial release
@@ -30,3 +30,5 @@ description: |
     expected-vs-observed evidence, category language for low-confidence findings, match
     cleanup, denickers in Utilities, diagnostics report and trace recording, runtime
     version protection, versioned release files, validation-gated release workflow
+  Dev 10:
+  - Fix line-end workflow issue
