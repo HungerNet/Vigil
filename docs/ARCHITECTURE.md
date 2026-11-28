@@ -32,15 +32,19 @@ The library split is enforced by the linker: `detection_tests`, `records_tests`,
 `validation_tests`, `VigilReplay`, `VigilParity` and `VigilFormats` link **only** `vigil_detection`,
 so any accidental dependency on Windows, the UI or the network fails the build.
 
-**Rust (`rust/`, RUST_PLAN P2–P3A).** A Cargo workspace beside the C++ tree, not linked into any
+**Rust (`rust/`, RUST_PLAN P2–P3).** A Cargo workspace beside the C++ tree, not linked into any
 shipped binary yet. `vigil-formats` reads and writes every persisted format and the trace/outcome
 pair byte-for-byte like `core/json` and the C++ readers (VALIDATION.md §8); the C++ tool
 `VigilFormats` is its twin and generates the shared fixtures in `tests/fixtures/formats`.
-`vigil-detection` (P3A) is the engine, ported expression for expression from `src/detection`; its
-entire state is byte-identical to the C++ engine's on the scenario corpus under every
-configuration and on generated scenarios (VALIDATION.md §9), with `VigilParity` and `vigil-parity`
-as twins. The DLL link (P4) comes later; until then the C++ engine drives the product, a file's
-meaning is defined by the C++ reader, and the Rust side is proven to agree.
+`vigil-detection` is all of `src/detection` except the registry binding (host): the engine (P3A),
+ported expression for expression, whose entire state is byte-identical to the C++ engine's on the
+scenario corpus under every configuration and on generated scenarios; and (P3B) the user's marks,
+profile capture and the profile store, the cross-session history, the session journal and the
+"detections" log channel, which write the C++ bytes (VALIDATION.md §9). `VigilParity` and
+`vigil-parity` are twins. Every C++ engine test has a Rust counterpart of the same name that counts
+the same expectations and feeds the engine the same frames (VALIDATION.md §10). The DLL link (P4)
+comes later; until then the C++ engine drives the product, a file's meaning is defined by the C++
+reader, and the Rust side is proven to agree.
 
 ## 2. Data flow (one client tick)
 
@@ -154,7 +158,15 @@ change in the middle of `Engine::onFrame`.
   changing the C++ container would be a behavior change in its own right.
 * **Text is part of the contract:** evidence summaries, details and debug lines are `vsnprintf`
   output (512-byte buffer); a port reproduces the UCRT's formatting, including ties, signed zeros
-  and non-finite values (`printf`, proven against `printf.txt`).
+  and non-finite values (`printf`, proven against `printf.txt`). The "detections" log lines are
+  `log::writef` messages (2 048-byte buffer).
+* **Sort order of ties is part of the contract:** `Marks::all()` and the saved-profile list are
+  sorted with `std::sort`, which is not stable above 32 elements; a port reproduces MSVC's
+  introsort (`msvcsort`, proven against `sort-order.txt`).
+* **Wall clock and local time are host inputs:** the journal file name, history `lastSeen`, mark
+  times and a profile's save time read the wall clock; profile ids and log lines read local time.
+  None of them influences a decision. The Rust side takes both from the host (`clock`) and the
+  harness masks them when comparing.
 
 ## 7. Boundaries worth keeping
 

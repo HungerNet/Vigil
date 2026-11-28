@@ -115,7 +115,9 @@ tests/           five suites, shared framework, simulator, scenario corpus and g
 tools/           preview harness, trace replay, parity probe, format fixtures, CI checks,
                  Java and brand asset builders
 rust/            Cargo workspace: vigil-formats (every file format, byte-compatible) and
-                 vigil-detection (the engine, full-state parity with C++; replay-check, vigil-parity)
+                 vigil-detection (the engine and the rest of src/detection — marks, profiles,
+                 history, journal, log channel — proven identical to C++; every C++ engine test
+                 mirrored by name; replay-check, vigil-parity)
 docs/            architecture, validation, release process, audits and reports
 ```
 
@@ -125,7 +127,8 @@ docs/            architecture, validation, release process, audits and reports
 [Architecture](docs/ARCHITECTURE.md) · [Validation](docs/VALIDATION.md) ·
 [Live validation](docs/LIVE_VALIDATION.md) · [Release process](docs/RELEASE_PROCESS.md) ·
 [Rust plan](RUST_PLAN.md) ([P1](P1_PLAN.md), [P2](P2_PLAN.md), [report](docs/RUST_P1_P2_REPORT.md);
-[P3](P3_PLAN.md), [P3A](P3A_PLAN.md), [report](docs/RUST_P3A_REPORT.md)) ·
+[P3](P3_PLAN.md), [P3A](P3A_PLAN.md), [report](docs/RUST_P3A_REPORT.md);
+[P3B](P3B_PLAN.md), [report](docs/RUST_P3B_REPORT.md)) ·
 [Tech debt](docs/TECH_DEBT.md)
 
 **Design and earlier passes:** [Quality report](docs/QUALITY_REPORT.md) ·

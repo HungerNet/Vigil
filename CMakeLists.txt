@@ -240,9 +240,16 @@ if(VIGIL_BUILD_RUST AND VIGIL_BUILD_TESTS)
              COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/ci/cross_formats.py"
                      --cpp "$<TARGET_FILE:VigilFormats>" --rust "${VIGIL_CARGO_TARGET}/release/vigil-fmt.exe"
                      --fixtures "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures" --work "${CMAKE_BINARY_DIR}/format-round-trips")
-    # P3A: the Rust engine against the C++ engine, full state, byte for byte (docs/VALIDATION.md §9).
+    # P3A/P3B: the Rust engine against the C++ engine — full state, persistence sinks and marks
+    # scripts, byte for byte (docs/VALIDATION.md §9).
     add_test(NAME engine_parity
              COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/ci/engine_parity.py"
                      --cpp "$<TARGET_FILE:VigilParity>" --rust "${VIGIL_CARGO_TARGET}/release/vigil-parity.exe"
                      --work "${CMAKE_BINARY_DIR}/engine-parity" --count 1000)
+    # P3B: every C++ engine test has a Rust counterpart of the same name, with the same expectations
+    # and the same frames (tests/test-parity.json, docs/VALIDATION.md §10).
+    add_test(NAME test_parity
+             COMMAND "${CMAKE_COMMAND}" -E env CARGO_TARGET_DIR=${VIGIL_CARGO_TARGET}
+                     "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/ci/test_parity.py"
+                     --cpp-dir "$<TARGET_FILE_DIR:detection_tests>" --rust-dir "${CMAKE_CURRENT_SOURCE_DIR}/rust" --cargo "${CARGO}")
 endif()

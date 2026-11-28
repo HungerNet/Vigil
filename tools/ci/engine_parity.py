@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
-"""C++ <-> Rust engine parity (RUST_PLAN P3A, P3A_PLAN.md §2, docs/VALIDATION.md §9).
+"""C++ <-> Rust engine parity (RUST_PLAN P3A/P3B, P3A_PLAN.md §2, P3B_PLAN.md §3.6, docs/VALIDATION.md §9).
 
 Runs the C++ engine (VigilParity) and the Rust engine (vigil-parity) on the same inputs and
-requires byte-identical full-state results:
+requires byte-identical results:
 
   corpus     the scenario corpus under every configuration VigilParity knows (416 x 7 runs):
              the whole VigilParity output, registry declaration and full default dumps included
-  generated  N generated scenarios (tests/generator.h): one full-state digest and one summary
-             line per scenario
+  generated  N generated scenarios (tests/generator.h): one full-state digest, one summary line
+             and (P3B) one "sinks" line per scenario — the session journal, the history file after
+             every flush, the "detections" log, the marks file, captured profiles and the records'
+             history fields, with wall-clock values masked on both sides
+  marks      (P3B) M random action scripts over the whole marks state machine: the state after
+             every action, the marks file included
 
 On a difference it names the first differing run and writes the full state of that run from
 both engines, so the first differing line is visible. It also reports what the generated set
-exercised (indicators fired, filtered entities, stalls, pruning, binding, collisions...).
+exercised (indicators fired, filtered entities, stalls, pruning, binding, collisions, sinks...).
 
   python tools/ci/engine_parity.py --cpp build/Release/VigilParity.exe \
-      --rust rust/target/release/vigil-parity.exe --work parity-work [--count 1000] [--seed S] [--skip-corpus]
+      --rust rust/target/release/vigil-parity.exe --work parity-work [--count 1000] [--seed S]
+      [--marks-count 300] [--skip-corpus]
 
 Exit 0 identical, 1 different, 2 a tool failed.
 """
@@ -55,17 +60,24 @@ def explain(args, kind, plan_dir, cpp_out, rust_out, base_cmd):
     print("  C++ : " + x.decode("utf-8", "replace")[:300])
     print("  Rust: " + y.decode("utf-8", "replace")[:300])
     words = x.decode("utf-8", "replace").split()
+    target = None
     if len(words) >= 3 and words[0] == "variant":
-        variant, scenario = words[1], words[2]
+        target = (words[1], words[2], "")
+    elif len(words) >= 2 and words[0] in ("summary", "sinks"):
+        target = ("generated", words[1], ".sinks.txt" if words[0] == "sinks" else "")
+    elif len(words) >= 2 and words[0] == "marks":
+        target = ("marks", words[1], "")
+    if target:
+        variant, scenario, suffix = target
         cpp_dump = os.path.join(args.work, f"{kind}-cpp-full.txt")
         rust_dump = os.path.join(args.work, f"{kind}-rust-full.txt")
         run(base_cmd + ["--full", variant, scenario, cpp_dump])
         run([args.rust, plan_dir, os.path.join(args.work, f"{kind}-rust-again.txt"), "--full", variant, scenario, rust_dump])
-        l2, x2, y2 = first_difference(read(cpp_dump), read(rust_dump))
-        print(f"  first difference in the full state of {variant} / {scenario}, line {l2 + 1}:")
+        l2, x2, y2 = first_difference(read(cpp_dump + suffix), read(rust_dump + suffix))
+        print(f"  first difference in the full {'sinks of' if suffix else 'state of'} {variant} / {scenario}, line {l2 + 1}:")
         print("    C++ : " + x2.decode("utf-8", "replace")[:300])
         print("    Rust: " + y2.decode("utf-8", "replace")[:300])
-        print(f"  full dumps: {cpp_dump} {rust_dump}")
+        print(f"  full dumps: {cpp_dump}{suffix} {rust_dump}{suffix}")
 
 
 def coverage(expected_path):
@@ -103,7 +115,41 @@ def coverage(expected_path):
     print(f"  indicators  {fired} of {every} fired; per check (scenarios / observations):")
     for ci, c in enumerate(indicators or []):
         print("    check %2d: %s" % (ci, "  ".join(f"{n}/{t}" for n, t in zip(c, totals[ci]))))
+    sinks_coverage(expected_path)
     return fired, every
+
+
+EMPTY_FNV = "14650fb0739d0383"   # the digest of no bytes
+
+
+def sinks_coverage(expected_path, quiet=False):
+    """What the generated scenarios' sinks held (P3B), from the "sinks" lines."""
+    n, journal, lines, history, log, marks, profiles, prior, bad = 0, 0, 0, 0, 0, 0, 0, 0, 0
+    for line in read(expected_path).decode("utf-8", "replace").splitlines():
+        if not line.startswith("sinks "):
+            continue
+        n += 1
+        f = dict(x.split("=", 1) for x in line.split()[2:] if "=" in x)
+        j = f["journal"].split(":")
+        if int(j[1]) > 0:
+            journal += 1
+            lines += int(j[1])
+        if int(f["history"].split(":")[1]) > 0:
+            history += 1
+        if int(f["log"].split(":")[1]) > 0:
+            log += 1
+        if f["marks"] != EMPTY_FNV:
+            marks += 1
+        p = f["profiles"].split(":")
+        profiles += int(p[1])
+        bad += int(p[2])
+        if int(f["prior"].split(":")[1]) > 0:
+            prior += 1
+    if n and not quiet:
+        print(f"  sinks of {n} scenarios: journal {journal} ({lines} lines), log lines {log}, "
+              f"marks files {marks}, with records that had a history {prior}, profiles captured {profiles} "
+              f"({bad} failed their round trip)")
+    return bad
 
 
 def main():
@@ -113,6 +159,8 @@ def main():
     p.add_argument("--work", required=True, help="working directory (traces are large)")
     p.add_argument("--count", type=int, default=1000, help="generated scenarios (RUST_PLAN P3: at least 1000)")
     p.add_argument("--seed", type=int, default=20261127)
+    p.add_argument("--marks-count", type=int, default=300, help="marks action scripts (P3B); 0 skips them")
+    p.add_argument("--marks-seed", type=int, default=20261128)
     p.add_argument("--skip-corpus", action="store_true")
     args = p.parse_args()
     os.makedirs(args.work, exist_ok=True)
@@ -149,11 +197,30 @@ def main():
     rust_out = os.path.join(args.work, "generated-rust.txt")
     run([args.rust, plan, rust_out])
     if read(expected) == read(rust_out):
-        print(f"generated: IDENTICAL ({args.count} scenarios, seed {args.seed})")
+        print(f"generated: IDENTICAL ({args.count} scenarios, seed {args.seed}; full state, summaries and sinks)")
     else:
         problems += 1
         explain(args, "generated", plan, expected, rust_out, base)
     coverage(expected)
+    if sinks_coverage(expected, quiet=True):
+        problems += 1
+        print("generated: a captured profile did not survive its own round trip")
+
+    if args.marks_count > 0:
+        plan = os.path.join(args.work, "marks")
+        shutil.rmtree(plan, ignore_errors=True)
+        base = [args.cpp, "--marks", plan, "--count", str(args.marks_count), "--seed", str(args.marks_seed)]
+        run(base)
+        rust_out = os.path.join(args.work, "marks-rust.txt")
+        run([args.rust, plan, rust_out])
+        expected = os.path.join(plan, "expected.txt")
+        if read(expected) == read(rust_out):
+            scripts = [l for l in read(expected).splitlines() if l.startswith(b"marks ")]
+            ro = sum(1 for l in scripts if b" ro=1" in l)
+            print(f"marks: IDENTICAL ({len(scripts)} scripts, seed {args.marks_seed}; the state after every action, {ro} read-only)")
+        else:
+            problems += 1
+            explain(args, "marks", plan, expected, rust_out, base)
     return 1 if problems else 0
 
 

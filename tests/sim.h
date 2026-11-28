@@ -3,6 +3,8 @@
 // Engine with WorldFrames exactly as the game adapter does. Shared by every engine-level suite.
 
 #include "../src/detection/engine.h"
+#include "../src/detection/trace.h"
+#include "test_framework.h"
 
 #include <algorithm>
 #include <cmath>
@@ -163,6 +165,7 @@ struct World {
             w.players.push_back(s->relayFrame());
         }
         if (recorded) recorded->push_back(w);
+        feedFrameDigest(traceFrameLine(w));   // test parity (test_framework.h --counts)
         engine.onFrame(w);
     }
     const PlayerRecord* rec(const Sim& s) const { return engine.session().find(s.f.uuid); }

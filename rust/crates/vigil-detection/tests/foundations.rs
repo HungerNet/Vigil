@@ -3,11 +3,17 @@
 //!
 //! * `hash-order.txt` — `std::unordered_map` iteration order after random insert/erase/clear
 //!   scripts over int and string keys (H1, H2);
-//! * `printf.txt` — `snprintf` output for every conversion the engine and the parity dump use (H3).
+//! * `printf.txt` — `snprintf` output for every conversion the engine and the parity dump use (H3);
+//! * `sort-order.txt` — MSVC `std::sort` on ties, including the heap-sort fallback (P3B);
+//! * `random.txt` — `std::mt19937` and the MSVC distributions the C++ tests draw from (P3B).
+
+mod common;
 
 use std::path::{Path, PathBuf};
 
+use common::rng::{Discrete, Mt19937, UniformReal};
 use vigil_detection::hashorder::HashOrder;
+use vigil_detection::msvcsort::{SortPaths, sort_by_traced};
 use vigil_detection::printf::{Arg, format};
 
 fn fixtures() -> PathBuf {
@@ -153,4 +159,81 @@ fn printf_matches_the_ucrt() {
     }
     assert!(rows > 9_000, "{rows} rows");
     assert!(diffs.is_empty(), "{} of {rows} differ: {:#?}", diffs.len(), &diffs[..diffs.len().min(12)]);
+}
+
+fn ints(s: &str) -> Vec<i64> {
+    if s.is_empty() { Vec::new() } else { s.split(',').map(|x| x.parse().unwrap()).collect() }
+}
+
+#[test]
+fn std_sort_order_matches_msvc() {
+    let (mut cases, mut heap_cases, mut heap_with_ties, mut diffs) = (0, 0, 0, Vec::new());
+    for line in lines("sort-order.txt") {
+        let text = String::from_utf8(line).unwrap();
+        let f: Vec<&str> = text.split('\t').collect();
+        let keys = ints(f.get(2).copied().unwrap_or(""));
+        let expected = ints(f.get(3).copied().unwrap_or(""));
+        let mut v: Vec<(i64, i64)> = keys.iter().enumerate().map(|(i, &k)| (k, i as i64)).collect();
+        let mut paths = SortPaths::default();
+        sort_by_traced(&mut v, |a, b| a.0 < b.0, &mut paths);
+        let order: Vec<i64> = v.iter().map(|p| p.1).collect();
+        cases += 1;
+        if paths.heap > 0 {
+            heap_cases += 1;
+            let mut k = keys.clone();
+            k.sort_unstable();
+            if k.windows(2).any(|w| w[0] == w[1]) {
+                heap_with_ties += 1;
+            }
+        }
+        if order != expected {
+            diffs.push(format!("case {} ({}, n={})", f[0], f[1], keys.len()));
+        }
+    }
+    assert!(cases > 200, "{cases} cases");
+    assert!(diffs.is_empty(), "{} of {cases} cases differ: {:?}", diffs.len(), &diffs[..diffs.len().min(10)]);
+    // The adversarial inputs must actually reach the heap sort, and with equal keys in the heap
+    // (where the order of ties depends on the heap operations themselves).
+    assert!(
+        heap_cases > 0 && heap_with_ties > 0,
+        "heap sort reached in {heap_cases} cases ({heap_with_ties} with ties)"
+    );
+}
+
+#[test]
+fn test_random_generators_match_msvc() {
+    let mut rows = 0;
+    for line in lines("random.txt") {
+        let text = String::from_utf8(line).unwrap();
+        let f: Vec<&str> = text.split('\t').collect();
+        let seed: u32 = f[1].parse().unwrap();
+        let mut g = Mt19937::new(seed);
+        match f[0] {
+            "mt19937" => {
+                let got: Vec<i64> = (0..64).map(|_| i64::from(g.next_u32())).collect();
+                assert_eq!(got, ints(f[3]), "mt19937 seed {seed}");
+            }
+            "mt19937-10000" => {
+                g.discard(9999);
+                assert_eq!(i64::from(g.next_u32()), f[3].parse::<i64>().unwrap(), "10000th output");
+            }
+            "uniform_real" => {
+                let p: Vec<f64> = f[2].split(' ').map(|x| x.parse().unwrap()).collect();
+                let d = UniformReal::new(p[0], p[1]);
+                for (i, bits) in f[3].split(',').enumerate() {
+                    let v = d.sample(&mut g);
+                    assert_eq!(v.to_bits(), hex_bits(bits).to_bits(), "uniform_real seed {seed} value {i}: {v}");
+                }
+            }
+            "discrete" => {
+                let w: Vec<f64> = f[2].split(',').map(hex_bits).collect();
+                let d = Discrete::new(&w);
+                let got: Vec<i64> = (0..400).map(|_| i64::from(d.sample(&mut g))).collect();
+                assert_eq!(got, ints(f[3]), "discrete seed {seed}");
+            }
+            other => panic!("unknown generator {other}"),
+        }
+        rows += 1;
+    }
+    assert_eq!(rows, 15, "rows");
 }

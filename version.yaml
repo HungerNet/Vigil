@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.14'
+version: '1.0-dev.15'
 description: |
   Dev 1:
   - Initial release
@@ -43,3 +43,8 @@ description: |
   Dev 14:
   - Rust rewrite Phase 3A:
     - Implement Rust engine byte-identical to C++ engine
+  Dev 15:
+  - Rust rewrite Phase 3B:
+    - Implement Rust simulator
+    - Property tests
+    - Test parity matrix

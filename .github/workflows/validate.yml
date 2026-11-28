@@ -4,8 +4,8 @@
 #   through release.yml (workflow_call), which publishes only the artifacts it validated.
 #
 #   Required:      lint · metadata · build (warnings as errors, every test suite, golden trace,
-#                  self-check, embedded-runtime hash, Rust gates and C++ <-> Rust format round
-#                  trips) · "Validation complete"
+#                  self-check, embedded-runtime hash, Rust gates, C++ <-> Rust format round
+#                  trips, engine parity and test parity) · "Validation complete"
 #   Informational: UI smoke renders, Java shim reproducibility
 #
 # See docs/RELEASE_PROCESS.md and docs/VALIDATION.md.
@@ -130,12 +130,18 @@ jobs:
           ./rust/target/release/replay-check.exe tests/traces/golden-arena.vtrace tests/traces/golden-arena.expect.json --strict --engine
           if ($LASTEXITCODE -ne 0) { throw "replay-check failed on the golden trace." }
 
-      - name: C++ <-> Rust engine parity (corpus x 416 configurations, 1000 generated scenarios)
+      - name: C++ <-> Rust engine parity (corpus x 416 configurations, 1000 generated scenarios with sinks, marks scripts)
         shell: pwsh
         run: |
-          python tools/ci/engine_parity.py --cpp ./build/Release/VigilParity.exe --rust ./rust/target/release/vigil-parity.exe --work engine-parity --count 1000
+          python tools/ci/engine_parity.py --cpp ./build/Release/VigilParity.exe --rust ./rust/target/release/vigil-parity.exe --work engine-parity --count 1000 --marks-count 300
           if ($LASTEXITCODE -ne 0) { throw "The C++ and Rust engines disagree (docs/VALIDATION.md §9; the log names the first differing run and line)." }
           Remove-Item -Recurse -Force engine-parity
+
+      - name: Test parity — every C++ engine test mirrored in Rust by name (same expectations, same frames)
+        shell: pwsh
+        run: |
+          python tools/ci/test_parity.py --cpp-dir ./build/Release --rust-dir rust
+          if ($LASTEXITCODE -ne 0) { throw "The Rust test suites no longer mirror the C++ engine tests (docs/VALIDATION.md §10, tests/test-parity.json)." }
 
       - name: Self-check (exe, embedded runtime, versions, build IDs)
         shell: pwsh

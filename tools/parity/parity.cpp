@@ -26,23 +26,33 @@
 //       engine replays the plan (`vigil-parity <dir> <out>`) and must write the same <out.txt>.
 //   VigilParity --generate <dir> [--count N] [--seed S]
 //       N generated scenarios (tests/generator.h): traces, marks files, plan.jsonl and the C++
-//       result dir/expected.txt (one digest line and one summary line per scenario).
+//       result dir/expected.txt (one digest line and one summary line per scenario; P3B adds one
+//       "sinks" line: journal, history flushes, log channel, marks file, profiles, history fields).
+//   VigilParity --marks <dir> [--count N] [--seed S]
+//       P3B: N random action scripts over the full marks state machine (see marksScripts); the
+//       state after every action, dir/plan.jsonl + dir/expected.txt (one digest line per script).
 //   VigilParity --full <variant> <scenario> <dump.txt>    (with either mode's other arguments)
-//       also writes the full state of that one run, to locate a difference.
+//       also writes the full state of that one run (generated runs: also <dump.txt>.sinks.txt;
+//       marks scripts: --full marks <script> <dump.txt>), to locate a difference.
 //   VigilParity --bench <reps>
 //       engine tick cost on the corpus under the defaults (twin: vigil-parity --bench).
 
 #include "../../src/core/json.h"
+#include "../../src/core/log.h"
 #include "../../src/core/settings.h"
 #include "../../src/detection/engine.h"
+#include "../../src/detection/snapshot.h"
 #include "../../src/detection/trace.h"
 #include "../../tests/corpus.h"
 #include "../../tests/generator.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <random>
+#include <sstream>
 
 #if __has_include("../../src/detection/config_binding.h")
 #include "../../src/detection/config_binding.h"
@@ -415,9 +425,434 @@ std::string summaryLine(const Engine& e, const std::string& name) {
     return o.s;
 }
 
+// ── Persistence sinks of generated runs (P3B_PLAN.md §3.6) ──────────────────────────────────
+//
+// Every generated scenario also runs with a cross-session history file, a journal directory, a
+// log directory and its marks file, and one "sinks" line records what they hold: the journal (all
+// files in name order), the history file after every flush, the "detections" log lines without
+// their timestamps, the final marks file, the profiles captured from the records, and the history
+// fields of every record. Wall-clock values (a flush's lastSeen, a binding's updated time) are
+// replaced by NOW when they lie inside the run's wall-clock window; the Rust tool injects a clock and
+// masks its own window the same way, so everything else compares byte for byte.
+
+std::string readText(const std::filesystem::path& p) {
+    std::ifstream in(p, std::ios::binary);
+    if (!in) return {};
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    return ss.str();
+}
+
+// The number after "<key>": becomes NOW when lo <= value <= hi.
+std::string maskTimes(const std::string& text, const std::vector<std::string>& keys, double lo, double hi) {
+    std::string out;
+    out.reserve(text.size());
+    std::size_t i = 0;
+    while (i < text.size()) {
+        bool matched = false;
+        for (const std::string& k : keys) {
+            const std::string pat = "\"" + k + "\": ";
+            if (text.compare(i, pat.size(), pat) != 0) continue;
+            std::size_t j = i + pat.size(), e = j;
+            while (e < text.size() && (std::isdigit(static_cast<unsigned char>(text[e])) || text[e] == '-' || text[e] == '+' || text[e] == '.' ||
+                                       text[e] == 'e' || text[e] == 'E')) {
+                ++e;
+            }
+            const double v = std::strtod(text.substr(j, e - j).c_str(), nullptr);
+            out += pat;
+            if (e > j && v >= lo && v <= hi) out += "NOW";
+            else out.append(text, j, e - j);
+            i = e;
+            matched = true;
+            break;
+        }
+        if (!matched) out += text[i++];
+    }
+    return out;
+}
+
+// "YYYY-MM-DD HH:MM:SS  message" -> "message"; a line of any other shape is kept, marked "!".
+std::string stripLogStamps(const std::string& text, int& lines) {
+    std::string out;
+    lines = 0;
+    std::size_t pos = 0;
+    while (pos < text.size()) {
+        std::size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) nl = text.size();
+        const std::string line = text.substr(pos, nl - pos);
+        static const char* shape = "dddd-dd-dd dd:dd:dd  ";
+        bool stamped = line.size() >= 21;
+        for (int k = 0; stamped && k < 21; ++k) {
+            stamped = shape[k] == 'd' ? std::isdigit(static_cast<unsigned char>(line[k])) != 0 : line[k] == shape[k];
+        }
+        out += stamped ? line.substr(21) : "!" + line;
+        out += '\n';
+        ++lines;
+        pos = nl + 1;
+    }
+    return out;
+}
+
+// A history file for a generated scenario, drawn from its own generator (the scenario's frames
+// and configurations are unchanged): none, unreadable, the wrong shape, or entries — with hostile
+// values — for some of the scenario's players and for strangers.
+std::string historyInput(std::mt19937_64& r, const std::vector<std::string>& keys) {
+    const int kind = static_cast<int>(r() % 20);
+    if (kind < 6) return {};
+    if (kind < 8) return "{ not json";
+    if (kind == 8) return "[1,2]";
+    if (kind == 9) return "{\"format\":1,\"players\":[]}";
+    json::Value root = json::Value::object();
+    root["format"] = json::Value(1);
+    json::Value& players = root["players"];
+    players = json::Value::object();
+    const double counts[] = {0, 1, 3, 17, 2147483647.0, -4, 1e300, 2.75};
+    const double peaks[] = {0, 12.5, 99.25, 100, 1e300, -3, 1e-45, 0.1};
+    const double seen[] = {1700000000000.0, 1650000000123.5, 0, -1, 1e300, 1764201600000.0};
+    const int n = 1 + static_cast<int>(r() % 6);
+    for (int k = 0; k < n + 2; ++k) {
+        std::string key;
+        if (k < n && !keys.empty()) key = keys[r() % keys.size()];
+        else key = "00000000-0000-4000-8000-9999999999" + std::to_string(10 + r() % 90);
+        json::Value e = json::Value::object();
+        if (r() % 5) e["name"] = json::Value("Prior" + std::to_string(k));
+        else e["name"] = json::Value(7);
+        if (r() % 6) e["sessions"] = json::Value(counts[r() % 8]);
+        else e["sessions"] = json::Value("x");
+        if (r() % 6) e["detections"] = json::Value(counts[r() % 8]);
+        if (r() % 6) e["peak"] = json::Value(peaks[r() % 8]);
+        if (r() % 6) e["lastSeen"] = json::Value(seen[r() % 6]);
+        players[key] = e;
+    }
+    return json::write(root, r() % 2 ? 1 : -1);
+}
+
+// A copy of `configs` with data.journal / data.history switched at a random frame in some
+// scenarios (they only decide what the sinks write, never what the engine concludes).
+std::vector<std::pair<long long, EngineConfig>> withSinkToggles(std::mt19937_64& r, std::vector<std::pair<long long, EngineConfig>> configs,
+                                                                const std::shared_ptr<const ConfigSchema>& schema, std::size_t frames) {
+    auto toggle = [&](const char* key, long long at) {
+        EngineConfig c(schema);
+        std::size_t pos = 0;
+        for (std::size_t k = 0; k < configs.size(); ++k) {
+            if (configs[k].first <= at) { c = configs[k].second; pos = k + 1; }
+        }
+        const ParamId id = schema->find(key);
+        c.set(id, c.b(id) ? 0.0 : 1.0);
+        configs.insert(configs.begin() + static_cast<std::ptrdiff_t>(pos), {at, c});
+    };
+    if (frames < 2) return configs;
+    if (r() % 4 == 0) toggle("data.journal", static_cast<long long>(r() % frames));
+    if (r() % 4 == 0) toggle("data.history", static_cast<long long>(r() % frames));
+    if (r() % 10 == 0) toggle(r() % 2 ? "data.journal" : "data.history", -1);
+    return configs;
+}
+
+// The sinks of one generated run, after the run: the "sinks" line and the full text behind it.
+struct SinkCapture {
+    std::string history;   // every flush, in order
+    int flushes = 0;
+};
+
+std::string sinksText(const Engine& e, const std::filesystem::path& journalDir, const std::filesystem::path& logDir,
+                      const std::filesystem::path& marksPath, const SinkCapture& cap, double lo, double hi, std::string& line,
+                      const std::string& name) {
+    std::string journal;
+    int journalLines = 0;
+    {
+        std::vector<std::filesystem::path> files;
+        std::error_code ec;
+        if (std::filesystem::exists(journalDir, ec)) {
+            for (const auto& entry : std::filesystem::directory_iterator(journalDir, ec)) files.push_back(entry.path());
+        }
+        std::sort(files.begin(), files.end());
+        for (const auto& f : files) {
+            const std::string t = readText(f);
+            journal += "== journal file\n" + t;
+            journalLines += static_cast<int>(std::count(t.begin(), t.end(), '\n'));
+        }
+    }
+    int logLines = 0;
+    const std::string log = stripLogStamps(readText(logDir / "detections.log.old") + readText(logDir / "detections.log"), logLines);
+    const std::string marks = maskTimes(readText(marksPath), {"added", "confirmedAt", "exemptAt", "updated"}, lo, hi);
+    std::string profiles;
+    int captured = 0, roundTripFailures = 0;
+    const CheckCatalog cat = CheckCatalog::of(e);
+    const auto& players = e.session().players();
+    for (std::size_t i = 0; i < players.size(); ++i) {
+        const PlayerRecord& r = players[i];
+        if (i >= 12 && r.detections.empty()) continue;
+        ProfileSnapshot s = captureSnapshot(e, r);
+        s.vigilVersion = "parity";
+        s.savedAtEpochMs = 1764201600000.0;
+        const std::string text = snapshotToJson(s, cat);
+        ProfileSnapshot back;
+        std::string err;
+        if (!snapshotFromJson(text, cat, back, err) || snapshotToJson(back, cat) != text) ++roundTripFailures;
+        profiles += text + "\n";
+        ++captured;
+    }
+    std::string prior;
+    int withHistory = 0;
+    char buf[256];
+    for (const PlayerRecord& r : players) {
+        std::snprintf(buf, sizeof buf, "%d %d %.9g %.17g ", r.priorSessions, r.priorDetections, r.priorPeak, r.lastSeenEpochMs);
+        prior += buf + r.key + "\n";
+        if (r.priorSessions != 0 || r.priorDetections != 0 || r.priorPeak != 0.f || r.lastSeenEpochMs != 0.0) ++withHistory;
+    }
+    Out o;
+    o.line("sinks %s journal=%016llx:%d history=%016llx:%d log=%016llx:%d marks=%016llx profiles=%016llx:%d:%d prior=%016llx:%d", name.c_str(),
+           static_cast<unsigned long long>(fnv(journal)), journalLines, static_cast<unsigned long long>(fnv(cap.history)), cap.flushes,
+           static_cast<unsigned long long>(fnv(log)), logLines, static_cast<unsigned long long>(fnv(marks)),
+           static_cast<unsigned long long>(fnv(profiles)), captured, roundTripFailures, static_cast<unsigned long long>(fnv(prior)), withHistory);
+    line = o.s;
+    return "# journal\n" + journal + "# history\n" + cap.history + "# log\n" + log + "# marks\n" + marks + "\n# profiles\n" + profiles +
+           "# prior\n" + prior;
+}
+
+// ── Marks scripts (P3B_PLAN.md §3.6) ────────────────────────────────────────────────────────
+//
+// Random action scripts over every operation of the user's marks — watch, confirm, unconfirm,
+// exempt, notes, reasons, remove, remember name, add by name, bind, reload — starting from no file,
+// format 1 and 2 files (with equal times and more than 32 marks, so std::sort's order of ties
+// matters), a newer format, an unreadable file and the wrong shape. After every action the whole
+// state is dumped: every mark in all() order, counts, revision, read-only state, searches,
+// find-by-name and the file itself. Mark times come from the wall clock: this tool waits for a new
+// millisecond before each action, so every action's time is unique and is written as "@<action>";
+// the Rust tool injects one time per action and writes the same.
+
+struct MarksAction {
+    std::string op, key, name, note, uuid, knownKey;
+    std::vector<std::string> reasons;
+    bool on = false;
+    int kind = 0;
+    double confidence = -1.0;
+};
+
+std::string marksInitial(std::mt19937_64& r, const std::vector<std::string>& keys, const std::vector<std::string>& names) {
+    const int kind = static_cast<int>(r() % 8);
+    if (kind == 0) return {};
+    if (kind == 1) return "{ not json";
+    if (kind == 2) return "[1]";
+    json::Value root = json::Value::object();
+    root["format"] = json::Value(kind == 3 ? 3 : kind == 4 ? 1 : 2);
+    json::Value& players = root["players"];
+    players = json::Value::object();
+    const int n = kind == 5 || kind == 6 ? 33 + static_cast<int>(r() % 90) : static_cast<int>(r() % 12);
+    const double times[] = {1700000000000.0, 1700000000000.0, 1650000000000.0, 0.0, 1764201600000.0};
+    const char* reasons[] = {"KillAura", "Reach", "Speed", "BHop"};
+    for (int k = 0; k < n; ++k) {
+        const std::string key = k < static_cast<int>(keys.size()) && r() % 2 ? keys[r() % keys.size()] : "00000000-0000-4000-8000-5" + std::to_string(10000000000ll + k);
+        json::Value m = json::Value::object();
+        m["name"] = json::Value(names[r() % names.size()]);
+        if (r() % 3 == 0) m["uuid"] = json::Value(key);
+        m["watch"] = json::Value(r() % 2 == 0);
+        m["confirmed"] = json::Value(r() % 3 == 0);
+        m["exempt"] = json::Value(r() % 4 == 0);
+        if (r() % 3) m["added"] = json::Value(times[r() % 5]);
+        if (r() % 2) m["confirmedAt"] = json::Value(times[r() % 5]);
+        if (r() % 4 == 0) m["exemptAt"] = json::Value(times[r() % 5]);
+        m["updated"] = json::Value(times[r() % 3]);
+        if (r() % 3 == 0) m["confidenceAtConfirm"] = json::Value(r() % 2 ? 82.5 : 0.1);
+        if (r() % 4 == 0) m["note"] = json::Value(r() % 2 ? "duo partner" : "Reach in every fight");
+        if (r() % 3 == 0) m["origin"] = json::Value(r() % 2 ? "name" : "profile");
+        json::Value rs = json::Value::array();
+        for (unsigned j = 0, c = static_cast<unsigned>(r() % 3); j < c; ++j) rs.push(json::Value(reasons[r() % 4]));
+        m["reasons"] = rs;
+        players[key] = m;
+    }
+    return json::write(root, r() % 2 ? 1 : -1);
+}
+
+std::vector<MarksAction> marksScript(std::mt19937_64& r, const std::vector<std::string>& keys, const std::vector<std::string>& names) {
+    const char* reasons[] = {"KillAura", "Reach", "Speed", "BHop"};
+    const std::string longNote(600, 'n');
+    const char* notes[] = {"", "my duo partner", "Aim snaps every fight", "KES note"};
+    std::vector<MarksAction> out;
+    const int n = 15 + static_cast<int>(r() % 50);
+    for (int i = 0; i < n; ++i) {
+        MarksAction a;
+        static const char* ops[] = {"watch", "confirm", "unconfirm", "exempt", "note", "reasons", "remove", "remember", "add", "bind", "reload"};
+        a.op = ops[r() % 11];
+        a.key = keys[r() % keys.size()];
+        a.name = names[r() % names.size()];
+        a.on = r() % 3 != 0;
+        a.kind = static_cast<int>(r() % 3);
+        a.confidence = r() % 2 ? -1.0 : static_cast<double>(static_cast<float>((r() % 1000) / 10.0));
+        for (unsigned j = 0, c = static_cast<unsigned>(r() % 4); j < c; ++j) a.reasons.push_back(reasons[r() % 4]);
+        a.note = r() % 7 == 0 ? longNote : notes[r() % 4];
+        a.uuid = r() % 4 == 0 ? std::string() : keys[r() % keys.size()];
+        a.knownKey = r() % 4 == 0 ? keys[r() % keys.size()] : std::string();
+        out.push_back(a);
+    }
+    return out;
+}
+
+// Mark times as "@<action>" when they lie in an action's window, else literally.
+struct TimeMap {
+    double start = 0.0;
+    std::vector<std::pair<double, double>> windows;
+    std::string of(double t) const {
+        char buf[64];
+        if (t >= start) {
+            for (std::size_t k = 0; k < windows.size(); ++k) {
+                if (t >= windows[k].first && t <= windows[k].second) { std::snprintf(buf, sizeof buf, "@%zu", k); return buf; }
+            }
+            return "@?";
+        }
+        std::snprintf(buf, sizeof buf, "%.17g", t);
+        return buf;
+    }
+    std::string file(const std::string& text) const {
+        // The numbers after the time keys, mapped like of().
+        std::string out;
+        std::size_t i = 0;
+        static const char* keys[] = {"\"added\":", "\"confirmedAt\":", "\"exemptAt\":", "\"updated\":"};
+        while (i < text.size()) {
+            bool matched = false;
+            for (const char* k : keys) {
+                const std::size_t kl = std::strlen(k);
+                if (text.compare(i, kl, k) != 0) continue;
+                std::size_t j = i + kl;
+                while (j < text.size() && text[j] == ' ') ++j;
+                std::size_t e = j;
+                while (e < text.size() && (std::isdigit(static_cast<unsigned char>(text[e])) || text[e] == '-' || text[e] == '+' || text[e] == '.' ||
+                                           text[e] == 'e' || text[e] == 'E')) {
+                    ++e;
+                }
+                out.append(text, i, j - i);
+                out += of(std::strtod(text.substr(j, e - j).c_str(), nullptr));
+                i = e;
+                matched = true;
+                break;
+            }
+            if (!matched) out += text[i++];
+        }
+        return out;
+    }
+};
+
+std::string marksState(const Marks& m, const TimeMap& tm, const std::string& path, const std::vector<std::string>& names) {
+    Out o;
+    for (const Mark& k : m.all()) {
+        std::string rs;
+        for (const auto& x : k.reasons) rs += x + ";";
+        o.line("m %s|%s|%s|%d%d%d|%s|%s|%s|%s|%.9g|%s|%s|%s", k.key.c_str(), k.name.c_str(), k.uuid.c_str(), k.watch, k.confirmed, k.exempt,
+               tm.of(k.addedEpochMs).c_str(), tm.of(k.confirmedAtEpochMs).c_str(), tm.of(k.exemptAtEpochMs).c_str(), tm.of(k.updatedEpochMs).c_str(),
+               k.confidenceAtConfirm, k.origin.c_str(), k.note.c_str(), rs.c_str());
+    }
+    o.line("counts c=%d w=%d e=%d ro=%d rev=%llu note=%s", m.confirmedCount(), m.watchedCount(), m.exemptCount(), m.readOnly() ? 1 : 0,
+           static_cast<unsigned long long>(m.revision()), m.loadNote().c_str());
+    for (const char* q : {"", "kes", "e", "duo", "reach"}) {
+        for (int kind = -1; kind <= 2; ++kind) {
+            std::string keys;
+            for (const Mark& k : m.search(q, kind)) keys += k.key + ",";
+            o.line("search %s %d %s", q, kind, keys.c_str());
+        }
+    }
+    for (const std::string& n : names) {
+        const Mark* f = m.findByName(n);
+        o.line("byname %s %s", n.c_str(), f ? f->key.c_str() : "-");
+    }
+    const std::string file = tm.file(readText(path));
+    o.line("file %zu %016llx", file.size(), static_cast<unsigned long long>(fnv(file)));
+    return o.s;
+}
+
+int marksScripts(const std::filesystem::path& dir, int count, std::uint64_t seed, const std::string& fullScript, const std::string& fullPath) {
+    std::string plan, expected = "# VigilParity marks format 1\n";
+    {
+        json::Value h = json::Value::object();
+        h["kind"] = json::Value("vigil-parity-marks");
+        h["format"] = json::Value(1);
+        h["count"] = json::Value(count);
+        h["seed"] = json::Value(static_cast<double>(seed));
+        plan += json::write(h, -1) + "\n";
+    }
+    const std::vector<std::string> keys = {"00000000-0000-4000-8000-000000000001", "069a79f4-44e9-4726-a5be-fca90e38aaf5", "0b4f2ba3-6c5d-1e8f-9a0b-1c2d3e4f5a6b",
+                                           "name:Kestrel", "user:kestrel", "user:notch", "", "k1", "00000000-0000-4000-8000-000000000002", "user:vale"};
+    const std::vector<std::string> names = {"Kestrel", "kestrel", "KESTREL", "Vale", "Notch", "Quill_9", "not a name!", "", "seventeen_chars_x", "Kessler"};
+    long long actions = 0;
+    for (int s = 0; s < count; ++s) {
+        std::mt19937_64 r(seed * 0xD6E8FEB86659FD93ull + static_cast<std::uint64_t>(s) * 0x9E3779B97F4A7C15ull + 3);
+        char nameBuf[32];
+        std::snprintf(nameBuf, sizeof nameBuf, "marks-%04d", s);
+        const std::string name = nameBuf;
+        const std::string initial = marksInitial(r, keys, names);
+        const std::vector<MarksAction> script = marksScript(r, keys, names);
+        json::Value run = json::Value::object();
+        run["name"] = json::Value(name);
+        if (!initial.empty()) {
+            writeText(dir / "marks" / (name + ".initial.json"), initial);
+            run["initial"] = json::Value("marks/" + name + ".initial.json");
+        }
+        json::Value acts = json::Value::array();
+        for (const MarksAction& a : script) {
+            json::Value j = json::Value::object();
+            j["op"] = json::Value(a.op);
+            j["key"] = json::Value(a.key);
+            j["name"] = json::Value(a.name);
+            j["on"] = json::Value(a.on);
+            j["kind"] = json::Value(a.kind);
+            j["confidence"] = json::Value(a.confidence);
+            json::Value rs = json::Value::array();
+            for (const auto& x : a.reasons) rs.push(json::Value(x));
+            j["reasons"] = rs;
+            j["note"] = json::Value(a.note);
+            j["uuid"] = json::Value(a.uuid);
+            j["knownKey"] = json::Value(a.knownKey);
+            acts.push(j);
+        }
+        run["actions"] = acts;
+        plan += json::write(run, -1) + "\n";
+
+        const std::filesystem::path path = dir / "marks-work" / (name + ".json");
+        std::error_code ec;
+        std::filesystem::create_directories(path.parent_path(), ec);
+        std::filesystem::remove(path, ec);
+        if (!initial.empty()) writeText(path, initial);
+        TimeMap tm;
+        double last = epochNowMs();
+        tm.start = last;
+        Marks m;
+        m.setPath(path.string());
+        std::string dump = "== initial\n" + marksState(m, tm, path.string(), names);
+        for (std::size_t i = 0; i < script.size(); ++i) {
+            const MarksAction& a = script[i];
+            while (epochNowMs() <= last) {}   // a new millisecond: this action's time is its own
+            const double t0 = epochNowMs();
+            std::string ret = "-";
+            if (a.op == "watch") m.setWatch(a.key, a.name, a.on);
+            else if (a.op == "confirm") m.confirm(a.key, a.name, a.reasons, static_cast<float>(a.confidence));
+            else if (a.op == "unconfirm") m.unconfirm(a.key);
+            else if (a.op == "exempt") m.setExempt(a.key, a.name, a.on);
+            else if (a.op == "note") m.setNote(a.key, a.note);
+            else if (a.op == "reasons") m.setReasons(a.key, a.reasons);
+            else if (a.op == "remove") m.remove(a.key);
+            else if (a.op == "remember") m.rememberName(a.key, a.name);
+            else if (a.op == "add") ret = m.addByName(a.name, static_cast<MarkKind>(a.kind), a.knownKey);
+            else if (a.op == "bind") ret = m.bindName(a.key, a.name, a.uuid) ? "bound" : "no";
+            else if (a.op == "reload") m.setPath(path.string());
+            last = epochNowMs();
+            tm.windows.push_back({t0, last});
+            dump += "== " + std::to_string(i) + " " + a.op + " -> " + ret + "\n" + marksState(m, tm, path.string(), names);
+        }
+        actions += static_cast<long long>(script.size());
+        Out o;
+        o.line("marks %s digest=%016llx actions=%zu marks=%zu ro=%d", name.c_str(), static_cast<unsigned long long>(fnv(dump)), script.size(),
+               m.all().size(), m.readOnly() ? 1 : 0);
+        expected += o.s;
+        if (name == fullScript) writeText(fullPath, dump);
+    }
+    if (!writeText(dir / "plan.jsonl", plan) || !writeText(dir / "expected.txt", expected)) return 1;
+    std::printf("%d marks scripts (%lld actions, seed %llu) -> %s\n", count, actions, static_cast<unsigned long long>(seed), dir.string().c_str());
+    return 0;
+}
+
 int usage() {
     std::printf("usage: VigilParity <out.txt> [--quick] [--export <dir>] [--full <variant> <scenario> <dump.txt>]\n"
                 "       VigilParity --generate <dir> [--count N] [--seed S] [--full generated <scenario> <dump.txt>]\n"
+                "       VigilParity --marks <dir> [--count N] [--seed S] [--full marks <script> <dump.txt>]\n"
                 "       VigilParity --bench <reps>\n");
     return 2;
 }
@@ -468,21 +903,56 @@ int generate(const std::filesystem::path& dir, int count, std::uint64_t seed, co
             }
             sc.frames = std::move(parsed);
         }
+        // P3B sinks: a history file and journal / history toggles from a generator of their own.
+        std::mt19937_64 srng(seed * 0xA24BAED4963EE407ull + static_cast<std::uint64_t>(i) * 0x9FB21C651E98DF25ull + 7);
+        std::vector<std::string> keys;
+        for (const WorldFrame& f : sc.frames) {
+            for (const PlayerFrame& p : f.players) {
+                const std::string k = p.uuid.empty() ? "name:" + p.name : p.uuid;
+                if (std::find(keys.begin(), keys.end(), k) == keys.end()) keys.push_back(k);
+            }
+        }
+        const std::string historyIn = historyInput(srng, keys);
+        sc.configs = withSinkToggles(srng, std::move(sc.configs), probe.schemaPtr(), sc.frames.size());
+
         json::Value run = json::Value::object();
         run["variant"] = json::Value("generated");
         run["scenario"] = json::Value(sc.name);
         run["trace"] = json::Value(trace);
         run["full"] = json::Value(false);
+        const double wallStart = epochNowMs();
         Engine e;
         e.initialize();
+        const std::filesystem::path work = dir / "work";
+        const std::filesystem::path marksWork = work / (sc.name + ".marks.json");
         if (!sc.marks.empty()) {
             const std::string marks = "gen/" + sc.name + ".marks.json";
             // The engine may rewrite its marks file (binding); it gets a copy, the plan the original.
             writeText(dir / marks, sc.marks);
-            writeText(dir / "work" / (sc.name + ".marks.json"), sc.marks);
+            writeText(marksWork, sc.marks);
             run["marks"] = json::Value(marks);
-            e.setMarksPath((dir / "work" / (sc.name + ".marks.json")).string());
+            e.setMarksPath(marksWork.string());
         }
+        const std::filesystem::path historyWork = work / (sc.name + ".history.json");
+        const std::filesystem::path journalDir = work / (sc.name + "-journal");
+        const std::filesystem::path logDir = work / (sc.name + "-log");
+        {
+            std::error_code ec;
+            if (sc.marks.empty()) std::filesystem::remove(marksWork, ec);   // no stale copy from an earlier run
+            std::filesystem::remove(historyWork, ec);
+            std::filesystem::remove_all(journalDir, ec);
+            std::filesystem::remove_all(logDir, ec);
+        }
+        if (!historyIn.empty()) {
+            const std::string history = "gen/" + sc.name + ".history.json";
+            writeText(dir / history, historyIn);
+            writeText(historyWork, historyIn);
+            run["history"] = json::Value(history);
+        }
+        e.setHistoryPath(historyWork.string());
+        e.setJournalDirectory(journalDir.string());
+        log::init(logDir.string());
+        std::vector<std::string> flushes;
         json::Value configs = json::Value::array();
         for (const auto& c : sc.configs) {
             json::Value cj = json::Value::object();
@@ -495,10 +965,19 @@ int generate(const std::filesystem::path& dir, int count, std::uint64_t seed, co
         std::size_t next = 0;
         while (next < sc.configs.size() && sc.configs[next].first < 0) e.setConfig(sc.configs[next++].second);
         if (!sc.frames.empty()) e.resetSession(sc.frames.front().timeMs);
+        flushes.push_back(readText(historyWork));   // resetSession flushed (when data.history is on)
+        double lastFlush = 0.0;                      // Engine::lastHistoryFlushMs_, mirrored
         for (std::size_t f = 0; f < sc.frames.size(); ++f) {
             while (next < sc.configs.size() && sc.configs[next].first == static_cast<long long>(f)) e.setConfig(sc.configs[next++].second);
             e.onFrame(sc.frames[f]);
+            if (e.recording() && sc.frames[f].timeMs - lastFlush > 60000.0) {
+                lastFlush = sc.frames[f].timeMs;
+                flushes.push_back(readText(historyWork));
+            }
         }
+        e.flushHistory();   // what the host does when it stops
+        flushes.push_back(readText(historyWork));
+        const double wallEnd = epochNowMs();
         Out d;
         dumpEngine(e, d);
         Out o;
@@ -506,7 +985,25 @@ int generate(const std::filesystem::path& dir, int count, std::uint64_t seed, co
                static_cast<unsigned long long>(fnv(d.s)), e.session().totalEvidence(), e.session().totalDetections(),
                static_cast<unsigned long long>(e.alertSeq()));
         expected += o.s + summaryLine(e, sc.name);
-        if (sc.name == fullScenario) writeText(fullPath, d.s);
+        SinkCapture cap;
+        for (const std::string& h : flushes) {
+            cap.history += "== flush\n" + maskTimes(h, {"lastSeen"}, wallStart, wallEnd) + "\n";
+            ++cap.flushes;
+        }
+        std::string sinks;
+        const std::string sinksFull = sinksText(e, journalDir, logDir, marksWork, cap, wallStart, wallEnd, sinks, sc.name);
+        expected += sinks;
+        log::init("");
+        {
+            std::error_code ec;
+            std::filesystem::remove_all(journalDir, ec);
+            std::filesystem::remove_all(logDir, ec);
+            std::filesystem::remove(historyWork, ec);
+        }
+        if (sc.name == fullScenario) {
+            writeText(fullPath, d.s);
+            writeText(fullPath + ".sinks.txt", sinksFull);
+        }
         if ((i + 1) % 250 == 0) std::printf("  %d/%d scenarios\n", i + 1, count);
     }
     if (!writeText(dir / "plan.jsonl", plan) || !writeText(dir / "expected.txt", expected)) return 1;
@@ -543,7 +1040,7 @@ int bench(int reps) {
 
 int main(int argc, char** argv) {
     if (argc >= 3 && std::strcmp(argv[1], "--bench") == 0) return bench(std::max(1, std::atoi(argv[2])));
-    std::string outPath, exportDir, generateDir, fullVariant, fullScenario, fullPath;
+    std::string outPath, exportDir, generateDir, marksDir, fullVariant, fullScenario, fullPath;
     bool quick = false;
     int count = 1000;
     std::uint64_t seed = 20261127;
@@ -552,12 +1049,14 @@ int main(int argc, char** argv) {
         if (a == "--quick") quick = true;
         else if (a == "--export" && i + 1 < argc) exportDir = argv[++i];
         else if (a == "--generate" && i + 1 < argc) generateDir = argv[++i];
+        else if (a == "--marks" && i + 1 < argc) marksDir = argv[++i];
         else if (a == "--count" && i + 1 < argc) count = std::atoi(argv[++i]);
         else if (a == "--seed" && i + 1 < argc) seed = std::strtoull(argv[++i], nullptr, 10);
         else if (a == "--full" && i + 3 < argc) { fullVariant = argv[++i]; fullScenario = argv[++i]; fullPath = argv[++i]; }
         else if (outPath.empty() && a.rfind("--", 0) != 0) outPath = a;
         else return usage();
     }
+    if (!marksDir.empty()) return marksScripts(marksDir, count, seed, fullScenario, fullPath);
     if (!generateDir.empty()) return generate(generateDir, count, seed, fullScenario, fullPath);
     if (outPath.empty()) return usage();
     const bool exporting = !exportDir.empty();

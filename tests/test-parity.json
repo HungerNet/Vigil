@@ -1,0 +1,54 @@
+{
+  "kind": "vigil-test-parity",
+  "format": 1,
+  "about": "Every C++ engine test has a Rust counterpart of the same name (P3B_PLAN.md section 2.1, tools/ci/test_parity.py). Tests not listed here are mirrored in full: the Rust test counts the same expectations and feeds the engine the same frames. Listed tests say what differs and why.",
+  "suites": {
+    "detection": {"cpp": "detection_tests", "rust": "detection"},
+    "validation": {"cpp": "validation_tests", "rust": "validation"},
+    "records": {"cpp": "records_tests", "rust": "records"}
+  },
+  "tests": [
+    {
+      "suite": "detection",
+      "name": "json & settings",
+      "class": "partial",
+      "host": 5,
+      "why": "The JSON half is mirrored on vigil-formats. The other five expectations test the C++ settings registry (Setting::set step snapping and clamping, Settings::save/load), which is host code (core/settings) and stays in C++."
+    },
+    {
+      "suite": "detection",
+      "name": "presets keep defaults",
+      "class": "stand-in",
+      "host": 0,
+      "why": "Applies the Balanced preset through a stand-in of the C++ registry (registerEngineSettings, Setting::set snapping, isDefault) so the claim - Balanced equals the declared defaults after the registry's snapping - is checked against the Rust declaration."
+    },
+    {
+      "suite": "validation",
+      "name": "config schema",
+      "class": "stand-in",
+      "host": 0,
+      "why": "The expectation 'engine defaults equal the registry's defaults' goes through a stand-in of registerEngineSettings + configFromSettings; the declaration and default-configuration fixtures are compared byte for byte as in C++."
+    },
+    {
+      "suite": "validation",
+      "name": "config sync between frames",
+      "class": "stand-in",
+      "host": 0,
+      "why": "The C++ registry and SettingsSync are replaced by a stand-in with the same rules (Setting::set, revision, sync only on change); every expectation about the engine's side (setConfig, monitoringEnabled, presets, refused and adopted snapshots) is checked against the Rust engine."
+    },
+    {
+      "suite": "validation",
+      "name": "config engines share nothing",
+      "class": "partial",
+      "host": 1,
+      "why": "Mirrored except 'running engines never touches the settings registry': the C++ expectation guards the global registry; the Rust crate has no registry an engine could touch."
+    },
+    {
+      "suite": "records",
+      "name": "settings keep unknown keys",
+      "class": "host",
+      "host": 5,
+      "why": "Tests only the C++ settings registry's file handling (core/settings). No Rust counterpart until the core layer is ported (RUST_PLAN.md section 4)."
+    }
+  ]
+}

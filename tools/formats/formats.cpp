@@ -343,6 +343,124 @@ std::string printfTable() {
     return out;
 }
 
+// P3B: std::sort as MSVC implements it, which orders Marks::all() and the saved-profile list. It is
+// not stable above 32 elements, so the order of equal keys depends on the algorithm itself. Each
+// case sorts (key, index) pairs by key only and records the resulting index order: random keys
+// with many ties, sorted / reversed / organ-pipe / sawtooth / constant inputs at every size around
+// the insertion-sort cut-off and the median-of-9 threshold, and McIlroy "killer" inputs (an
+// adversary that makes quicksort quadratic) so that the heap-sort fallback is reached — also with
+// ties introduced into the adversarial order.
+std::string sortOrderTable() {
+    std::mt19937_64 rng(1128);
+    std::string out = "# case<TAB>kind<TAB>keys<TAB>index order after std::sort by key (VigilFormats generate)\n";
+    int id = 0;
+    auto emit = [&](const char* kind, const std::vector<int>& keys) {
+        std::vector<std::pair<int, int>> v;
+        for (std::size_t i = 0; i < keys.size(); ++i) v.push_back({keys[i], static_cast<int>(i)});
+        std::sort(v.begin(), v.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) { return a.first < b.first; });
+        std::string k, p;
+        for (std::size_t i = 0; i < keys.size(); ++i) {
+            k += (i ? "," : "") + std::to_string(keys[i]);
+            p += (i ? "," : "") + std::to_string(v[i].second);
+        }
+        out += std::to_string(id++) + "\t" + kind + "\t" + k + "\t" + p + "\n";
+    };
+    // McIlroy's adversary: values are decided lazily ("gas" until compared), always so as to make the
+    // partition as bad as possible. The values it ends with are an input that drives std::sort down
+    // the same path again: past its depth limit into the heap sort.
+    auto killer = [](int n) {
+        const int gas = n;
+        std::vector<int> val(static_cast<std::size_t>(n), gas), ptr(static_cast<std::size_t>(n));
+        int solid = 0, candidate = 0;
+        for (int i = 0; i < n; ++i) ptr[static_cast<std::size_t>(i)] = i;
+        std::sort(ptr.begin(), ptr.end(), [&](int x, int y) {
+            auto& vx = val[static_cast<std::size_t>(x)];
+            auto& vy = val[static_cast<std::size_t>(y)];
+            if (vx == gas && vy == gas) {
+                if (x == candidate) vx = solid++;
+                else vy = solid++;
+            }
+            if (vx == gas) candidate = x;
+            else if (vy == gas) candidate = y;
+            return vx < vy;
+        });
+        for (auto& v : val) if (v == gas) v = solid++;
+        return val;
+    };
+    const int sizes[] = {0, 1, 2, 3, 5, 8, 16, 31, 32, 33, 34, 40, 41, 42, 64, 65, 100, 128, 257, 500, 1000, 1500};
+    for (int n : sizes) {
+        std::vector<int> k(static_cast<std::size_t>(n));
+        for (int range : {2, 3, 10, n > 0 ? n : 1}) {
+            for (int& x : k) x = static_cast<int>(rng() % static_cast<std::uint64_t>(range));
+            emit("random", k);
+        }
+        for (int i = 0; i < n; ++i) k[static_cast<std::size_t>(i)] = i / 3;
+        emit("sorted", k);
+        for (int i = 0; i < n; ++i) k[static_cast<std::size_t>(i)] = (n - i) / 3;
+        emit("reversed", k);
+        for (int i = 0; i < n; ++i) k[static_cast<std::size_t>(i)] = std::min(i, n - 1 - i) / 2;
+        emit("organ-pipe", k);
+        for (int i = 0; i < n; ++i) k[static_cast<std::size_t>(i)] = i % 7;
+        emit("sawtooth", k);
+        for (int& x : k) x = 5;
+        emit("constant", k);
+    }
+    for (int n : {100, 300, 1000, 2000}) {
+        const std::vector<int> kv = killer(n);
+        emit("killer", kv);
+        for (int shift : {1, 2, 4}) {
+            std::vector<int> t = kv;
+            for (int& x : t) x >>= shift;
+            emit("killer-ties", t);
+        }
+        std::vector<int> t = kv;
+        for (int i = 0; i < n / 10; ++i) t[static_cast<std::size_t>(rng() % static_cast<std::uint64_t>(n))] = t[static_cast<std::size_t>(rng() % static_cast<std::uint64_t>(n))];
+        emit("killer-dups", t);
+    }
+    return out;
+}
+
+// P3B: the random number generators of the C++ test suites (tests/*.cpp, tests/scenarios.h), as
+// MSVC implements them: std::mt19937 output, uniform_real_distribution<double> (through
+// generate_canonical) and discrete_distribution<int>, for the seeds and ranges the tests use. The
+// Rust simulator (rust/crates/vigil-detection/tests/common) reproduces every value.
+std::string randomTable() {
+    std::string out = "# generator<TAB>seed<TAB>parameters<TAB>values (doubles as bits; VigilFormats generate)\n";
+    for (std::uint32_t seed : {5489u, 7u, 3u, 11u, 20261126u}) {
+        std::mt19937 g(seed);
+        std::string v;
+        for (int i = 0; i < 64; ++i) v += (i ? "," : "") + std::to_string(g());
+        out += "mt19937\t" + std::to_string(seed) + "\t-\t" + v + "\n";
+    }
+    {
+        std::mt19937 g(5489u);
+        g.discard(9999);
+        out += "mt19937-10000\t5489\t-\t" + std::to_string(g()) + "\n";
+    }
+    const std::pair<std::uint32_t, std::pair<double, double>> reals[] = {
+        {7u, {-6.0, 6.0}}, {11u, {-4.0, 4.0}}, {20261126u, {-6.0, 6.0}}, {1u, {0.0, 1.0}}, {2u, {-1e9, 1e9}}};
+    for (const auto& r : reals) {
+        std::mt19937 g(r.first);
+        std::uniform_real_distribution<double> d(r.second.first, r.second.second);
+        std::string v;
+        for (int i = 0; i < 400; ++i) v += (i ? "," : "") + bitsHex(d(g));
+        char params[64];
+        std::snprintf(params, sizeof params, "%.17g %.17g", r.second.first, r.second.second);
+        out += "uniform_real\t" + std::to_string(r.first) + "\t" + params + "\t" + v + "\n";
+    }
+    const std::pair<std::uint32_t, std::vector<double>> discretes[] = {
+        {3u, {0, 0, 0, 2, 5, 4, 2, 1}}, {9u, {1, 1, 1}}, {10u, {0.1, 0.2, 0.7}}, {12u, {5}}};
+    for (const auto& d : discretes) {
+        std::mt19937 g(d.first);
+        std::discrete_distribution<int> dist(d.second.begin(), d.second.end());
+        std::string w, v;
+        for (std::size_t i = 0; i < d.second.size(); ++i) w += (i ? "," : "") + bitsHex(d.second[i]);
+        for (int i = 0; i < 400; ++i) v += (i ? "," : "") + std::to_string(dist(g));
+        out += "discrete\t" + std::to_string(d.first) + "\t" + w + "\t" + v + "\n";
+    }
+    return out;
+}
+
 // P3A: what every check declares beyond its parameters — identity, the texts the UI shows, the
 // signals it needs, whether it supports tick sampling, and its Sensitivity presets (parameter key,
 // Relaxed, Balanced, Strict).
@@ -510,6 +628,8 @@ std::map<std::string, std::string> generated() {
     g["hash-order.txt"] = hashOrderTable();
     g["printf.txt"] = printfTable();
     g["checks.json"] = checksJson();
+    g["sort-order.txt"] = sortOrderTable();
+    g["random.txt"] = randomTable();
     g["check-catalog.json"] = catalogJson();
     g["inputs/json/strings.json"] = stringsJson();
     g["inputs/trace/edge.vtrace"] = edgeTrace();

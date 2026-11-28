@@ -1,9 +1,12 @@
-//! Vigil's detection engine in Rust (RUST_PLAN.md P3A, P3A_PLAN.md).
+//! Vigil's detection engine in Rust (RUST_PLAN.md P3, P3A_PLAN.md, P3B_PLAN.md).
 //!
 //! A behavior-preserving, expression-for-expression port of `src/detection`. Its contract is the
 //! C++ engine's (docs/ARCHITECTURE.md §6): a sequence of `WorldFrame`s and one `EngineConfig` in,
 //! session records, alerts and statistics out; deterministic. The port is proven by comparing the
-//! **entire** engine state with the C++ engine's, byte for byte, in the `VigilParity` format.
+//! **entire** engine state with the C++ engine's, byte for byte, in the `VigilParity` format (P3A),
+//! by every C++ engine test mirrored by name, and by the persistence sinks writing the C++ bytes
+//! (P3B): marks, saved profiles, the cross-session history, the session journal and the
+//! "detections" log channel.
 
 #![forbid(unsafe_code)]
 // Comparisons are written exactly as in C++: `x < a || x > b` and `(a..=b).contains(&x)` differ
@@ -14,6 +17,7 @@
 
 pub mod check;
 pub mod checks;
+pub mod clock;
 pub mod combat;
 pub mod config;
 pub mod cpp;
@@ -22,10 +26,13 @@ pub mod evidence;
 pub mod hashorder;
 pub mod marks;
 pub mod matchtracker;
+pub mod msvcsort;
 pub mod parity;
 pub mod printf;
 pub mod replay;
 pub mod roster;
 pub mod session;
+pub mod sinks;
+pub mod snapshot;
 pub mod track;
 pub mod types;

@@ -10,7 +10,9 @@
 //!
 //! * corpus plans: the whole `VigilParity` output (registry declaration, corpus shapes, one
 //!   digest per run, full default dumps);
-//! * generated plans: one digest line and one summary line per scenario (`expected.txt`).
+//! * generated plans: one digest line, one summary line and (P3B) one `sinks` line per scenario
+//!   (`expected.txt`): the journal, the history file after every flush, the "detections" log, the
+//!   marks file, captured profiles and the records' history fields, written by the Rust sinks.
 //!
 //! Exit 0 written · 2 usage or unreadable input.
 
@@ -18,14 +20,23 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use vigil_detection::clock::{Clock, LocalTime};
 use vigil_detection::engine::Engine;
 use vigil_detection::marks::Marks;
-use vigil_detection::parity::{Out, corpus_line, dump_engine, dump_registry, fnv, summary_line};
+use vigil_detection::parity::{
+    Out, corpus_line, dump_engine, dump_registry, fnv, mask_times, sinks_text, summary_line,
+};
 use vigil_detection::printf::Arg;
+use vigil_detection::sinks::LogFile;
 use vigil_formats::config::EngineConfig;
 use vigil_formats::json::{self, Text, Value};
 use vigil_formats::marks::MarksFile;
 use vigil_formats::trace::{self, WorldFrame};
+
+/// The wall clock of generated runs: 2100-01-01, one millisecond per read. Values from it are
+/// masked like the C++ tool masks its real wall-clock window.
+const CLOCK_BASE: f64 = 4_102_444_800_000.0;
+const CLOCK_SPAN: f64 = 1e9;
 
 fn read(p: &Path) -> Result<Vec<u8>, String> {
     std::fs::read(p).map_err(|e| format!("cannot read {}: {e}", p.display()))
@@ -40,8 +51,36 @@ struct Run {
     scenario: Text,
     trace: Text,
     marks: Text,
+    history: Text,
     full: bool,
     configs: Vec<(i64, EngineConfig)>,
+}
+
+/// Where a generated run's sinks write (`<plan>/rust-work`, apart from the C++ tool's `work`).
+struct Sinks {
+    marks: PathBuf,
+    history: PathBuf,
+    journal: PathBuf,
+    log: PathBuf,
+}
+
+impl Sinks {
+    fn for_run(dir: &Path, name: &[u8]) -> Sinks {
+        let work = dir.join("rust-work");
+        let n = String::from_utf8_lossy(name).into_owned();
+        Sinks {
+            marks: work.join(format!("{n}.marks.json")),
+            history: work.join(format!("{n}.history.json")),
+            journal: work.join(format!("{n}-journal")),
+            log: work.join(format!("{n}-log")),
+        }
+    }
+    fn clear(&self) {
+        let _ = std::fs::remove_file(&self.marks);
+        let _ = std::fs::remove_file(&self.history);
+        let _ = std::fs::remove_dir_all(&self.journal);
+        let _ = std::fs::remove_dir_all(&self.log);
+    }
 }
 
 fn parse_run(v: &Value, schema: &vigil_formats::config::Schema) -> Result<Run, String> {
@@ -59,15 +98,44 @@ fn parse_run(v: &Value, schema: &vigil_formats::config::Schema) -> Result<Run, S
         scenario: v.get("scenario").as_text(),
         trace: v.get("trace").as_text(),
         marks: v.get("marks").as_text(),
+        history: v.get("history").as_text(),
         full: v.get("full").as_bool(),
         configs,
     })
 }
 
-fn replay(dir: &Path, run: &Run, frames: &[WorldFrame]) -> Result<Engine, String> {
+/// Replays one run. With `sinks` (generated plans) the engine also writes its marks file, history,
+/// journal and log as the C++ tool's engine does; returns the history file after every flush.
+fn replay(
+    dir: &Path,
+    run: &Run,
+    frames: &[WorldFrame],
+    sinks: Option<&Sinks>,
+) -> Result<(Engine, Vec<Vec<u8>>), String> {
     let mut e = Engine::new();
-    if !run.marks.is_empty() {
-        e.set_marks(Marks::load(&MarksFile::parse(&read(&path_of(dir, &run.marks))?)));
+    let mut flushes = Vec::new();
+    match sinks {
+        None => {
+            if !run.marks.is_empty() {
+                e.set_marks(Marks::load(&MarksFile::parse(&read(&path_of(dir, &run.marks))?)));
+            }
+        }
+        Some(s) => {
+            s.clear();
+            let _ = std::fs::create_dir_all(s.marks.parent().expect("work dir"));
+            e.set_clock(Clock::counter(CLOCK_BASE, 1.0));
+            if !run.marks.is_empty() {
+                // The engine may rewrite its marks file (binding): it works on a copy.
+                std::fs::write(&s.marks, read(&path_of(dir, &run.marks))?).map_err(|e| e.to_string())?;
+                e.set_marks_path(&s.marks);
+            }
+            if !run.history.is_empty() {
+                std::fs::write(&s.history, read(&path_of(dir, &run.history))?).map_err(|e| e.to_string())?;
+            }
+            e.set_history_path(&s.history);
+            e.set_journal_directory(&s.journal);
+            e.set_log(Some(Box::new(LogFile::new(&s.log, Clock::system(), LocalTime::utc()))));
+        }
     }
     let mut next = 0;
     while next < run.configs.len() && run.configs[next].0 < 0 {
@@ -79,20 +147,248 @@ fn replay(dir: &Path, run: &Run, frames: &[WorldFrame]) -> Result<Engine, String
     if let Some(first) = frames.first() {
         e.reset_session(first.time_ms);
     }
+    let snapshot = |s: Option<&Sinks>| s.map(|s| std::fs::read(&s.history).unwrap_or_default());
+    flushes.extend(snapshot(sinks));
+    let mut last_flush = 0.0; // Engine::lastHistoryFlushMs_, mirrored
     for (i, f) in frames.iter().enumerate() {
         while next < run.configs.len() && run.configs[next].0 == i as i64 {
             e.set_config(&run.configs[next].1);
             next += 1;
         }
         e.on_frame(f);
+        if sinks.is_some() && e.recording() && f.time_ms - last_flush > 60000.0 {
+            last_flush = f.time_ms;
+            flushes.extend(snapshot(sinks));
+        }
     }
-    Ok(e)
+    if sinks.is_some() {
+        e.flush_history(); // what the host does when it stops
+        flushes.extend(snapshot(sinks));
+    }
+    Ok((e, flushes))
+}
+
+// ── Marks scripts (parity.cpp `marksScripts`, P3B_PLAN.md §3.6) ──────────────────────────────
+
+/// Mark times as `@<action>` (each action of a script runs at its own injected time) or literally.
+struct TimeMap {
+    windows: usize,
+}
+
+impl TimeMap {
+    fn of(&self, t: f64) -> Vec<u8> {
+        if t >= CLOCK_BASE {
+            let k = t - CLOCK_BASE;
+            if k.fract() == 0.0 && (k as usize) < self.windows {
+                return format!("@{}", k as usize).into_bytes();
+            }
+            return b"@?".to_vec();
+        }
+        vigil_detection::printf::format("%.17g", &[Arg::F(t)])
+    }
+    fn file(&self, text: &[u8]) -> Vec<u8> {
+        const KEYS: [&[u8]; 4] = [b"\"added\":", b"\"confirmedAt\":", b"\"exemptAt\":", b"\"updated\":"];
+        let mut out = Vec::with_capacity(text.len());
+        let mut i = 0;
+        'scan: while i < text.len() {
+            for k in KEYS {
+                if !text[i..].starts_with(k) {
+                    continue;
+                }
+                let mut j = i + k.len();
+                while j < text.len() && text[j] == b' ' {
+                    j += 1;
+                }
+                let mut e = j;
+                while e < text.len()
+                    && (text[e].is_ascii_digit() || matches!(text[e], b'-' | b'+' | b'.' | b'e' | b'E'))
+                {
+                    e += 1;
+                }
+                out.extend_from_slice(&text[i..j]);
+                let v = std::str::from_utf8(&text[j..e]).ok().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                out.extend(self.of(v));
+                i = e;
+                continue 'scan;
+            }
+            out.push(text[i]);
+            i += 1;
+        }
+        out
+    }
+}
+
+fn marks_state(m: &Marks, tm: &TimeMap, path: &Path, names: &[Text]) -> Vec<u8> {
+    let mut o = Out::default();
+    for k in m.all() {
+        let mut rs = Vec::new();
+        for x in &k.reasons {
+            rs.extend_from_slice(x);
+            rs.push(b';');
+        }
+        let (a, c, x, u) = (
+            tm.of(k.added_epoch_ms),
+            tm.of(k.confirmed_at_epoch_ms),
+            tm.of(k.exempt_at_epoch_ms),
+            tm.of(k.updated_epoch_ms),
+        );
+        o.line(
+            "m %s|%s|%s|%d%d%d|%s|%s|%s|%s|%.9g|%s|%s|%s",
+            &[
+                Arg::S(&k.key),
+                Arg::S(&k.name),
+                Arg::S(&k.uuid),
+                Arg::from(k.watch),
+                Arg::from(k.confirmed),
+                Arg::from(k.exempt),
+                Arg::S(&a),
+                Arg::S(&c),
+                Arg::S(&x),
+                Arg::S(&u),
+                Arg::from(k.confidence_at_confirm),
+                Arg::S(&k.origin),
+                Arg::S(&k.note),
+                Arg::S(&rs),
+            ],
+        );
+    }
+    o.line(
+        "counts c=%d w=%d e=%d ro=%d rev=%llu note=%s",
+        &[
+            Arg::from(m.confirmed_count()),
+            Arg::from(m.watched_count()),
+            Arg::from(m.exempt_count()),
+            Arg::from(m.read_only()),
+            Arg::U(m.revision()),
+            Arg::S(m.load_note()),
+        ],
+    );
+    for q in ["", "kes", "e", "duo", "reach"] {
+        for kind in -1..=2 {
+            let mut keys = Vec::new();
+            for k in m.search(q.as_bytes(), kind) {
+                keys.extend_from_slice(&k.key);
+                keys.push(b',');
+            }
+            o.line("search %s %d %s", &[Arg::S(q.as_bytes()), Arg::from(kind), Arg::S(&keys)]);
+        }
+    }
+    for n in names {
+        let key = m.find_by_name(n).map(|f| f.key.clone()).unwrap_or_else(|| b"-".to_vec());
+        o.line("byname %s %s", &[Arg::S(n), Arg::S(&key)]);
+    }
+    let file = tm.file(&std::fs::read(path).unwrap_or_default());
+    o.line("file %zu %016llx", &[Arg::U(file.len() as u64), Arg::U(fnv(&file))]);
+    o.s
+}
+
+fn run_marks<'a>(
+    dir: &Path,
+    lines: impl Iterator<Item = &'a [u8]>,
+    out_path: &Path,
+    full: Option<(&str, &str, &Path)>,
+) -> Result<(usize, usize), String> {
+    use vigil_detection::marks::MarkKind;
+    let names: Vec<Text> = [
+        "Kestrel",
+        "kestrel",
+        "KESTREL",
+        "Vale",
+        "Notch",
+        "Quill_9",
+        "not a name!",
+        "",
+        "seventeen_chars_x",
+        "Kessler",
+    ]
+    .iter()
+    .map(|s| s.as_bytes().to_vec())
+    .collect();
+    let mut o = Out::default();
+    o.line("# VigilParity marks format 1", &[]);
+    let (mut scripts, mut actions) = (0, 0);
+    for line in lines {
+        let run = json::parse(line).map_err(|e| e.0.to_string())?;
+        let name = run.get("name").as_text();
+        let path = dir.join("marks-rust-work").join(format!("{}.json", String::from_utf8_lossy(&name)));
+        let _ = std::fs::create_dir_all(path.parent().expect("dir"));
+        let _ = std::fs::remove_file(&path);
+        let initial = run.get("initial").as_text();
+        if !initial.is_empty() {
+            std::fs::write(&path, read(&path_of(dir, &initial))?).map_err(|e| e.to_string())?;
+        }
+        let mut tm = TimeMap { windows: 0 };
+        let mut m = Marks::default();
+        m.set_path(&path);
+        let mut dump = b"== initial\n".to_vec();
+        dump.extend(marks_state(&m, &tm, &path, &names));
+        let acts = run.get("actions").items();
+        for (i, a) in acts.iter().enumerate() {
+            m.set_clock(Clock::fixed(CLOCK_BASE + i as f64));
+            let (key, nm) = (a.get("key").as_bytes(), a.get("name").as_bytes());
+            let on = a.get("on").as_bool();
+            let reasons: Vec<Text> = a.get("reasons").items().iter().map(Value::as_text).collect();
+            let mut ret = b"-".to_vec();
+            let op = a.get("op").as_bytes();
+            match op {
+                b"watch" => m.set_watch(key, nm, on),
+                b"confirm" => m.confirm(key, nm, reasons, a.get("confidence").as_number() as f32),
+                b"unconfirm" => m.unconfirm(key),
+                b"exempt" => m.set_exempt(key, nm, on),
+                b"note" => m.set_note(key, a.get("note").as_bytes()),
+                b"reasons" => m.set_reasons(key, reasons),
+                b"remove" => m.remove(key),
+                b"remember" => m.remember_name(key, nm),
+                b"add" => {
+                    let kind = match a.get("kind").as_number() as i32 {
+                        0 => MarkKind::Watch,
+                        1 => MarkKind::Confirm,
+                        _ => MarkKind::Exempt,
+                    };
+                    ret = m.add_by_name(nm, kind, a.get("knownKey").as_bytes());
+                }
+                b"bind" => {
+                    ret =
+                        if m.bind_name(key, nm, a.get("uuid").as_bytes()) { b"bound".to_vec() } else { b"no".to_vec() };
+                }
+                b"reload" => m.set_path(&path),
+                other => return Err(format!("unknown marks action {}", String::from_utf8_lossy(other))),
+            }
+            tm.windows = i + 1;
+            dump.extend(format!("== {i} {} -> ", String::from_utf8_lossy(op)).into_bytes());
+            dump.extend(&ret);
+            dump.push(b'\n');
+            dump.extend(marks_state(&m, &tm, &path, &names));
+        }
+        actions += acts.len();
+        o.line(
+            "marks %s digest=%016llx actions=%zu marks=%zu ro=%d",
+            &[
+                Arg::S(&name),
+                Arg::U(fnv(&dump)),
+                Arg::U(acts.len() as u64),
+                Arg::U(m.all().len() as u64),
+                Arg::from(m.read_only()),
+            ],
+        );
+        if let Some((_, fs, fp)) = full {
+            if name == fs.as_bytes() {
+                std::fs::write(fp, &dump).map_err(|e| format!("cannot write {}: {e}", fp.display()))?;
+            }
+        }
+        scripts += 1;
+    }
+    std::fs::write(out_path, &o.s).map_err(|e| format!("cannot write {}: {e}", out_path.display()))?;
+    Ok((scripts, actions))
 }
 
 fn run_plan(dir: &Path, out_path: &Path, full: Option<(&str, &str, &Path)>) -> Result<(usize, usize), String> {
     let plan = read(&dir.join("plan.jsonl"))?;
     let mut lines = plan.split(|&b| b == b'\n').map(|l| l.strip_suffix(b"\r").unwrap_or(l)).filter(|l| !l.is_empty());
     let header = json::parse(lines.next().ok_or("empty plan")?).map_err(|e| e.0.to_string())?;
+    if header.get("kind").as_bytes() == b"vigil-parity-marks" {
+        return run_marks(dir, lines, out_path, full);
+    }
     if header.get("kind").as_bytes() != b"vigil-parity-plan" {
         return Err("not a parity plan".into());
     }
@@ -131,7 +427,8 @@ fn run_plan(dir: &Path, out_path: &Path, full: Option<(&str, &str, &Path)>) -> R
             }
         };
         frames_total += frames.len();
-        let e = replay(dir, &run, frames)?;
+        let sinks = if corpus { None } else { Some(Sinks::for_run(dir, &run.scenario)) };
+        let (e, flushes) = replay(dir, &run, frames, sinks.as_ref())?;
         let mut d = Out::default();
         dump_engine(&e, &mut d);
         o.line(
@@ -145,8 +442,22 @@ fn run_plan(dir: &Path, out_path: &Path, full: Option<(&str, &str, &Path)>) -> R
                 Arg::U(e.alert_seq()),
             ],
         );
+        let mut sinks_full = None;
         if !corpus {
             o.s.extend(summary_line(&e, &run.scenario));
+            let s = sinks.as_ref().expect("generated runs have sinks");
+            let (lo, hi) = (CLOCK_BASE, CLOCK_BASE + CLOCK_SPAN);
+            let mut history = Vec::new();
+            for h in &flushes {
+                history.extend_from_slice(b"== flush\n");
+                history.extend(mask_times(h, &["lastSeen"], lo, hi));
+                history.push(b'\n');
+            }
+            let (line, text) =
+                sinks_text(&e, &s.journal, &s.log, &s.marks, &history, flushes.len() as i32, lo, hi, &run.scenario);
+            o.s.extend(line);
+            sinks_full = Some(text);
+            s.clear();
         }
         if run.full {
             full_defaults.extend_from_slice(b"== ");
@@ -157,6 +468,11 @@ fn run_plan(dir: &Path, out_path: &Path, full: Option<(&str, &str, &Path)>) -> R
         if let Some((fv, fs, fp)) = full {
             if run.variant == fv.as_bytes() && run.scenario == fs.as_bytes() {
                 std::fs::write(fp, &d.s).map_err(|e| format!("cannot write {}: {e}", fp.display()))?;
+                if let Some(text) = &sinks_full {
+                    let mut p = fp.as_os_str().to_owned();
+                    p.push(".sinks.txt");
+                    std::fs::write(PathBuf::from(p), text).map_err(|e| format!("cannot write sinks dump: {e}"))?;
+                }
             }
         }
         runs += 1;

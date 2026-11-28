@@ -1,11 +1,17 @@
-//! `src/detection/session.{h,cpp}`: player records, timelines, behavior statistics.
+//! `src/detection/session.{h,cpp}`: player records, timelines, behavior statistics, the
+//! cross-session history and the session journal.
 //!
-//! P3A ports the in-memory session the engine decides with. Cross-session history files and the
-//! journal are host persistence sinks (write-only, never read by a decision) and come in P3B; the
-//! engine is driven without them, exactly as `VigilReplay` and `VigilParity` drive the C++ engine.
+//! The history (`history/players.json`) and the journal (`sessions/session-<epoch>.jsonl`) are
+//! persistence sinks: the history only fills a record's `prior*` fields (shown by the UI and saved
+//! in profiles), the journal is write-only. Neither influences a decision. Both write the C++
+//! bytes (P3B_PLAN.md §3.5).
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
+use std::path::{Path, PathBuf};
 
+use vigil_formats::json::{self, Value};
+
+use crate::cpp;
 use crate::evidence::{ConfidenceModel, Detection, Evidence, Text};
 use crate::hashorder::FastMap;
 use crate::types::Tick;
@@ -202,17 +208,31 @@ pub struct Alert {
     pub reasons: Vec<Text>,
 }
 
+/// One player's entry in the cross-session history (`Session::HistoryEntry`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HistoryEntry {
+    pub name: Text,
+    pub sessions: i32,
+    pub detections: i32,
+    pub peak: f32,
+    pub last_seen: f64,
+}
+
 #[derive(Clone, Debug)]
 pub struct Session {
     players: Vec<PlayerRecord>,
     index: FastMap<Text, usize>,
+    /// `std::map<std::string, HistoryEntry>`: key order.
+    history: BTreeMap<Text, HistoryEntry>,
     check_count: usize,
     start_ms: f64,
+    start_epoch_ms: u64,
     total_evidence: i32,
     total_detections: i32,
     next_evidence_id: u64,
     next_detection_id: u64,
     revision: u64,
+    journal_path: Option<PathBuf>,
 }
 
 impl Default for Session {
@@ -220,27 +240,134 @@ impl Default for Session {
         Session {
             players: Vec::new(),
             index: FastMap::default(),
+            history: BTreeMap::new(),
             check_count: 0,
             start_ms: 0.0,
+            start_epoch_ms: 0,
             total_evidence: 0,
             total_detections: 0,
             next_evidence_id: 1,
             next_detection_id: 1,
             revision: 1,
+            journal_path: None,
         }
     }
 }
 
 impl Session {
-    /// `reset` (the epoch stamp of the C++ session only names its journal file: P3B).
-    pub fn reset(&mut self, now_ms: f64, check_count: usize) {
+    /// `reset`. `epoch_ms` is the wall clock at the reset (`system_clock` in C++), which names the
+    /// session's journal file.
+    pub fn reset(&mut self, now_ms: f64, check_count: usize, epoch_ms: f64) {
         self.players.clear();
         self.index.clear();
         self.check_count = check_count;
         self.start_ms = now_ms;
+        // static_cast<std::uint64_t>(milliseconds.count()): an int64 count, taken modulo 2^64.
+        self.start_epoch_ms = epoch_ms as i64 as u64;
         self.total_evidence = 0;
         self.total_detections = 0;
         self.revision += 1;
+    }
+
+    pub fn start_epoch_ms(&self) -> u64 {
+        self.start_epoch_ms
+    }
+
+    // ── Cross-session history ────────────────────────────────────────────────────────────────
+
+    /// `loadHistory` on a file with these bytes (`None`: the file could not be opened). Anything
+    /// that does not parse leaves the history empty; entries convert as C++ (`static_cast`).
+    pub fn load_history(&mut self, bytes: Option<&[u8]>) {
+        self.history.clear();
+        let Some(bytes) = bytes else { return };
+        let Ok(root) = json::parse(bytes) else { return };
+        for (key, v) in root.get("players").members() {
+            let e = HistoryEntry {
+                name: v.get("name").as_text(),
+                sessions: cpp::to_int(v.get("sessions").as_number()),
+                detections: cpp::to_int(v.get("detections").as_number()),
+                peak: v.get("peak").as_number() as f32,
+                last_seen: v.get("lastSeen").as_number(),
+            };
+            self.history.insert(key.clone(), e);
+        }
+    }
+
+    pub fn history(&self) -> &BTreeMap<Text, HistoryEntry> {
+        &self.history
+    }
+
+    /// `applyHistory`: a new record learns what earlier sessions saw of the same key.
+    fn apply_history(&self, r: &mut PlayerRecord) {
+        let Some(e) = self.history.get(&r.key) else { return };
+        r.prior_sessions = e.sessions;
+        r.prior_detections = e.detections;
+        r.prior_peak = e.peak;
+        r.last_seen_epoch_ms = e.last_seen;
+    }
+
+    /// `saveHistory`'s document: the loaded history merged with this session's players that have
+    /// evidence (the local player excluded), `now_epoch_ms` as their last sighting.
+    pub fn history_json(&self, now_epoch_ms: f64) -> Vec<u8> {
+        let mut merged = self.history.clone();
+        for r in &self.players {
+            if r.local || r.evidence.is_empty() {
+                continue;
+            }
+            let base = self.history.get(&r.key).cloned().unwrap_or_default();
+            let e = merged.entry(r.key.clone()).or_default();
+            e.name = r.name.clone();
+            e.sessions = base.sessions.wrapping_add(1);
+            e.detections = base.detections.wrapping_add(r.detections.len() as i32);
+            e.peak = cpp::max(base.peak, r.peak_suspicion);
+            e.last_seen = now_epoch_ms;
+        }
+        let mut root = Value::object();
+        root.set("format", Value::from(1));
+        let mut players = Value::object();
+        for (key, e) in &merged {
+            let mut p = Value::object();
+            p.set("name", Value::from(&e.name));
+            p.set("sessions", Value::from(e.sessions));
+            p.set("detections", Value::from(e.detections));
+            p.set("peak", Value::Number(f64::from(e.peak)));
+            p.set("lastSeen", Value::Number(e.last_seen));
+            players.set(key, p);
+        }
+        root.set("players", players);
+        json::write(&root, 1)
+    }
+
+    /// `saveHistory`: writes [`Session::history_json`] (directories created; not atomic, as C++).
+    pub fn save_history(&self, path: &Path, now_epoch_ms: f64) {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(path, self.history_json(now_epoch_ms));
+    }
+
+    // ── Journal ──────────────────────────────────────────────────────────────────────────────
+
+    /// `setJournal` (`None`: no journal).
+    pub fn set_journal(&mut self, path: Option<PathBuf>) {
+        self.journal_path = path;
+    }
+    pub fn journal_path(&self) -> Option<&Path> {
+        self.journal_path.as_deref()
+    }
+
+    /// `journal`: appends one JSON line.
+    pub fn journal(&self, line: &[u8]) {
+        let Some(path) = &self.journal_path else { return };
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        use std::io::Write;
+        if let Ok(mut out) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            let mut l = line.to_vec();
+            l.push(b'\n');
+            let _ = out.write_all(&l);
+        }
     }
 
     /// The record for `key` (created on first sight). Returns its index.
@@ -251,7 +378,7 @@ impl Session {
             }
             return i;
         }
-        let r = PlayerRecord {
+        let mut r = PlayerRecord {
             key: key.to_vec(),
             uuid: uuid.to_vec(),
             name: if name.is_empty() { key.to_vec() } else { name.to_vec() },
@@ -260,7 +387,7 @@ impl Session {
             checks: vec![CheckRecord::default(); self.check_count],
             ..PlayerRecord::default()
         };
-        // applyHistory: no history file is loaded in P3A (P3B adds the history sink).
+        self.apply_history(&mut r);
         self.players.push(r);
         let i = self.players.len() - 1;
         self.index.insert(key.to_vec(), i);

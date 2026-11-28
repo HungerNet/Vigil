@@ -1,6 +1,24 @@
 # Technical debt report
 
-Last reviewed in the Rust P3A pass. Long-term direction: [RUST_PLAN.md](../RUST_PLAN.md).
+Last reviewed in the Rust P3B pass. Long-term direction: [RUST_PLAN.md](../RUST_PLAN.md).
+
+## Found in Rust P3B, left as they are (behavior-preserving pass)
+
+| Item | Effect | Suggested fix |
+|---|---|---|
+| **Importing a crafted profile can terminate the process.** `SnapshotStore::uniqueId` names a profile after its save time through `localtime_s`; for a time it cannot represent (`savedAt` ≥ 3.25 × 10¹⁶ ms, or `1e300`, which casts to `INT64_MIN`) the CRT's invalid-parameter handler fail-fasts (`0xC0000409`, probed in P3B). Inside the game that would close Lunar | A hostile file from another person (Records → Import, or the imports folder) crashes Vigil and the game. Never seen in practice; no Vigil writer produces such a time | Treat a save time outside `0 … 32 536 799 999 s` like a missing one (use the current time), as the Rust port does; one line in `stampOf`/`uniqueId`, with a records test |
+| `Engine::setConfig` (C++) accepts a snapshot of a *compatible* schema; the Rust `set_config` checks only the number of values (a Rust `EngineConfig` carries no schema) | None today: every Rust snapshot is built against the engine's own schema | P4: pass configuration documents across the C ABI, never raw value arrays |
+| 129 tracked files are stored with CRLF in the index since the P3A commit (most fixtures, several docs, some Rust sources) | None: every reader strips `\r`; `VigilFormats check` compares without `\r` | Commit `.gitattributes` with `* text=auto` and `tests/fixtures/** -text`, then `git add --renormalize .` in a commit of its own |
+| `Marks::save` does not check that the temporary file was fully written (`out << …` unchecked) | A full disk could replace marks.json with a truncated file | Check the stream before renaming (the profile store already does) |
+
+## Introduced deliberately in Rust P3B (accepted)
+
+| Item | Why | When to revisit |
+|---|---|---|
+| The Rust side reproduces MSVC `std::sort` (`msvcsort`) | `Marks::all()` and the profile list order equal keys the way MSVC's introsort does above 32 elements | After P5, a stable sort may replace it as a deliberate, reviewed change |
+| Wall clock and local time are injected (`clock`); the default local time is UTC | Rust `std` has no time zones and the workspace allows neither `unsafe` nor dependencies | P4: the host passes its local-time conversion (or the `windows` crate is admitted with a recorded reason) |
+| A registry stand-in in the Rust tests (`tests/common/registry.rs`) | Three engine-facing tests go through the C++ settings registry, which is host code | When `core/settings` is ported, replace the stand-in with the real registry |
+| `tests/sim.h` hashes every frame a test feeds (`test_framework.h --counts`) | The test parity matrix proves each Rust test feeds the same frames as its C++ original | Remove with the C++ suites |
 
 ## Introduced deliberately in Rust P3A (accepted)
 
@@ -9,7 +27,7 @@ Last reviewed in the Rust P3A pass. Long-term direction: [RUST_PLAN.md](../RUST_
 | Two engines (C++ drives the product; `vigil-detection` is proven identical) | The hybrid period (RUST_PLAN §6): P4 runs the Rust engine in shadow, P5 switches | Delete the C++ engine one release after the switch (P5) |
 | The Rust engine reproduces MSVC `std::unordered_map` iteration order (`hashorder`) | The order decides record order, evidence/detection ids, alert order and combat tie-breaks; reproducing it is what makes full-state parity possible | After P5, when no C++ engine remains, the order may be simplified (insertion order) as a deliberate, separately reviewed change |
 | Expression-for-expression shapes (C++-style `max`/`min`/`clamp`, explicit `f32`/`f64` promotions, allowed clippy lints for manual range checks) | Port behavior first (RUST_PLAN §11.3) | Refactor after P5 |
-| Engine sinks not ported yet: history file, session journal, "detections" log channel, the UI-facing marks actions, profile capture | Write-only or UI-side; none influences a decision (P3_PLAN §2) | P3B |
+| ~~Engine sinks not ported yet: history file, session journal, "detections" log channel, the UI-facing marks actions, profile capture~~ | Write-only or UI-side; none influences a decision (P3_PLAN §2) | **Resolved in P3B**: ported, and compared byte for byte with the C++ sinks on 1 000 generated scenarios and 300 marks scripts |
 
 ## Found in Rust P3A, left as they are (behavior-preserving pass)
 
@@ -40,7 +58,7 @@ Last reviewed in the Rust P3A pass. Long-term direction: [RUST_PLAN.md](../RUST_
 | Two implementations of every file format (C++ and `vigil-formats`) | The hybrid period (RUST_PLAN §6); both are held to one contract by shared fixtures and CI round trips | Delete the C++ readers one release after the Rust side owns each format |
 | A hand-written JSON layer in Rust instead of `serde` | Byte-identical output needs the C++ number rule and byte strings; zero dependencies | When no C++ writer remains, consider `serde` for new formats |
 | Rust refuses hexadecimal float literals that the C++ parser (`strtod`) accepts | No Vigil writer produces them; documented in `tests/fixtures/formats/divergences.txt` | Never, unless a format starts using them |
-| `.gitattributes` (with `tests/traces/** -text`) is untracked in this checkout | It protects the golden trace's exact bytes; every reader and test also tolerates `\r` | Commit it, and add `tests/fixtures/** -text` so CRLF test inputs keep their bytes |
+| `.gitattributes` (with `tests/traces/** -text`) is untracked in this checkout | It protects the golden trace's exact bytes; every reader and test also tolerates `\r` | Commit it, and add `tests/fixtures/** -text` so CRLF test inputs keep their bytes (still open in P3B; see the CRLF row above) |
 
 ## Resolved in 1.0-dev.9
 

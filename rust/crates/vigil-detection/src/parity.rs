@@ -442,3 +442,170 @@ pub fn dump_engine(e: &Engine, o: &mut Out) {
         }
     }
 }
+
+// ── Persistence sinks of generated runs (P3B_PLAN.md §3.6; parity.cpp `sinksText`) ─────────────
+
+/// `maskTimes`: the number after `"<key>": ` becomes `NOW` when `lo <= value <= hi` (a wall-clock
+/// value of this run).
+pub fn mask_times(text: &[u8], keys: &[&str], lo: f64, hi: f64) -> Vec<u8> {
+    let mut out = Vec::with_capacity(text.len());
+    let mut i = 0;
+    'scan: while i < text.len() {
+        for k in keys {
+            let pat = format!("\"{k}\": ");
+            let pat = pat.as_bytes();
+            if !text[i..].starts_with(pat) {
+                continue;
+            }
+            let j = i + pat.len();
+            let mut e = j;
+            while e < text.len() && (text[e].is_ascii_digit() || matches!(text[e], b'-' | b'+' | b'.' | b'e' | b'E')) {
+                e += 1;
+            }
+            // strtod: the longest valid prefix; the writer only produces valid numbers here.
+            let v = std::str::from_utf8(&text[j..e]).ok().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+            out.extend_from_slice(pat);
+            if e > j && v >= lo && v <= hi {
+                out.extend_from_slice(b"NOW");
+            } else {
+                out.extend_from_slice(&text[j..e]);
+            }
+            i = e;
+            continue 'scan;
+        }
+        out.push(text[i]);
+        i += 1;
+    }
+    out
+}
+
+/// `stripLogStamps`: `YYYY-MM-DD HH:MM:SS  message` → `message`; another shape is kept, marked `!`.
+pub fn strip_log_stamps(text: &[u8]) -> (Vec<u8>, i32) {
+    const SHAPE: &[u8; 21] = b"dddd-dd-dd dd:dd:dd  ";
+    let mut out = Vec::with_capacity(text.len());
+    let mut lines = 0;
+    let mut pos = 0;
+    while pos < text.len() {
+        let nl = text[pos..].iter().position(|&b| b == b'\n').map_or(text.len(), |n| pos + n);
+        let line = &text[pos..nl];
+        let stamped = line.len() >= 21
+            && SHAPE.iter().zip(line).all(|(&s, &c)| if s == b'd' { c.is_ascii_digit() } else { c == s });
+        if stamped {
+            out.extend_from_slice(&line[21..]);
+        } else {
+            out.push(b'!');
+            out.extend_from_slice(line);
+        }
+        out.push(b'\n');
+        lines += 1;
+        pos = nl + 1;
+    }
+    (out, lines)
+}
+
+fn read_or_empty(p: &std::path::Path) -> Vec<u8> {
+    std::fs::read(p).unwrap_or_default()
+}
+
+/// `sinksText`: the `sinks` line of a generated run and the full text behind it. `flushes` are the
+/// history file's contents after each flush, already masked.
+#[allow(clippy::too_many_arguments)]
+pub fn sinks_text(
+    e: &Engine,
+    journal_dir: &std::path::Path,
+    log_dir: &std::path::Path,
+    marks_path: &std::path::Path,
+    history: &[u8],
+    flushes: i32,
+    lo: f64,
+    hi: f64,
+    name: &[u8],
+) -> (Vec<u8>, Vec<u8>) {
+    let mut journal = Vec::new();
+    let mut journal_lines = 0i32;
+    let mut files: Vec<std::path::PathBuf> =
+        std::fs::read_dir(journal_dir).map(|d| d.flatten().map(|e| e.path()).collect()).unwrap_or_default();
+    files.sort();
+    for f in files {
+        let t = read_or_empty(&f);
+        journal.extend_from_slice(b"== journal file\n");
+        journal_lines += t.iter().filter(|&&b| b == b'\n').count() as i32;
+        journal.extend(t);
+    }
+    let mut log_bytes = read_or_empty(&log_dir.join("detections.log.old"));
+    log_bytes.extend(read_or_empty(&log_dir.join("detections.log")));
+    let (log, log_lines) = strip_log_stamps(&log_bytes);
+    let marks = mask_times(&read_or_empty(marks_path), &["added", "confirmedAt", "exemptAt", "updated"], lo, hi);
+    let cat = crate::snapshot::catalog_of(e);
+    let (mut profiles, mut captured, mut round_trip_failures) = (Vec::new(), 0i32, 0i32);
+    for (i, r) in e.session().players().iter().enumerate() {
+        if i >= 12 && r.detections.is_empty() {
+            continue;
+        }
+        let mut s = crate::snapshot::capture(e, r, b"parity");
+        s.saved_at_epoch_ms = 1_764_201_600_000.0;
+        let text = vigil_formats::profile::to_json(&s, &cat);
+        let again = vigil_formats::profile::from_json(&text, &cat).map(|b| vigil_formats::profile::to_json(&b, &cat));
+        if again.as_deref() != Ok(text.as_slice()) {
+            round_trip_failures += 1;
+        }
+        profiles.extend(text);
+        profiles.push(b'\n');
+        captured += 1;
+    }
+    let mut prior = Vec::new();
+    let mut with_history = 0i32;
+    for r in e.session().players() {
+        prior.extend(format_into(
+            256,
+            "%d %d %.9g %.17g ",
+            &[
+                Arg::from(r.prior_sessions),
+                Arg::from(r.prior_detections),
+                Arg::from(r.prior_peak),
+                Arg::F(r.last_seen_epoch_ms),
+            ],
+        ));
+        prior.extend_from_slice(&r.key);
+        prior.push(b'\n');
+        if r.prior_sessions != 0 || r.prior_detections != 0 || r.prior_peak != 0.0 || r.last_seen_epoch_ms != 0.0 {
+            with_history += 1;
+        }
+    }
+    let mut o = Out::default();
+    o.line(
+        "sinks %s journal=%016llx:%d history=%016llx:%d log=%016llx:%d marks=%016llx profiles=%016llx:%d:%d prior=%016llx:%d",
+        &[
+            Arg::S(name),
+            Arg::U(fnv(&journal)),
+            Arg::from(journal_lines),
+            Arg::U(fnv(history)),
+            Arg::from(flushes),
+            Arg::U(fnv(&log)),
+            Arg::from(log_lines),
+            Arg::U(fnv(&marks)),
+            Arg::U(fnv(&profiles)),
+            Arg::from(captured),
+            Arg::from(round_trip_failures),
+            Arg::U(fnv(&prior)),
+            Arg::from(with_history),
+        ],
+    );
+    let mut full = b"# journal\n".to_vec();
+    for part in [
+        &journal[..],
+        b"# history\n",
+        history,
+        b"# log\n",
+        &log,
+        b"# marks\n",
+        &marks,
+        b"\n# profiles\n",
+        &profiles,
+        b"# prior\n",
+        &prior,
+    ] {
+        full.extend_from_slice(part);
+    }
+    (o.s, full)
+}

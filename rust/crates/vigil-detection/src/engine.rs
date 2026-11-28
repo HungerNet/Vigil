@@ -5,17 +5,24 @@
 //! nothing but its frames and its `EngineConfig`; entities are visited in MSVC
 //! `std::unordered_map` order (`HashOrder`), exactly as the C++ engine visits them.
 //!
-//! Not in P3A (host sinks, P3B): the session journal, the cross-session history file and the
-//! "detections" log channel — all write-only in C++ and never read by a decision.
+//! Persistence sinks (P3B), set by the host as in C++: the user's marks file (`set_marks_path`),
+//! the cross-session history (`set_history_path`, flushed at `reset_session` and every 60 s of
+//! engine time), the session journal (`set_journal_directory`) and the "detections" log channel
+//! (`set_log`). They never influence a decision. Wall-clock reads go through the injected
+//! [`Clock`].
 
 use std::any::Any;
 use std::collections::VecDeque;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use vigil_formats::config::{EngineConfig, Schema};
+use vigil_formats::json::{self, Value};
 
 use crate::check::{Action, Check, Ctx, Exemptions};
 use crate::checks::create_all_checks;
+use crate::clock::Clock;
 use crate::combat::{CombatEvent, CombatResolver, CombatSettings};
 use crate::config::{ConfigRead, NO_PARAM, ParamId, SchemaBuilder, WarnFn, range};
 use crate::cpp;
@@ -24,8 +31,10 @@ use crate::fmt;
 use crate::hashorder::{FastMap, HashOrder};
 use crate::marks::Marks;
 use crate::matchtracker::{GamePhase, MatchTracker};
+use crate::printf::Arg;
 use crate::roster::{EntityKind, EntityObservation, EntityVerdict, UNLISTED_GRACE_TICKS, classify_entity};
 use crate::session::{Alert, ConfidencePoint, DebugLine, PlayerRecord, Session, TimelineEvent, TimelineKind};
+use crate::sinks::{LogSink, LogSlot, writef_message};
 use crate::track::PlayerTrack;
 use crate::types::{GameContext, Tick, Vec3, WorldFrame, pos};
 
@@ -135,6 +144,10 @@ pub struct Engine {
     schema: SchemaBuilder,
     config: EngineConfig,
     p: GlobalParams,
+    clock: Clock,
+    history_path: Option<PathBuf>,
+    journal_dir: Option<OsString>,
+    log: LogSlot,
 }
 
 impl Default for Engine {
@@ -155,8 +168,9 @@ impl Engine {
             c.register_all(&mut schema);
         }
         let config = EngineConfig::defaults(&schema.schema);
+        let clock = Clock::system();
         let mut session = Session::default();
-        session.reset(0.0, checks.len());
+        session.reset(0.0, checks.len(), clock.now_ms());
         Engine {
             checks,
             tracked: HashOrder::new(),
@@ -184,6 +198,10 @@ impl Engine {
             schema,
             config,
             p,
+            clock,
+            history_path: None,
+            journal_dir: None,
+            log: LogSlot::default(),
         }
     }
 
@@ -207,12 +225,44 @@ impl Engine {
         self.config = config.clone();
         true
     }
-    /// The user's marks (P3A: loaded from a marks file; see `marks`).
-    pub fn set_marks(&mut self, marks: Marks) {
+    /// Replaces the user's marks (they take the engine's clock).
+    pub fn set_marks(&mut self, mut marks: Marks) {
+        marks.set_clock(self.clock.clone());
         self.marks = marks;
     }
     pub fn marks(&self) -> &Marks {
         &self.marks
+    }
+    pub fn marks_mut(&mut self) -> &mut Marks {
+        &mut self.marks
+    }
+
+    // ── Persistence hooks (set by the host) ──────────────────────────────────────────────────
+
+    /// The wall clock the engine and its marks read (default: the system clock).
+    pub fn set_clock(&mut self, clock: Clock) {
+        self.marks.set_clock(clock.clone());
+        self.clock = clock;
+    }
+    pub fn clock(&self) -> &Clock {
+        &self.clock
+    }
+    /// `setMarksPath`: loads the marks file; every change is saved to it.
+    pub fn set_marks_path(&mut self, path: &Path) {
+        self.marks.set_path(path);
+    }
+    /// `setHistoryPath`: remembers the path and loads the history.
+    pub fn set_history_path(&mut self, path: &Path) {
+        self.history_path = Some(path.to_path_buf());
+        self.session.load_history(std::fs::read(path).ok().as_deref());
+    }
+    /// `setJournalDirectory`.
+    pub fn set_journal_directory(&mut self, dir: &Path) {
+        self.journal_dir = if dir.as_os_str().is_empty() { None } else { Some(dir.as_os_str().to_owned()) };
+    }
+    /// Where the "detections" log lines go (`None`: nowhere, as C++ before `log::init`).
+    pub fn set_log(&mut self, sink: Option<Box<dyn LogSink>>) {
+        self.log = LogSlot(sink);
     }
 
     // ── Reads ────────────────────────────────────────────────────────────────────────────────
@@ -354,7 +404,7 @@ impl Engine {
 
     pub fn reset_session(&mut self, now_ms: f64) {
         self.flush_history();
-        self.session.reset(now_ms, self.checks.len());
+        self.session.reset(now_ms, self.checks.len(), self.clock.now_ms());
         self.tracked.clear();
         self.combat.reset();
         self.alerts.clear();
@@ -364,8 +414,20 @@ impl Engine {
         self.relay_floor = 0;
     }
 
-    /// `flushHistory`: writes history/players.json when a path is set (the history sink is P3B).
-    fn flush_history(&mut self) {}
+    /// `flushHistory`: writes history/players.json (`data.history` on and a path set).
+    pub fn flush_history(&mut self) {
+        if self.p.history != NO_PARAM && self.config.b(self.p.history) {
+            if let Some(path) = &self.history_path {
+                self.session.save_history(path, self.clock.now_ms());
+            }
+        }
+    }
+
+    fn log_line(&mut self, f: &str, args: &[Arg<'_>]) {
+        if let Some(sink) = self.log.0.as_mut() {
+            sink.write("detections", &writef_message(f, args));
+        }
+    }
 
     // ── Per tick ─────────────────────────────────────────────────────────────────────────────
 
@@ -752,9 +814,17 @@ impl Engine {
         self.tick = frame.tick;
         self.time_ms = frame.time_ms;
         if self.session.start_ms() == 0.0 {
-            self.session.reset(frame.time_ms, self.checks.len());
+            self.session.reset(frame.time_ms, self.checks.len(), self.clock.now_ms());
         }
-        // The session journal (setJournal) is a P3B sink.
+        match &self.journal_dir {
+            Some(dir) if self.config.b(self.p.journal) => {
+                let mut path = dir.clone();
+                // snprintf(name, 64, "/session-%llu.jsonl", …)
+                path.push(format!("/session-{}.jsonl", self.session.start_epoch_ms()));
+                self.session.set_journal(Some(PathBuf::from(path)));
+            }
+            _ => self.session.set_journal(None),
+        }
 
         if frame.world_changed {
             self.on_world_changed();
@@ -1114,7 +1184,26 @@ impl Engine {
             );
             self.debug(check, &subject_name, line);
         }
-        // The session journal line (P3B sink) would be written here.
+
+        if self.session.journal_path().is_some() {
+            let r = self.session.player(ri);
+            let mut j = Value::object();
+            j.set("type", Value::from("evidence"));
+            j.set("time", Value::Number(time_ms));
+            j.set("player", Value::from(&r.name));
+            j.set("uuid", Value::from(&r.uuid));
+            j.set("check", Value::from(self.checks[check].base.id));
+            j.set("indicator", Value::from(ind_id));
+            j.set("severity", Value::Number(f64::from(severity)));
+            j.set("confidence", Value::Number(f64::from(confidence_after)));
+            j.set("summary", Value::from(&ev.summary));
+            let mut vals = Value::object();
+            for v in &ev.values {
+                vals.set(&v.name, Value::Number(v.value));
+            }
+            j.set("values", vals);
+            self.session.journal(&json::write(&j, -1));
+        }
 
         let r = self.session.player_mut(ri);
         r.evidence.push_back(ev);
@@ -1185,11 +1274,34 @@ impl Engine {
                 summary: reasons.first().cloned().unwrap_or_else(|| c_summary.as_bytes().to_vec()),
                 reasons,
             };
+            let (name, uuid, alert_summary) = (r.name.clone(), r.uuid.clone(), a.summary.clone());
             self.alerts.push_back(a);
             while self.alerts.len() > 64 {
                 self.alerts.pop_front();
             }
-            // The "detections" log line and the journal line (P3B sinks) would be written here.
+            let c_id = self.checks[check].base.id;
+            self.log_line(
+                "DETECTION %s %s %.0f%% (%d evidence, %d indicators) \u{2014} %s",
+                &[
+                    Arg::S(&name),
+                    Arg::S(c_id.as_bytes()),
+                    Arg::from(confidence),
+                    Arg::from(count),
+                    Arg::from(distinct),
+                    Arg::S(&alert_summary),
+                ],
+            );
+            if self.session.journal_path().is_some() {
+                let mut j = Value::object();
+                j.set("type", Value::from("detection"));
+                j.set("time", Value::Number(time_ms));
+                j.set("player", Value::from(&name));
+                j.set("uuid", Value::from(&uuid));
+                j.set("check", Value::from(c_id));
+                j.set("confidence", Value::Number(f64::from(confidence)));
+                j.set("evidence", Value::from(count));
+                self.session.journal(&json::write(&j, -1));
+            }
         }
         self.session.bump();
     }
@@ -1209,7 +1321,11 @@ impl Engine {
         while self.debug_log.len() > 2000 {
             self.debug_log.pop_front();
         }
-        // The "detections" log line (P3B sink) would be written here.
+        if self.log.0.is_some() {
+            let id = self.checks[check].base.id;
+            let text = self.debug_log.back().expect("just pushed").text.clone();
+            self.log_line("[%s] %s: %s", &[Arg::S(id.as_bytes()), Arg::S(player), Arg::S(&text)]);
+        }
     }
 }
 
