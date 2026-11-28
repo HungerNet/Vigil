@@ -1,6 +1,6 @@
-## Vigil 1.0-dev.13 — records, keyboard, validation
+## Vigil 1.0-dev.14 — records, keyboard, validation
 
-Download **`Vigil-1.0-dev.13.exe`** below; `SHA256SUMS` lets you verify it. It is still the only
+Download **`Vigil-1.0-dev.14.exe`** below; `SHA256SUMS` lets you verify it. It is still the only
 file you need.
 
 **Records** — a new page under Investigate
