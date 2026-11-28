@@ -32,12 +32,15 @@ The library split is enforced by the linker: `detection_tests`, `records_tests`,
 `validation_tests`, `VigilReplay`, `VigilParity` and `VigilFormats` link **only** `vigil_detection`,
 so any accidental dependency on Windows, the UI or the network fails the build.
 
-**Rust (`rust/`, RUST_PLAN P2).** A Cargo workspace beside the C++ tree, not linked into any
+**Rust (`rust/`, RUST_PLAN P2–P3A).** A Cargo workspace beside the C++ tree, not linked into any
 shipped binary yet. `vigil-formats` reads and writes every persisted format and the trace/outcome
 pair byte-for-byte like `core/json` and the C++ readers (VALIDATION.md §8); the C++ tool
-`VigilFormats` is its twin and generates the shared fixtures in `tests/fixtures/formats`. The
-engine (P3) and the DLL link (P4) come later; until then a file's meaning is defined by the C++
-reader, and the Rust reader is proven to agree.
+`VigilFormats` is its twin and generates the shared fixtures in `tests/fixtures/formats`.
+`vigil-detection` (P3A) is the engine, ported expression for expression from `src/detection`; its
+entire state is byte-identical to the C++ engine's on the scenario corpus under every
+configuration and on generated scenarios (VALIDATION.md §9), with `VigilParity` and `vigil-parity`
+as twins. The DLL link (P4) comes later; until then the C++ engine drives the product, a file's
+meaning is defined by the C++ reader, and the Rust side is proven to agree.
 
 ## 2. Data flow (one client tick)
 
@@ -144,6 +147,14 @@ change in the middle of `Engine::onFrame`.
   check: observations, detections, confidence) that two implementations must agree on;
   `VigilParity` compares the *full* state (every evidence value, contribution, timeline entry and
   alert) across a scenario corpus and every parameter (VALIDATION.md §4).
+* **Order is part of the contract:** the engine visits entities in `std::unordered_map<int, …>`
+  order, which decides the order records are created, evidence and detection ids are assigned,
+  alerts are queued and equal combat candidates are tie-broken. A port reproduces MSVC's iteration
+  order (the Rust engine does: `hashorder`, proven against `tests/fixtures/formats/hash-order.txt`);
+  changing the C++ container would be a behavior change in its own right.
+* **Text is part of the contract:** evidence summaries, details and debug lines are `vsnprintf`
+  output (512-byte buffer); a port reproduces the UCRT's formatting, including ties, signed zeros
+  and non-finite values (`printf`, proven against `printf.txt`).
 
 ## 7. Boundaries worth keeping
 

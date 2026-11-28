@@ -1,0 +1,383 @@
+{
+  "kind": "vigil-checks",
+  "checks": [
+    {
+      "id": "killaura",
+      "name": "KillAura",
+      "category": "Combat",
+      "summary": "Automated aiming and target selection",
+      "about": "For every attributed hit, Vigil reconstructs where the attacker was looking, allowing for latency and rotation precision, and looks for what a hand cannot do: hits outside the view, two targets in an instant, snaps that stop dead on the hitbox, and aim locked to a moving target.",
+      "requirements": [],
+      "tickSampling": false,
+      "preset": "checks.killaura.preset",
+      "entries": [
+        {
+          "key": "checks.killaura.alert",
+          "relaxed": 82,
+          "balanced": 70,
+          "strict": 58
+        },
+        {
+          "key": "checks.killaura.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.killaura.outsideAngle",
+          "relaxed": 55,
+          "balanced": 40,
+          "strict": 30
+        },
+        {
+          "key": "checks.killaura.multiSeparation",
+          "relaxed": 75,
+          "balanced": 60,
+          "strict": 45
+        }
+      ]
+    },
+    {
+      "id": "reach",
+      "name": "Reach",
+      "category": "Combat",
+      "summary": "Melee hits from beyond vanilla range",
+      "about": "Measures every attributed hit from the attacker's eyes to the nearest point of the victim's hitbox, taking the closest the two were over the latency window, so the reading is always the most charitable one. Vanilla reach is 3.00 blocks.",
+      "requirements": [],
+      "tickSampling": false,
+      "preset": "checks.reach.preset",
+      "entries": [
+        {
+          "key": "checks.reach.alert",
+          "relaxed": 82,
+          "balanced": 70,
+          "strict": 58
+        },
+        {
+          "key": "checks.reach.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.reach.threshold",
+          "relaxed": 3.45,
+          "balanced": 3.3,
+          "strict": 3.2
+        }
+      ]
+    },
+    {
+      "id": "autoclicker",
+      "name": "AutoClicker",
+      "category": "Combat",
+      "summary": "Machine-regular click timing",
+      "about": "Human clicking drifts across neighboring tick lengths; clicking software repeats one interval exactly. Vigil looks at the timing between swings in combat, not raw clicks per second, and ignores intervals at the server's relay limit, where every fast clicker looks the same.",
+      "requirements": [],
+      "tickSampling": false,
+      "preset": "checks.autoclicker.preset",
+      "entries": [
+        {
+          "key": "checks.autoclicker.alert",
+          "relaxed": 87,
+          "balanced": 75,
+          "strict": 63
+        },
+        {
+          "key": "checks.autoclicker.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.autoclicker.modeShare",
+          "relaxed": 0.96,
+          "balanced": 0.92,
+          "strict": 0.88
+        },
+        {
+          "key": "checks.autoclicker.streak",
+          "relaxed": 26,
+          "balanced": 20,
+          "strict": 15
+        }
+      ]
+    },
+    {
+      "id": "velocity",
+      "name": "Velocity",
+      "category": "Combat",
+      "summary": "Reduced or cancelled knockback",
+      "about": "Knockback lifts a grounded player about 0.4 blocks per tick and pushes them away from the attacker. Vigil waits for the victim's response to arrive (their ping plus the server's relay) and compares the rise and push with vanilla physics. Hits that may not be melee, and victims who are burning, against a wall, under a ceiling, in water, cobwebs or on ladders, are skipped.",
+      "requirements": [
+        "Server positions",
+        "Hurt animations",
+        "Player latency"
+      ],
+      "tickSampling": false,
+      "preset": "checks.velocity.preset",
+      "entries": [
+        {
+          "key": "checks.velocity.alert",
+          "relaxed": 82,
+          "balanced": 70,
+          "strict": 58
+        },
+        {
+          "key": "checks.velocity.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.velocity.minRise",
+          "relaxed": 0.07,
+          "balanced": 0.12,
+          "strict": 0.18
+        },
+        {
+          "key": "checks.velocity.minPush",
+          "relaxed": 0.08,
+          "balanced": 0.15,
+          "strict": 0.22
+        }
+      ]
+    },
+    {
+      "id": "autoblock",
+      "name": "AutoBlock",
+      "category": "Combat",
+      "summary": "Attacking while holding a sword block",
+      "about": "In vanilla 1.8 a player cannot swing while their sword is raised: clicks are consumed until the block is released. Vigil counts new swings that begin while the player has been blocking continuously for several ticks and is still blocking afterwards.",
+      "requirements": [],
+      "tickSampling": true,
+      "preset": "checks.autoblock.preset",
+      "entries": [
+        {
+          "key": "checks.autoblock.alert",
+          "relaxed": 82,
+          "balanced": 70,
+          "strict": 58
+        },
+        {
+          "key": "checks.autoblock.minEvidence",
+          "relaxed": 5,
+          "balanced": 4,
+          "strict": 3
+        },
+        {
+          "key": "checks.autoblock.minBlockTicks",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        }
+      ]
+    },
+    {
+      "id": "speed",
+      "name": "Speed",
+      "category": "Movement",
+      "summary": "Movement faster than vanilla allows",
+      "about": "Compares horizontal speed with the vanilla envelope: about 0.28 blocks per tick sprinting on the ground and 0.36 sprint-jumping, scaled by the player's movement-speed attribute and Speed effects. Speeds are measured between received positions, so lag catch-ups don't count. Knockback, teleports, ice, slime, liquids, ladders, cobwebs, riding, flight, low ceilings and server lag are skipped; stairs and slabs are tolerated.",
+      "requirements": [
+        "Server positions",
+        "Movement attribute or potion effects",
+        "Surface blocks"
+      ],
+      "tickSampling": true,
+      "preset": "checks.speed.preset",
+      "entries": [
+        {
+          "key": "checks.speed.alert",
+          "relaxed": 84,
+          "balanced": 72,
+          "strict": 60
+        },
+        {
+          "key": "checks.speed.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.speed.limit",
+          "relaxed": 0.43,
+          "balanced": 0.4,
+          "strict": 0.385
+        },
+        {
+          "key": "checks.speed.groundLimit",
+          "relaxed": 0.33,
+          "balanced": 0.31,
+          "strict": 0.3
+        }
+      ]
+    },
+    {
+      "id": "bhop",
+      "name": "BHop",
+      "category": "Movement",
+      "summary": "Jump physics that vanilla cannot produce",
+      "about": "A vanilla jump on flat ground stays airborne for about 12 ticks, and in the air a player can add only 0.026 blocks per tick while momentum decays by 9% per tick. Vigil flags low hops, hop chains faster than vanilla, and mid-air turns or acceleration beyond air control. Jumps under ceilings (anywhere over the hitbox), with Jump Boost, after knockback, into walls or with lag gaps are skipped.",
+      "requirements": [
+        "Server positions",
+        "Ground state",
+        "Surface blocks"
+      ],
+      "tickSampling": false,
+      "preset": "checks.bhop.preset",
+      "entries": [
+        {
+          "key": "checks.bhop.alert",
+          "relaxed": 82,
+          "balanced": 70,
+          "strict": 58
+        },
+        {
+          "key": "checks.bhop.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.bhop.maxAirTicks",
+          "relaxed": 7,
+          "balanced": 8,
+          "strict": 9
+        },
+        {
+          "key": "checks.bhop.hopLimit",
+          "relaxed": 0.43,
+          "balanced": 0.4,
+          "strict": 0.385
+        }
+      ]
+    },
+    {
+      "id": "noslow",
+      "name": "NoSlow",
+      "category": "Movement",
+      "summary": "No slowdown while eating, drinking, blocking or drawing a bow",
+      "about": "Using an item slows movement to a fifth and ends sprinting. Vigil flags players who keep sprinting for several ticks while using an item, or who keep moving fast on the ground after their momentum should have bled off. Lag catch-ups, ice, slime, knockback and server lag are skipped.",
+      "requirements": [],
+      "tickSampling": true,
+      "preset": "checks.noslow.preset",
+      "entries": [
+        {
+          "key": "checks.noslow.alert",
+          "relaxed": 82,
+          "balanced": 70,
+          "strict": 58
+        },
+        {
+          "key": "checks.noslow.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.noslow.sprintTicks",
+          "relaxed": 12,
+          "balanced": 8,
+          "strict": 6
+        },
+        {
+          "key": "checks.noslow.speedLimit",
+          "relaxed": 0.2,
+          "balanced": 0.17,
+          "strict": 0.14
+        }
+      ]
+    },
+    {
+      "id": "keepy",
+      "name": "Scaffold (Keep-Y)",
+      "category": "World",
+      "summary": "Bridging while jumping without gaining height",
+      "about": "Watches jumps taken while looking down with blocks in hand. Placing several blocks during one jump and landing back at the starting height, at sprinting speed, is the signature of scaffolds that keep the player's Y level fixed. Legitimate jump-bridging is slower; the speed requirement and the evidence gate separate the two.",
+      "requirements": [],
+      "tickSampling": false,
+      "preset": "checks.keepy.preset",
+      "entries": [
+        {
+          "key": "checks.keepy.alert",
+          "relaxed": 84,
+          "balanced": 72,
+          "strict": 60
+        },
+        {
+          "key": "checks.keepy.minEvidence",
+          "relaxed": 5,
+          "balanced": 4,
+          "strict": 3
+        },
+        {
+          "key": "checks.keepy.placements",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        }
+      ]
+    },
+    {
+      "id": "flatscaff",
+      "name": "Scaffold (Flat)",
+      "category": "World",
+      "summary": "Fast bridging without sneaking or jumping",
+      "about": "Looks for players placing blocks under themselves while looking steeply down, without sneaking or jumping, at a speed only reachable while sprinting forward. Legitimate bridging is done backwards, which caps speed at walking pace.",
+      "requirements": [],
+      "tickSampling": true,
+      "preset": "checks.flatscaff.preset",
+      "entries": [
+        {
+          "key": "checks.flatscaff.alert",
+          "relaxed": 84,
+          "balanced": 72,
+          "strict": 60
+        },
+        {
+          "key": "checks.flatscaff.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.flatscaff.minSpeed",
+          "relaxed": 0.27,
+          "balanced": 0.25,
+          "strict": 0.235
+        }
+      ]
+    },
+    {
+      "id": "legitscaff",
+      "name": "LegitScaff",
+      "category": "World",
+      "summary": "Automated edge sneaking while bridging (eagle)",
+      "about": "Edge-sneaking scaffolds tap sneak for a tick or two exactly at each block edge. Vigil records the sneak taps a bridging player makes next to block placements and looks for taps that are both minimal in duration and metronome-regular, which skilled humans approach but do not sustain.",
+      "requirements": [],
+      "tickSampling": false,
+      "preset": "checks.legitscaff.preset",
+      "entries": [
+        {
+          "key": "checks.legitscaff.alert",
+          "relaxed": 87,
+          "balanced": 75,
+          "strict": 63
+        },
+        {
+          "key": "checks.legitscaff.minEvidence",
+          "relaxed": 4,
+          "balanced": 3,
+          "strict": 2
+        },
+        {
+          "key": "checks.legitscaff.taps",
+          "relaxed": 8,
+          "balanced": 6,
+          "strict": 5
+        }
+      ]
+    }
+  ]
+}

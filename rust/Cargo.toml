@@ -9,7 +9,7 @@
 
 [workspace]
 resolver = "2"
-members = ["crates/vigil-formats"]
+members = ["crates/vigil-formats", "crates/vigil-detection"]
 
 [workspace.package]
 version = "0.1.0"
@@ -27,3 +27,12 @@ all = { level = "warn", priority = -1 }
 [profile.release]
 # RUST_PLAN.md §5: unwinding, never abort, so a future FFI boundary can catch panics.
 panic = "unwind"
+
+# P3A: integer arithmetic wraps in every profile, as the C++ engine's does in practice (hostile
+# trace values such as a tick near INT64_MAX). Without this, debug builds would panic where
+# release builds and the C++ engine continue, and the two profiles would behave differently.
+[profile.dev]
+overflow-checks = false
+
+[profile.test]
+overflow-checks = false

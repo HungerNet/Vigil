@@ -1,5 +1,5 @@
 run: true
-version: '1.0-dev.13'
+version: '1.0-dev.14'
 description: |
   Dev 1:
   - Initial release
@@ -40,3 +40,6 @@ description: |
     - Build Rust toolchain and formats
   Dev 13:
   - Fixed app title metadata
+  Dev 14:
+  - Rust rewrite Phase 3A:
+    - Implement Rust engine byte-identical to C++ engine

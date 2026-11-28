@@ -222,6 +222,11 @@ fn math_functions_match_the_msvc_crt() {
             "ceil" => a.ceil(),
             "round" => a.round(),
             "fmax" => a.max(b),
+            // P3A: std::pow(float, float) is powf (the confidence gain); the arguments and the
+            // result are floats stored as doubles.
+            "powf" => f64::from((a as f32).powf(b as f32)),
+            // P3A: std::pow(double, int) promotes the exponent (BHop air drag, Velocity).
+            "powi" => a.powf(b),
             other => panic!("unknown function {other}"),
         };
         let e = per_fn.entry(f[0].to_string()).or_default();

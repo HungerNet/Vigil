@@ -13,12 +13,36 @@
 //   mid-session changes (monitoring paused, preset switched, debug on, checks disabled, sampling,
 //   weights, roles) applied between frames, the way the UI changes settings.
 //
-// The source compiles against the engine before and after P1 (EngineConfig): with the P1 binding
-// present, parameters reach the engine through the registry exactly as in the DLL (SettingsSync).
+// Parameters reach the engine through the registry exactly as in the DLL (SettingsSync). (In P1 the
+// default mode also compiled against the pre-P1 engine to produce that phase's baseline; the P3A
+// modes below need EngineConfig, so the tool now requires the P1 engine.)
+//
+// P3A (P3A_PLAN.md §2) — the C++ half of the differential harness:
+//
+//   VigilParity <out.txt> [--quick] --export <dir>
+//       also writes dir/corpus/<scenario>.vtrace and dir/plan.jsonl: for every run, the trace and
+//       every configuration snapshot that reached the engine, with the frame before which it
+//       arrived (-1 = before resetSession), as differences from the schema defaults. The Rust
+//       engine replays the plan (`vigil-parity <dir> <out>`) and must write the same <out.txt>.
+//   VigilParity --generate <dir> [--count N] [--seed S]
+//       N generated scenarios (tests/generator.h): traces, marks files, plan.jsonl and the C++
+//       result dir/expected.txt (one digest line and one summary line per scenario).
+//   VigilParity --full <variant> <scenario> <dump.txt>    (with either mode's other arguments)
+//       also writes the full state of that one run, to locate a difference.
+//   VigilParity --bench <reps>
+//       engine tick cost on the corpus under the defaults (twin: vigil-parity --bench).
 
+#include "../../src/core/json.h"
 #include "../../src/core/settings.h"
 #include "../../src/detection/engine.h"
+#include "../../src/detection/trace.h"
 #include "../../tests/corpus.h"
+#include "../../tests/generator.h"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <filesystem>
 
 #if __has_include("../../src/detection/config_binding.h")
 #include "../../src/detection/config_binding.h"
@@ -77,6 +101,34 @@ const char* typeName(SettingType t) {
 SettingsSync g_sync;
 #endif
 
+// ── Plan capture (--export, P3A) ────────────────────────────────────────────────────────────
+
+// A configuration snapshot as differences from the schema defaults ({key: value}, exact numbers).
+json::Value configDiff(const EngineConfig& c) {
+    json::Value values = json::Value::object();
+    const ConfigSchema& s = *c.schema();
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        const ParamSpec& p = s.params()[i];
+        const double v = c.value(static_cast<ParamId>(i));
+        if (std::memcmp(&v, &p.def, sizeof v) == 0) continue;
+        values[p.key] = p.type == ParamType::Bool ? json::Value(v != 0.0) : json::Value(v);
+    }
+    return values;
+}
+
+struct Capture {
+    bool on = false;
+    json::Value configs = json::Value::array();
+    void record(const Engine& e, long long frame) {
+        if (!on) return;
+        json::Value c = json::Value::object();
+        c["frame"] = json::Value(static_cast<double>(frame));
+        c["values"] = configDiff(e.config());
+        configs.push(std::move(c));
+    }
+};
+Capture g_capture;
+
 void initEngine(Engine& e) {
     e.initialize();
 #if VIGIL_PARITY_ENGINE_CONFIG
@@ -85,12 +137,30 @@ void initEngine(Engine& e) {
 #endif
 }
 
-void syncEngine(Engine& e) {
+void syncEngine(Engine& e, long long frame = -1) {
 #if VIGIL_PARITY_ENGINE_CONFIG
-    g_sync.sync(e, Settings::instance());
+    if (g_sync.sync(e, Settings::instance())) g_capture.record(e, frame);
 #else
     (void)e;
+    (void)frame;
 #endif
+}
+
+bool writeText(const std::filesystem::path& p, const std::string& text) {
+    std::error_code ec;
+    std::filesystem::create_directories(p.parent_path(), ec);
+    std::ofstream out(p, std::ios::binary | std::ios::trunc);
+    return static_cast<bool>(out << text);
+}
+
+std::string traceText(const std::string& note, const std::vector<WorldFrame>& frames) {
+    TraceHeader h;
+    h.vigil = "parity";
+    h.build = "synthetic";
+    h.note = note;
+    std::string text = traceHeaderLine(h) + "\n";
+    for (const auto& f : frames) text += traceFrameLine(f) + "\n";
+    return text;
 }
 
 void presetAll(Engine& e, int preset) {
@@ -317,12 +387,181 @@ std::vector<Variant> variants(Engine& probe, bool quick) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    if (argc < 2) {
-        std::printf("usage: VigilParity <out.txt> [--quick]\n");
-        return 2;
+// One line per generated scenario that the Rust side reproduces too: counts that show what the
+// generated set exercised (records, evidence per indicator, filtered entities, stalls, pruning…).
+std::string summaryLine(const Engine& e, const std::string& name) {
+    int suffixed = 0, exempt = 0;
+    std::string ind;
+    for (std::size_t c = 0; c < e.checks().size(); ++c) {
+        std::vector<int> sum(e.checks()[c]->indicators().size(), 0);
+        for (const PlayerRecord& r : e.session().players()) {
+            const auto& counts = r.checks[c].indicatorCounts;
+            for (std::size_t i = 0; i < counts.size() && i < sum.size(); ++i) sum[i] += counts[i];
+        }
+        for (std::size_t i = 0; i < sum.size(); ++i) ind += std::to_string(sum[i]) + (i + 1 < sum.size() ? "," : "");
+        ind += c + 1 < e.checks().size() ? ";" : "";
     }
-    const bool quick = argc > 2 && std::strcmp(argv[2], "--quick") == 0;
+    for (const PlayerRecord& r : e.session().players()) {
+        if (!r.displaySuffix.empty()) ++suffixed;
+        if (e.playerState(r).exempt) ++exempt;
+    }
+    Out o;
+    o.line("summary %s records=%zu evidence=%d detections=%d alerts=%llu combat=%d stalls=%d filtered=%d pruned=%d ticks=%llu "
+           "suffixed=%d exempt=%d scene=%d matches=%d ind=%s",
+           name.c_str(), e.session().players().size(), e.session().totalEvidence(), e.session().totalDetections(),
+           static_cast<unsigned long long>(e.alertSeq()), e.stats().combatEvents, e.stats().stalls, e.stats().filteredEntities,
+           e.stats().prunedRecords, static_cast<unsigned long long>(e.stats().ticksProcessed), suffixed, exempt, e.scene(),
+           static_cast<int>(e.match().matchCount()), ind.c_str());
+    return o.s;
+}
+
+int usage() {
+    std::printf("usage: VigilParity <out.txt> [--quick] [--export <dir>] [--full <variant> <scenario> <dump.txt>]\n"
+                "       VigilParity --generate <dir> [--count N] [--seed S] [--full generated <scenario> <dump.txt>]\n"
+                "       VigilParity --bench <reps>\n");
+    return 2;
+}
+
+// --generate: N scenarios from tests/generator.h, replayed here; plan + expected result for Rust.
+int generate(const std::filesystem::path& dir, int count, std::uint64_t seed, const std::string& fullScenario,
+             const std::string& fullPath) {
+    Engine probe;
+    probe.initialize();
+    std::string plan, expected = "# VigilParity generated format 1\n";
+    {
+        json::Value h = json::Value::object();
+        h["kind"] = json::Value("vigil-parity-plan");
+        h["format"] = json::Value(1);
+        h["mode"] = json::Value("generated");
+        h["count"] = json::Value(count);
+        h["seed"] = json::Value(static_cast<double>(seed));
+        plan += json::write(h, -1) + "\n";
+    }
+    long long frames = 0;
+    for (int i = 0; i < count; ++i) {
+        auto sc = vigil::test::generatedScenario(seed, i, probe.schemaPtr());
+        frames += static_cast<long long>(sc.frames.size());
+        const std::string trace = "gen/" + sc.name + ".vtrace";
+        // Both engines replay the frames as the trace holds them: what the Rust side reads is, by
+        // construction, what this engine runs on. A frame the trace cannot represent exactly (a
+        // non-finite number is written as 0) is a generator bug and stops the run.
+        for (const WorldFrame& f : sc.frames) {
+            bool finite = std::isfinite(f.timeMs);
+            for (const PlayerFrame& p : f.players) {
+                finite = finite && std::isfinite(p.pos.x) && std::isfinite(p.pos.y) && std::isfinite(p.pos.z) && std::isfinite(p.yaw) &&
+                         std::isfinite(p.pitch) && std::isfinite(p.health) && std::isfinite(p.moveSpeedAttribute);
+            }
+            if (!finite) {
+                std::printf("%s: frame %lld holds a non-finite number (generator bug)\n", sc.name.c_str(), static_cast<long long>(f.tick));
+                return 1;
+            }
+        }
+        const std::string text = traceText(sc.name, sc.frames);
+        if (!writeText(dir / trace, text)) { std::printf("cannot write %s\n", trace.c_str()); return 1; }
+        {
+            TraceHeader header;
+            std::vector<WorldFrame> parsed;
+            std::string error;
+            if (!readTrace((dir / trace).string(), header, parsed, error) || parsed.size() != sc.frames.size()) {
+                std::printf("%s: the written trace does not read back: %s\n", sc.name.c_str(), error.c_str());
+                return 1;
+            }
+            sc.frames = std::move(parsed);
+        }
+        json::Value run = json::Value::object();
+        run["variant"] = json::Value("generated");
+        run["scenario"] = json::Value(sc.name);
+        run["trace"] = json::Value(trace);
+        run["full"] = json::Value(false);
+        Engine e;
+        e.initialize();
+        if (!sc.marks.empty()) {
+            const std::string marks = "gen/" + sc.name + ".marks.json";
+            // The engine may rewrite its marks file (binding); it gets a copy, the plan the original.
+            writeText(dir / marks, sc.marks);
+            writeText(dir / "work" / (sc.name + ".marks.json"), sc.marks);
+            run["marks"] = json::Value(marks);
+            e.setMarksPath((dir / "work" / (sc.name + ".marks.json")).string());
+        }
+        json::Value configs = json::Value::array();
+        for (const auto& c : sc.configs) {
+            json::Value cj = json::Value::object();
+            cj["frame"] = json::Value(static_cast<double>(c.first));
+            cj["values"] = configDiff(c.second);
+            configs.push(std::move(cj));
+        }
+        run["configs"] = configs;
+        plan += json::write(run, -1) + "\n";
+        std::size_t next = 0;
+        while (next < sc.configs.size() && sc.configs[next].first < 0) e.setConfig(sc.configs[next++].second);
+        if (!sc.frames.empty()) e.resetSession(sc.frames.front().timeMs);
+        for (std::size_t f = 0; f < sc.frames.size(); ++f) {
+            while (next < sc.configs.size() && sc.configs[next].first == static_cast<long long>(f)) e.setConfig(sc.configs[next++].second);
+            e.onFrame(sc.frames[f]);
+        }
+        Out d;
+        dumpEngine(e, d);
+        Out o;
+        o.line("variant generated %s digest=%016llx evidence=%d detections=%d alerts=%llu", sc.name.c_str(),
+               static_cast<unsigned long long>(fnv(d.s)), e.session().totalEvidence(), e.session().totalDetections(),
+               static_cast<unsigned long long>(e.alertSeq()));
+        expected += o.s + summaryLine(e, sc.name);
+        if (sc.name == fullScenario) writeText(fullPath, d.s);
+        if ((i + 1) % 250 == 0) std::printf("  %d/%d scenarios\n", i + 1, count);
+    }
+    if (!writeText(dir / "plan.jsonl", plan) || !writeText(dir / "expected.txt", expected)) return 1;
+    std::printf("%d generated scenarios (%lld frames, seed %llu) -> %s\n", count, frames, static_cast<unsigned long long>(seed),
+                dir.string().c_str());
+    return 0;
+}
+
+// --bench: engine tick cost (RUST_PLAN §8 performance): each corpus scenario under the defaults,
+// `reps` times, timing only Engine::onFrame (construction and frame building excluded).
+int bench(int reps) {
+    const auto corpus = vigil::test::scenarioCorpus();
+    double totalMicros = 0.0;
+    std::size_t totalFrames = 0;
+    for (const auto& sc : corpus) {
+        double micros = 0.0;
+        for (int r = 0; r < reps; ++r) {
+            Engine e;
+            e.initialize();
+            e.resetSession(sc.frames.front().timeMs);
+            const auto t0 = std::chrono::steady_clock::now();
+            for (const auto& f : sc.frames) e.onFrame(f);
+            micros += std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count();
+        }
+        totalMicros += micros;
+        totalFrames += sc.frames.size() * static_cast<std::size_t>(reps);
+        std::printf("bench %-20s frames=%5zu reps=%d us_per_frame=%.3f\n", sc.name.c_str(), sc.frames.size(), reps,
+                    micros / static_cast<double>(sc.frames.size() * static_cast<std::size_t>(reps)));
+    }
+    std::printf("bench %-20s frames=%5zu reps=%d us_per_frame=%.3f\n", "all", totalFrames / static_cast<std::size_t>(reps), reps,
+                totalMicros / static_cast<double>(totalFrames));
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    if (argc >= 3 && std::strcmp(argv[1], "--bench") == 0) return bench(std::max(1, std::atoi(argv[2])));
+    std::string outPath, exportDir, generateDir, fullVariant, fullScenario, fullPath;
+    bool quick = false;
+    int count = 1000;
+    std::uint64_t seed = 20261127;
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "--quick") quick = true;
+        else if (a == "--export" && i + 1 < argc) exportDir = argv[++i];
+        else if (a == "--generate" && i + 1 < argc) generateDir = argv[++i];
+        else if (a == "--count" && i + 1 < argc) count = std::atoi(argv[++i]);
+        else if (a == "--seed" && i + 1 < argc) seed = std::strtoull(argv[++i], nullptr, 10);
+        else if (a == "--full" && i + 3 < argc) { fullVariant = argv[++i]; fullScenario = argv[++i]; fullPath = argv[++i]; }
+        else if (outPath.empty() && a.rfind("--", 0) != 0) outPath = a;
+        else return usage();
+    }
+    if (!generateDir.empty()) return generate(generateDir, count, seed, fullScenario, fullPath);
+    if (outPath.empty()) return usage();
+    const bool exporting = !exportDir.empty();
+    std::string plan;
     Out o;
     o.line("# VigilParity format 1");
     Engine probe;
@@ -335,20 +574,42 @@ int main(int argc, char** argv) {
         for (const auto& f : sc.frames) frames += std::to_string(f.tick) + ":" + std::to_string(f.players.size()) + ";";
         o.line("corpus %s frames=%zu shape=%016llx", sc.name.c_str(), sc.frames.size(), static_cast<unsigned long long>(fnv(frames)));
     }
+    if (exporting) {
+        json::Value h = json::Value::object();
+        h["kind"] = json::Value("vigil-parity-plan");
+        h["format"] = json::Value(1);
+        h["mode"] = json::Value("corpus");
+        json::Value scs = json::Value::array();
+        for (const auto& sc : corpus) {
+            const std::string trace = "corpus/" + sc.name + ".vtrace";
+            if (!writeText(std::filesystem::path(exportDir) / trace, traceText(sc.name, sc.frames))) {
+                std::printf("cannot write %s\n", trace.c_str());
+                return 1;
+            }
+            json::Value s = json::Value::object();
+            s["name"] = json::Value(sc.name);
+            s["trace"] = json::Value(trace);
+            scs.push(std::move(s));
+        }
+        h["scenarios"] = scs;
+        plan += json::write(h, -1) + "\n";
+    }
     const auto vs = variants(probe, quick);
     std::string fullDefaults;
     int done = 0;
     for (const Variant& var : vs) {
         for (const auto& sc : corpus) {
             resetEngineSettings();   // every (configuration, scenario) starts from a fresh install
+            g_capture = Capture{};
+            g_capture.on = exporting;
             Engine e;
             initEngine(e);
             if (var.before) var.before(e);
-            syncEngine(e);
+            syncEngine(e, -1);
             if (!sc.frames.empty()) e.resetSession(sc.frames.front().timeMs);
             for (std::size_t i = 0; i < sc.frames.size(); ++i) {
                 if (var.during) var.during(e, i, sc.frames.size());
-                syncEngine(e);
+                syncEngine(e, static_cast<long long>(i));
                 e.onFrame(sc.frames[i]);
             }
             Out d;
@@ -357,15 +618,27 @@ int main(int argc, char** argv) {
                    static_cast<unsigned long long>(fnv(d.s)), e.session().totalEvidence(), e.session().totalDetections(),
                    static_cast<unsigned long long>(e.alertSeq()));
             if (var.name == "defaults") fullDefaults += "== " + sc.name + "\n" + d.s;
+            if (var.name == fullVariant && sc.name == fullScenario) writeText(fullPath, d.s);
+            if (exporting) {
+                json::Value run = json::Value::object();
+                run["variant"] = json::Value(var.name);
+                run["scenario"] = json::Value(sc.name);
+                run["trace"] = json::Value("corpus/" + sc.name + ".vtrace");
+                run["full"] = json::Value(var.name == "defaults");
+                run["configs"] = g_capture.configs;
+                plan += json::write(run, -1) + "\n";
+            }
         }
         ++done;
         if (done % 50 == 0) std::printf("  %d/%zu configurations\n", done, vs.size());
     }
+    g_capture = Capture{};
     resetEngineSettings();
     o.s += "# full state, defaults\n" + fullDefaults;
-    std::ofstream out(argv[1], std::ios::binary | std::ios::trunc);
+    std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
     out << o.s;
-    std::printf("%zu configurations x %zu scenarios -> %s (%s)\n", vs.size(), corpus.size(), argv[1],
+    if (exporting && !writeText(std::filesystem::path(exportDir) / "plan.jsonl", plan)) return 1;
+    std::printf("%zu configurations x %zu scenarios -> %s (%s)\n", vs.size(), corpus.size(), outPath.c_str(),
                 VIGIL_PARITY_ENGINE_CONFIG ? "EngineConfig engine" : "registry engine");
     return out ? 0 : 1;
 }

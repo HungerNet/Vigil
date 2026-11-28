@@ -240,4 +240,9 @@ if(VIGIL_BUILD_RUST AND VIGIL_BUILD_TESTS)
              COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/ci/cross_formats.py"
                      --cpp "$<TARGET_FILE:VigilFormats>" --rust "${VIGIL_CARGO_TARGET}/release/vigil-fmt.exe"
                      --fixtures "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures" --work "${CMAKE_BINARY_DIR}/format-round-trips")
+    # P3A: the Rust engine against the C++ engine, full state, byte for byte (docs/VALIDATION.md §9).
+    add_test(NAME engine_parity
+             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/ci/engine_parity.py"
+                     --cpp "$<TARGET_FILE:VigilParity>" --rust "${VIGIL_CARGO_TARGET}/release/vigil-parity.exe"
+                     --work "${CMAKE_BINARY_DIR}/engine-parity" --count 1000)
 endif()

@@ -15,6 +15,7 @@ pipeline in [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
 | Engine owns no globals | Nothing in `src/detection` reads the settings registry or keeps mutable static state | `validate_repo.py engine-globals` | CI |
 | Format fixtures | The committed format fixtures are exactly what the C++ code writes, and every canonical form is a fixed point | `VigilFormats check` (CTest `format_fixtures`) | Every build, CI |
 | Rust formats | The Rust readers/writers produce the C++ bytes for every fixture, number and refusal; the engine's math functions match the CRT | `cargo test` (rust/), `cross_formats.py` | CI (§8) |
+| Rust engine parity | The Rust engine's entire state equals the C++ engine's on the corpus under 416 configurations and on ≥ 1 000 generated scenarios; it reproduces the golden outcome byte for byte | `engine_parity.py`, `replay-check --engine`, `cargo test` | CI (§9) |
 | Self-check | `Vigil.exe` embeds the runtime of the same version and build | `Vigil.exe --self-check` | CI (build + publish) |
 | UI smoke | Every page renders | `VigilPreview --shot` | CI (informational) |
 | Preview review | Layout, language, motion look right | `VigilPreview` screenshots | Each UI change, by hand |
@@ -138,7 +139,7 @@ passed every suite and the golden trace, and `VigilParity` pinpointed exactly th
 |---|---|---|
 | Workflow lint | ✅ | `actionlint` (with shellcheck) on every workflow |
 | Version, release notes, docs, golden trace, engine globals | ✅ | `tools/ci/validate_repo.py metadata · links · golden · engine-globals` |
-| Build, test and self-check | ✅ | MSVC `/W4 /WX`; all suites and the format fixtures; golden replay; corpus determinism (`VigilParity` twice); Rust `fmt --check`, `clippy -D warnings`, `cargo test`; C++ ↔ Rust round trips; `replay-check --strict` on the golden pair; `--self-check`; embedded runtime hash = built DLL hash; build ID = commit |
+| Build, test and self-check | ✅ | MSVC `/W4 /WX`; all suites and the format fixtures; golden replay; corpus determinism (`VigilParity` twice); Rust `fmt --check`, `clippy -D warnings`, `cargo test`; C++ ↔ Rust round trips; `replay-check --strict --engine` on the golden pair; C++ ↔ Rust engine parity (§9); `--self-check`; embedded runtime hash = built DLL hash; build ID = commit |
 | UI smoke renders | informational | Every page rendered on the runner; screenshots uploaded |
 | Java shims reproducible | informational | javac output differs across JDK patches |
 | Validation complete | ✅ | One status for branch protection |
@@ -195,3 +196,45 @@ cd rust; cargo test --release
 ```
 
 A format change bumps its format number (RUST_PLAN §11.5); readers keep accepting older formats.
+
+## 9. Rust engine parity (RUST_PLAN P3A)
+
+`rust/crates/vigil-detection` is the engine ported expression for expression. It is proven by one
+claim, checked on every build: **for the same frames, marks and configuration snapshots, its
+entire state is byte-identical to the C++ engine's**, in the `VigilParity` format (every evidence
+value and text, contribution, envelope, detection, timeline entry, confidence history, statistic,
+alert, debug line, combat event, filtered entity and player state).
+
+```
+VigilParity out.txt --export plan/      C++: as §4.1, plus the traces and, per run, every
+                                        configuration snapshot that reached the engine and when
+vigil-parity plan/ rust.txt             Rust: replays the plan, writes the same format
+VigilParity --generate gen/ --count N   C++: N generated scenarios (tests/generator.h) + results
+vigil-parity gen/ rust-gen.txt          Rust: the same N
+```
+
+`tools/ci/engine_parity.py` runs all four and compares (CI, and CTest `engine_parity` with
+`-DVIGIL_BUILD_RUST=ON`). On a difference it names the first differing run and writes that run's
+full state from both engines, so the first differing line is visible.
+
+| Instrument | Scope | Compared |
+|---|---|---|
+| Corpus × configurations | 7 scenarios × 416 configurations (defaults, presets, every parameter up and down, mid-session changes) = 2 912 runs | The whole `VigilParity` output: registry declaration (incl. every warning predicate probed across its range), corpus shapes, every digest, full default dumps |
+| Generated scenarios | ≥ 1 000 scenarios from `tests/generator.h` (random behaviors, identities, phases, lag, marks, configurations changed mid-session; ≈ 0.5 M frames per 1 000) | One full-state digest and one summary line per scenario; the summary lines also report what was exercised (all 24 indicators fire) |
+| Golden trace | `replay-check --strict --engine` | Rust outcome file = committed `golden-arena.expect.json`, byte for byte |
+| Declaration | `cargo test` (`tests/declaration.rs`) | Rust schema = `engine-schema.json`, defaults = `engine-config.default.json`, catalog, check metadata and presets = `checks.json` |
+| C++ semantics | `cargo test` (`tests/foundations.rs`), fixtures from `VigilFormats generate` | `std::unordered_map` iteration order (`hash-order.txt`), `snprintf` (`printf.txt`), `powf` and `pow(double, int)` (`math.txt`) |
+| Engine properties | `cargo test` (`tests/engine.rs`) | Determinism, two engines share nothing, hostile frames and configurations never panic |
+
+**What "the same" means.** RUST_PLAN §8 would accept minor floating-point differences that do not
+change user-facing behavior; the port does not need that allowance — every result is bit-exact —
+so any difference is a bug until classified otherwise (RUST_PLAN §6.3).
+
+**When the parity check fails:** a difference in a run is either a port bug (fix the Rust side), an
+intended C++ change that was not ported (port it in the same pull request), or a change to the
+tooling. Never regenerate an expectation to make it pass: there is none — both sides are computed
+fresh every time.
+
+**Not compared yet (P3B):** the history file, the session journal and the detections log channel
+(write-only sinks that never influence a decision), the UI-facing marks actions and profile
+capture; and the C++ engine tests mirrored as Rust tests of the same name.

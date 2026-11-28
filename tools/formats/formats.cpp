@@ -37,6 +37,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -205,7 +206,177 @@ std::string mathTable() {
     for (int i = 0; i < 200; ++i) { const double a = yaw(rng); row("fmod", a, 360.0, std::fmod(a, 360.0)); }
     for (int i = 0; i < 100; ++i) { const double a = coord(rng) * 1000.0; row("floor", a, 0.0, std::floor(a)); row("ceil", a, 0.0, std::ceil(a)); row("round", a, 0.0, std::round(a)); }
     for (int i = 0; i < 100; ++i) { const double a = coord(rng), b = coord(rng); row("fmax", a, b, std::fmax(a, b)); }
+    // P3A: the confidence gain is std::pow(float, float) = powf (base 1 - clamp(gain, 0.01, 0.9), exponent
+    // weight × severity in 0..4), and two checks call std::pow(double, int) (BHop air drag, Velocity).
+    std::uniform_real_distribution<float> fbase(0.1f, 0.99f), fexp(0.0f, 4.0f);
+    for (int i = 0; i < 400; ++i) {
+        const float b = i % 5 == 0 ? 0.75f : fbase(rng);
+        const float e = i % 7 == 0 ? static_cast<float>(i % 4) : fexp(rng);
+        row("powf", b, e, std::pow(b, e));
+    }
+    for (int n = 0; n <= 60; ++n) {
+        row("powi", 0.91, n, std::pow(mc::kAirFriction, n));
+        row("powi", 0.546, n, std::pow(0.546, n));
+    }
     return out;
+}
+
+// P3A: std::unordered_map iteration order (MSVC), which decides the order in which the engine visits
+// entities (records, evidence ids, alerts, combat ties). Random insert/erase/clear scripts over int and
+// string keys; after every operation the FNV-1a hash of the iteration order, at the end the full order.
+std::string hashOrderTable() {
+    std::mt19937_64 rng(31);
+    std::string out = "# script <n> <int|string> <ops>; then op<TAB>key<TAB>size<TAB>fnv of the order; end<TAB>order (VigilFormats generate)\n";
+    auto fnvOf = [](const std::string& s) {
+        std::uint64_t h = 1469598103934665603ull;
+        for (unsigned char c : s) { h ^= c; h *= 1099511628211ull; }
+        char buf[24];
+        std::snprintf(buf, sizeof buf, "%016" PRIx64, h);
+        return std::string(buf);
+    };
+    for (int script = 0; script < 12; ++script) {
+        const bool strings = script % 3 == 2;
+        const int ops = script < 4 ? 300 : script < 8 ? 900 : 2400;
+        const std::int64_t range = script % 4 == 0 ? 40 : script % 4 == 1 ? 400 : script % 4 == 2 ? 3000 : (1ll << 31);
+        std::unordered_map<int, int> mi;
+        std::unordered_map<std::string, int> ms;
+        out += "script " + std::to_string(script) + (strings ? " string " : " int ") + std::to_string(ops) + "\n";
+        auto keyText = [&](std::int64_t k) {
+            if (!strings) return std::to_string(static_cast<int>(k - (range > 100000 ? (1ll << 30) : 0)));
+            std::string s;
+            const char* alpha = "abcdefghijklmnopqrstuvwxyz0123456789_";
+            std::uint64_t x = static_cast<std::uint64_t>(k) * 2654435761ull + 7;
+            const int len = 1 + static_cast<int>(x % 12);
+            for (int i = 0; i < len; ++i) { s += alpha[x % 37]; x /= 37; x += static_cast<std::uint64_t>(k) + i; }
+            return s;
+        };
+        for (int op = 0; op < ops; ++op) {
+            const int r = static_cast<int>(rng() % 1000);
+            const std::string key = keyText(static_cast<std::int64_t>(rng() % static_cast<std::uint64_t>(range)));
+            char kind;
+            // Inserts dominate (the map grows through every rehash), erases follow, clears are rare.
+            if (r < 640) kind = 'i';
+            else if (r < 997) kind = 'e';
+            else kind = 'c';
+            if (strings) {
+                if (kind == 'i') ms[key];
+                else if (kind == 'e') ms.erase(key);
+                else ms.clear();
+            } else {
+                const int k = std::stoi(key);
+                if (kind == 'i') mi[k];
+                else if (kind == 'e') mi.erase(k);
+                else mi.clear();
+            }
+            std::string order;
+            if (strings) for (const auto& kv : ms) order += kv.first + ",";
+            else for (const auto& kv : mi) order += std::to_string(kv.first) + ",";
+            out += std::string(1, kind) + "\t" + (kind == 'c' ? std::string("-") : key) + "\t" +
+                   std::to_string(strings ? ms.size() : mi.size()) + "\t" + fnvOf(order) + "\n";
+            if (op == ops - 1) out += "end\t" + order + "\n";
+        }
+    }
+    return out;
+}
+
+// P3A: snprintf output for every conversion the engine's evidence text, debug lines and the parity dump
+// use, over edge values (ties, signed zeros, non-finite values, huge and tiny magnitudes) and values from
+// the engine's ranges.
+std::string printfTable() {
+    std::string out = "# format<TAB>argument (d: double bits, i: int64, u: uint64, s: text)<TAB>output (VigilFormats generate)\n";
+    auto emit = [&](const char* f, const std::string& arg, const char* buf) { out += std::string(f) + "\t" + arg + "\t" + buf + "\n"; };
+    char buf[1024];
+    std::vector<double> d = {0.0, -0.0, 0.5, 1.5, 2.5, -0.5, -1.5, 0.125, 0.375, 0.625, -0.125, 2.675, 1.005, 0.045, 0.0049,
+                             -0.004, -0.0004, 0.05, 0.15, 0.25, 0.35, 0.45, 99.5, 100.5, 9.995, 1e15, 1e20, 1e300, -1e300,
+                             DBL_MAX, DBL_MIN, 4.9406564584124654e-324, 1.0 / 3.0, 2.0 / 3.0, 0.1 + 0.2, 64.03125, 3.30,
+                             3.0000000001, 359.99999, 1e-5, 123456.789, std::numeric_limits<double>::infinity(),
+                             -std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN(),
+                             -std::numeric_limits<double>::quiet_NaN()};
+    volatile double zero = 0.0;
+    d.push_back(zero / zero);   // the default NaN of x64 arithmetic (sign bit set)
+    std::mt19937_64 rng(2026);
+    std::uniform_real_distribution<double> small(-10.0, 10.0), wide(-2000.0, 2000.0);
+    std::uniform_real_distribution<float> conf(0.0f, 100.0f);
+    for (int i = 0; i < 150; ++i) d.push_back(small(rng));
+    for (int i = 0; i < 150; ++i) d.push_back(wide(rng));
+    for (int i = 0; i < 150; ++i) d.push_back(static_cast<double>(conf(rng)));
+    for (int i = 0; i < 100; ++i) d.push_back(std::round(small(rng) * 32.0) / 32.0);
+    for (int i = 0; i < 100; ++i) d.push_back(std::round(small(rng) * 1000.0) / 1000.0 + 0.0005);   // near %.3f ties
+    for (int i = 0; i < 100; ++i) {
+        std::uint64_t b = rng();
+        double x;
+        std::memcpy(&x, &b, sizeof x);
+        if (std::isfinite(x)) d.push_back(x);
+    }
+    const char* dfmts[] = {"%.0f", "%.1f", "%.2f", "%.3f", "%+.2f", "%.17g", "%.9g", "%5.1f", "%.0f%%", "%.2fx", "%g", "%f"};
+    for (const char* f : dfmts) {
+        for (double x : d) {
+            std::snprintf(buf, sizeof buf, f, x);
+            emit(f, "d" + bitsHex(x), buf);
+        }
+    }
+    std::vector<long long> ints = {0, 1, -1, 7, 9, 10, 15, 16, 255, 256, 4095, 65535, 2147483647, -2147483647 - 1, 123456789012345ll,
+                                   -123456789012345ll, 9223372036854775807ll, -9223372036854775807ll - 1};
+    for (int i = 0; i < 60; ++i) ints.push_back(static_cast<long long>(rng() >> static_cast<int>(rng() % 63)) * (i % 2 ? -1 : 1));
+    for (long long v : ints) {
+        std::snprintf(buf, sizeof buf, "%d", static_cast<int>(v));
+        emit("%d", "i" + std::to_string(static_cast<int>(v)), buf);
+        std::snprintf(buf, sizeof buf, "%lld", v);
+        emit("%lld", "i" + std::to_string(v), buf);
+        std::snprintf(buf, sizeof buf, "%llu", static_cast<unsigned long long>(v));
+        emit("%llu", "u" + std::to_string(static_cast<unsigned long long>(v)), buf);
+        std::snprintf(buf, sizeof buf, "%zu", static_cast<std::size_t>(v));
+        emit("%zu", "u" + std::to_string(static_cast<unsigned long long>(v)), buf);
+        std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(v));
+        emit("%016llx", "u" + std::to_string(static_cast<unsigned long long>(v)), buf);
+        std::snprintf(buf, sizeof buf, "%02x", static_cast<unsigned>(v & 0xFF));
+        emit("%02x", "u" + std::to_string(static_cast<unsigned>(v & 0xFF)), buf);
+        std::snprintf(buf, sizeof buf, "%5d", static_cast<int>(v % 100000));
+        emit("%5d", "i" + std::to_string(static_cast<int>(v % 100000)), buf);
+    }
+    for (const char* s : {"", "Kestrel", "a b", "\xC2\xB0", "eighteen-chars-xyz"}) {
+        std::snprintf(buf, sizeof buf, "%-18s|", s);
+        emit("%-18s|", std::string("s") + s, buf);
+        std::snprintf(buf, sizeof buf, "%s", s);
+        emit("%s", std::string("s") + s, buf);
+    }
+    return out;
+}
+
+// P3A: what every check declares beyond its parameters — identity, the texts the UI shows, the
+// signals it needs, whether it supports tick sampling, and its Sensitivity presets (parameter key,
+// Relaxed, Balanced, Strict).
+std::string checksJson() {
+    json::Value root = json::Value::object();
+    root["kind"] = json::Value("vigil-checks");
+    json::Value checks = json::Value::array();
+    const Engine& e = engine();
+    for (const auto& c : e.checks()) {
+        json::Value cj = json::Value::object();
+        cj["id"] = json::Value(c->id());
+        cj["name"] = json::Value(c->name());
+        cj["category"] = json::Value(categoryName(c->category()));
+        cj["summary"] = json::Value(c->summary());
+        cj["about"] = json::Value(c->about());
+        json::Value req = json::Value::array();
+        for (const auto& r : c->requirements()) req.push(json::Value(r));
+        cj["requirements"] = req;
+        cj["tickSampling"] = json::Value(c->supportsTickSampling());
+        cj["preset"] = json::Value(e.schema().spec(c->presetParam()).key);
+        json::Value entries = json::Value::array();
+        for (const PresetEntry& p : c->presets()) {
+            json::Value pj = json::Value::object();
+            pj["key"] = json::Value(e.schema().spec(p.param).key);
+            pj["relaxed"] = json::Value(p.relaxed);
+            pj["balanced"] = json::Value(p.balanced);
+            pj["strict"] = json::Value(p.strict);
+            entries.push(pj);
+        }
+        cj["entries"] = entries;
+        checks.push(cj);
+    }
+    root["checks"] = checks;
+    return json::write(root, 2) + "\n";
 }
 
 // A trace that sets every field, default and not, with hostile strings.
@@ -336,6 +507,9 @@ std::map<std::string, std::string> generated() {
     std::map<std::string, std::string> g;
     g["numbers.txt"] = numberTable();
     g["math.txt"] = mathTable();
+    g["hash-order.txt"] = hashOrderTable();
+    g["printf.txt"] = printfTable();
+    g["checks.json"] = checksJson();
     g["check-catalog.json"] = catalogJson();
     g["inputs/json/strings.json"] = stringsJson();
     g["inputs/trace/edge.vtrace"] = edgeTrace();

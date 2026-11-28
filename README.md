@@ -110,11 +110,12 @@ src/identity/    nick detection and denickers; src/net/ HTTPS for them          
 src/ui/          native OpenGL interface: renderer, fonts, icons, themes, widgets, pages, records
 src/game/        Minecraft adapter over JNI: sampler, context, chat, utilities, alerts, highlight
 src/platform/    DLL bootstrap, render/input hooks, runtime version guard, Vigil.exe launcher
-tests/           five suites, shared framework, simulator and scenario corpus, golden trace,
-                 fixtures shared with Rust (tests/fixtures)
+tests/           five suites, shared framework, simulator, scenario corpus and generator,
+                 golden trace, fixtures shared with Rust (tests/fixtures)
 tools/           preview harness, trace replay, parity probe, format fixtures, CI checks,
                  Java and brand asset builders
-rust/            Cargo workspace: vigil-formats (every file format, byte-compatible), replay-check
+rust/            Cargo workspace: vigil-formats (every file format, byte-compatible) and
+                 vigil-detection (the engine, full-state parity with C++; replay-check, vigil-parity)
 docs/            architecture, validation, release process, audits and reports
 ```
 
@@ -123,7 +124,8 @@ docs/            architecture, validation, release process, audits and reports
 **Current:** [Plan](PLAN.md) · [Final report](docs/FINAL_REPORT.md) ·
 [Architecture](docs/ARCHITECTURE.md) · [Validation](docs/VALIDATION.md) ·
 [Live validation](docs/LIVE_VALIDATION.md) · [Release process](docs/RELEASE_PROCESS.md) ·
-[Rust plan](RUST_PLAN.md) ([P1](P1_PLAN.md), [P2](P2_PLAN.md), [report](docs/RUST_P1_P2_REPORT.md)) ·
+[Rust plan](RUST_PLAN.md) ([P1](P1_PLAN.md), [P2](P2_PLAN.md), [report](docs/RUST_P1_P2_REPORT.md);
+[P3](P3_PLAN.md), [P3A](P3A_PLAN.md), [report](docs/RUST_P3A_REPORT.md)) ·
 [Tech debt](docs/TECH_DEBT.md)
 
 **Design and earlier passes:** [Quality report](docs/QUALITY_REPORT.md) ·

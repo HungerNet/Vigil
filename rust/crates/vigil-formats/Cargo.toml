@@ -16,6 +16,4 @@ workspace = true
 name = "vigil-fmt"
 path = "src/bin/vigil-fmt.rs"
 
-[[bin]]
-name = "replay-check"
-path = "src/bin/replay-check.rs"
+# `replay-check` moved to vigil-detection in P3A, where it can replay traces through the engine.

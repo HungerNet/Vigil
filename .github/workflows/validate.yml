@@ -124,11 +124,18 @@ jobs:
           python tools/ci/cross_formats.py --cpp ./build/Release/VigilFormats.exe --rust ./rust/target/release/vigil-fmt.exe --fixtures tests/fixtures --work format-round-trips
           if ($LASTEXITCODE -ne 0) { throw "C++ and Rust disagree on a file format (docs/VALIDATION.md §8)." }
 
-      - name: replay-check reads the golden trace and its outcome
+      - name: replay-check — the Rust engine reproduces the golden outcome byte for byte
         shell: pwsh
         run: |
-          ./rust/target/release/replay-check.exe tests/traces/golden-arena.vtrace tests/traces/golden-arena.expect.json --strict
+          ./rust/target/release/replay-check.exe tests/traces/golden-arena.vtrace tests/traces/golden-arena.expect.json --strict --engine
           if ($LASTEXITCODE -ne 0) { throw "replay-check failed on the golden trace." }
+
+      - name: C++ <-> Rust engine parity (corpus x 416 configurations, 1000 generated scenarios)
+        shell: pwsh
+        run: |
+          python tools/ci/engine_parity.py --cpp ./build/Release/VigilParity.exe --rust ./rust/target/release/vigil-parity.exe --work engine-parity --count 1000
+          if ($LASTEXITCODE -ne 0) { throw "The C++ and Rust engines disagree (docs/VALIDATION.md §9; the log names the first differing run and line)." }
+          Remove-Item -Recurse -Force engine-parity
 
       - name: Self-check (exe, embedded runtime, versions, build IDs)
         shell: pwsh

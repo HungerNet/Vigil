@@ -1,6 +1,23 @@
 # Technical debt report
 
-Last reviewed in the Rust P1/P2 pass. Long-term direction: [RUST_PLAN.md](../RUST_PLAN.md).
+Last reviewed in the Rust P3A pass. Long-term direction: [RUST_PLAN.md](../RUST_PLAN.md).
+
+## Introduced deliberately in Rust P3A (accepted)
+
+| Item | Why | When to revisit |
+|---|---|---|
+| Two engines (C++ drives the product; `vigil-detection` is proven identical) | The hybrid period (RUST_PLAN §6): P4 runs the Rust engine in shadow, P5 switches | Delete the C++ engine one release after the switch (P5) |
+| The Rust engine reproduces MSVC `std::unordered_map` iteration order (`hashorder`) | The order decides record order, evidence/detection ids, alert order and combat tie-breaks; reproducing it is what makes full-state parity possible | After P5, when no C++ engine remains, the order may be simplified (insertion order) as a deliberate, separately reviewed change |
+| Expression-for-expression shapes (C++-style `max`/`min`/`clamp`, explicit `f32`/`f64` promotions, allowed clippy lints for manual range checks) | Port behavior first (RUST_PLAN §11.3) | Refactor after P5 |
+| Engine sinks not ported yet: history file, session journal, "detections" log channel, the UI-facing marks actions, profile capture | Write-only or UI-side; none influences a decision (P3_PLAN §2) | P3B |
+
+## Found in Rust P3A, left as they are (behavior-preserving pass)
+
+| Item | Effect | Suggested fix |
+|---|---|---|
+| `VigilParity`'s FNV offset is `1469598103934665603`, one digit short of the FNV-1a basis `14695981039346656037` | None on behavior: it is a digest, and both tools use the same constant. Worth knowing before comparing digests with another FNV implementation | Leave (changing it would change every recorded digest); document, as here |
+| `VigilParity` prints `MatchTracker::matchCount()` (`uint64_t`) with `%d` | Prints the low 32 bits; harmless below 2³¹ matches. The Rust dump mirrors it | Use `%llu` together with a format number bump of the parity output |
+| `summarize` keys an outcome's players by name: of two records with one name, the later one wins | Outcome files of sessions with name collisions show one of the two players | Key by record key, with a `vigil-outcome` format bump |
 
 ## Resolved in Rust P1 (engine configuration)
 
